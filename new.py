@@ -6,8 +6,6 @@
     -Christopher Welborn 12-25-2014
 """
 
-# TODO: Make loadable classes for plugins (so that 2 plugins can be in the
-#       same file) ..python needs a unittest plugin.
 # TODO: Implement the basic plugins (python, bash, html)
 import os
 import sys
@@ -24,12 +22,13 @@ SCRIPTDIR = os.path.abspath(sys.path[0])
 USAGESTR = """{versionstr}
     Usage:
         {script} -h | -v | -p [-D]
-        {script} [FILETYPE] FILENAME [-D]
+        {script} [FILETYPE] FILENAME [-d] [-D]
 
     Options:
         FILETYPE      : Type of file to create (bash, python, html)
                         Defaults to: python
         FILENAME      : File name for the new file.
+        -d,--dryrun   : Just show what would be written, don't write anything.
         -D,--debug    : Show more debugging info.
         -h,--help     : Show this help message.
         -p,--plugins  : List all available plugins.
@@ -71,7 +70,18 @@ def main(argd):
         print('\nFailed to create file: {}'.format(fname))
         return 1
 
-    # Do post-processing plugins.
+    if argd['--dryrun']:
+        print('\nWould\'ve written:')
+        print(content)
+    else:
+        created = write_file(fname, content)
+        if created:
+            print('\nCreated: {}'.format(created))
+        else:
+            print('\nUnable to create: {}'.format(created))
+            return 1
+
+    # Do post-processing plugins on the created file.
     do_post_plugins(pluginset, fname)
     return 0
 
@@ -129,6 +139,23 @@ def valid_filename(fname):
         return False
 
     return True
+
+
+def write_file(fname, content):
+    """ Write a new file given a filename and it's content.
+        Returns the file name on success, or None on failure.
+    """
+
+    try:
+        with open(fname, 'w') as f:
+            f.write(content)
+    except EnvironmentError as ex:
+        print('\nFailed to write file: {}\n{}'.format(fname, ex))
+        return None
+    except Exception as exgen:
+        print('\nError writing file: {}\n{}'.format(fname, exgen))
+        return None
+    return fname
 
 if __name__ == '__main__':
     mainret = main(docopt(USAGESTR, version=VERSIONSTR))
