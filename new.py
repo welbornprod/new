@@ -50,10 +50,12 @@ def main(argd):
     # Load all available plugins.
     pluginset = plugins.load_plugins(PLUGINDIR)
 
+    # Do any procedures that don't require a file name/type.
     if argd['--plugins']:
         plugins.list_plugins(pluginset)
         return 1
 
+    # Get plugin needed for this file type.
     ftype = argd['FILETYPE'] or 'python'
     plugin = plugins.get_plugin_byname(pluginset, ftype)
     if not plugin:
@@ -61,6 +63,7 @@ def main(argd):
         print('\nUse --plugins to list available plugins.\n')
         return 1
 
+    # Get valid file name for this file.
     fname = ensure_file_ext(argd['FILENAME'], plugin)
     if not valid_filename(fname):
         return 1
