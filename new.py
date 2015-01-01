@@ -9,7 +9,7 @@
 # TODO: Implement the basic plugins (python, bash, html)
 import os
 import sys
-from docopt import docopt
+import docopt
 
 import plugins
 
@@ -22,18 +22,24 @@ SCRIPTDIR = os.path.abspath(sys.path[0])
 USAGESTR = """{versionstr}
     Usage:
         {script} -h | -v | -p [-D]
-        {script} [FILETYPE] FILENAME [-d] [-D]
+        {script} FILETYPE -H
+        {script} FILENAME [-d] [-D]
+        {script} FILETYPE FILENAME [-d] [-D]
+        {script} FILETYPE FILENAME ARGS... [-d] [-D]
 
     Options:
-        FILETYPE      : Type of file to create (bash, python, html)
-                        Defaults to: python
-        FILENAME      : File name for the new file.
-        -d,--dryrun   : Just show what would be written, don't write anything.
-        -D,--debug    : Show more debugging info.
-        -h,--help     : Show this help message.
-        -p,--plugins  : List all available plugins.
-        -v,--version  : Show version.
+        ARGS               : Plugin-specific args.
+        FILETYPE           : Type of file to create (bash, python, html)
+                             Defaults to: python
+        FILENAME           : File name for the new file.
+        -d,--dryrun        : Show what would be written, don't write anything.
+        -D,--debug         : Show more debugging info.
+        -H,--HELP          : Show plugin help.
+        -h,--help          : Show this help message.
+        -p,--plugins       : List all available plugins.
+        -v,--version       : Show version.
 """.format(script=SCRIPT, versionstr=VERSIONSTR)
+
 # Where to locate plugins.
 PLUGINDIR = os.path.join(SCRIPTDIR, 'plugins')
 sys.path.insert(1, PLUGINDIR)
@@ -41,34 +47,41 @@ sys.path.insert(1, PLUGINDIR)
 # Global debug flag.
 DEBUG = False
 
+# THIS SHOULD BE DELETED, AND ANYWHERE ITS USED SHOULD BE DELETED
+PRINT = print
+
 
 def main(argd):
     """ Main entry point, expects doctopt arg dict as argd """
-    global plugins, DEBUG
+    global DEBUG
     plugins.DEBUG = DEBUG = argd['--debug']
 
     # Load all available plugins.
-    pluginset = plugins.load_plugins(PLUGINDIR)
+    plugins.load_plugins(PLUGINDIR)
 
     # Do any procedures that don't require a file name/type.
     if argd['--plugins']:
-        plugins.list_plugins(pluginset)
+        plugins.list_plugins()
         return 1
 
     # Get plugin needed for this file type.
     ftype = argd['FILETYPE'] or 'python'
-    plugin = plugins.get_plugin_byname(pluginset, ftype)
+    plugin = plugins.get_plugin_byname(ftype)
     if not plugin:
         print('\nNot a valid file type (not supported): {}'.format(ftype))
         print('\nUse --plugins to list available plugins.\n')
         return 1
+
+    # Do plugin help.
+    if argd['--HELP']:
+        return 0 if plugins.plugin_help(plugin) else 1
 
     # Get valid file name for this file.
     fname = ensure_file_ext(argd['FILENAME'], plugin)
     if not valid_filename(fname):
         return 1
 
-    content = plugin.create()
+    content = plugin.create(argd['ARGS'])
     if not content:
         print('\nFailed to create file: {}'.format(fname))
         return 1
@@ -85,7 +98,7 @@ def main(argd):
             return 1
 
     # Do post-processing plugins on the created file.
-    do_post_plugins(pluginset, fname)
+    plugins.do_post_plugins(fname)
     return 0
 
 
@@ -105,14 +118,6 @@ def debug(*args, **kwargs):
     """ Debug print (only if DEBUG == Truthy). """
     if DEBUG:
         print(*args, **kwargs)
-
-
-def do_post_plugins(plugins, fname):
-    """ Handle all post-processing plugins.
-        These plugins will be given the file name to do what they wish with it.
-    """
-    for plugin in (p for p in plugins['post'].values()):
-        plugin.process(fname)
 
 
 def ensure_file_ext(fname, plugin):
@@ -161,5 +166,9 @@ def write_file(fname, content):
     return fname
 
 if __name__ == '__main__':
-    mainret = main(docopt(USAGESTR, version=VERSIONSTR))
+
+    # Parse args with docopt.
+    argd = docopt.docopt(USAGESTR, version=VERSIONSTR)
+    # Okay, run.
+    mainret = main(argd)
     sys.exit(mainret)

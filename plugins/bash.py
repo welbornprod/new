@@ -5,16 +5,7 @@ from plugins import Plugin
 from datetime import datetime
 date = lambda: datetime.strftime(datetime.today(), '%m-%d-%y')
 
-# TODO: Implement plugin args (hopefully using docopt)
-USAGE = """
-    Usage:
-        {script} [-f]
-
-    Options:
-        -f,--function  : Include an empty function in the template.
-"""
-
-TEMPLATE = """#!/bin/bash
+template = """#!/bin/bash
 
 # ...
 # -Christopher Welborn {date}
@@ -24,7 +15,7 @@ APPNAME=\"\$(basename \"\$APPPATH\")\"
 VERSION=\"0.0.1\"
 """.format(date=date())
 
-TEMPLATE_FUNC = """
+template_func = """
 function XXXX {
 
 }
@@ -33,11 +24,23 @@ function XXXX {
 
 class BashPlugin(Plugin):
 
+    """ A bash template with only the basics. """
+
     def __init__(self):
         self.name = ('bash', 'sh')
         self.extensions = ('.sh', '.bash')
+        self.usage = """
+    Usage:
+        bash f
 
-    def create(self):
-        return TEMPLATE
+    Options:
+        f,func  : Include an empty function.
+    """
 
-plugins = (BashPlugin(),)
+    def create(self, args):
+        if ('f' in args) or ('func' in args):
+            return '\n\n'.join((template, template_func))
+
+        return template
+
+plugins = (BashPlugin(), )

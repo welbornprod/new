@@ -10,7 +10,7 @@ class PythonPlugin(Plugin):
         self.name = ('python', 'py')
         self.extensions = ('.py',)
 
-    def create(self):
+    def create(self, args):
         print('PYTHON NOT IMPLENTED')
         return False
 
