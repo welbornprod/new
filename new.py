@@ -81,7 +81,21 @@ def main(argd):
     if not valid_filename(fname):
         return 1
 
-    content = plugin.create(argd['ARGS'])
+    try:
+        content = plugin.create(fname, argd['ARGS'])
+    except plugins.SignalAction as action:
+        if not action.content:
+            print('Plugin action with no content: {}'.format(action.message))
+            return 1
+        else:
+            content = action.content
+        # Changing the output file name.
+        if action.filename:
+            fname = action.filename
+    except Exception as ex:
+        print('Plugin error: {}'.format(ex))
+        return 1
+
     if not content:
         print('\nFailed to create file: {}'.format(fname))
         return 1

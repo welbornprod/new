@@ -64,7 +64,7 @@ class HtmlPlugin(Plugin):
         title    : Title for the new file.
     """
 
-    def create(self, args):
+    def create(self, filename, args):
         """ Creates a simple html file. """
         title = args[0] if args else '...'
         cssfile = args[1] if len(args) > 1 else 'main.css'
@@ -100,7 +100,7 @@ class JQueryPlugin(Plugin):
                    Default: 2.1.3
     """
 
-    def create(self, args):
+    def create(self, filename, args):
         """ Creates an html file including jQuery.
             This will download jQuery if needed.
         """

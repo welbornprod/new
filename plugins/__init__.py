@@ -1,7 +1,7 @@
 """ Plugins package for New """
 import os
 from importlib import import_module
-from .pluginbase import Plugin, PostPlugin, SignalExit
+from .pluginbase import Plugin, PostPlugin, SignalAction, SignalExit
 
 
 DEBUG = False

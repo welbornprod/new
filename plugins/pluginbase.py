@@ -15,14 +15,20 @@ class Plugin(object):
         # A docopt usage string for this plugin.
         self.usage = None
 
-    def create(self, argd):
-        """ (unimplemented plugin)
+    def create(self, filename, args):
+        """ (unimplemented plugin description)
+
             This should return a string that is ready to be written to a file.
             It may raise an exception to signal that something went wrong.
+
             Arguments:
-                argd  : A reference to the main docopt arg dict
+                args      : A list of plugin-specific arguments.
+                filename  : The file name that will be written.
+                            Plugins do not write the file, but the file name
+                            may be useful information. The python plugin
+                            uses it to create the main doc str.
         """
-        raise NotImplementedError('create_file() must be overridden!')
+        raise NotImplementedError('create() must be overridden!')
 
     def get_name(self):
         """ Get the proper name for this plugin (no aliases). """
@@ -84,12 +90,40 @@ class PostPlugin(object):
         """
         return self.name if self.name else ''
 
-    def process(self, fname):
-        """ (unimplented post-plugin)
+    def process(self, filename):
+        """ (unimplented post-plugin description)
+
             This should accept an existing file name and do some processing.
             It may raise an exception to signal that something went wrong.
         """
         raise NotImplementedError('process() must be overridden!')
+
+
+class SignalAction(Exception):
+
+    """ An  exception to raise when the plugin.create() function is a success,
+        but changes need to be made to the filename.
+        It has attributes that hold information about the new file.
+    """
+
+    def __init__(self, *args, message=None, filename=None, content=None):
+        Exception.__init__(self, *args)
+        self.message = message
+        self.filename = filename
+        self.content = content
+        arglen = len(args)
+        if args:
+            if not self.message:
+                self.message = args[0]
+            arglen = len(args)
+            if arglen > 2:
+                if not self.filename:
+                    self.filename = args[1]
+                if not self.content:
+                    self.content = args[2]
+            elif arglen > 1:
+                if not self.filename:
+                    self.filename = args[1]
 
 
 class SignalExit(Exception):

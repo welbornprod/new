@@ -37,7 +37,7 @@ class BashPlugin(Plugin):
         f,func  : Include an empty function.
     """
 
-    def create(self, args):
+    def create(self, filename, args):
         if ('f' in args) or ('func' in args):
             return '\n\n'.join((template, template_func))
 
