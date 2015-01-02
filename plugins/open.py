@@ -5,7 +5,7 @@
 import os
 import subprocess
 
-from plugins import debug, DeferredPostPlugin
+from plugins import DeferredPostPlugin
 
 
 class OpenPlugin(DeferredPostPlugin):
@@ -25,14 +25,16 @@ class OpenPlugin(DeferredPostPlugin):
         return proc
 
     def process(self, path):
-        """ Opens the file after creation. """
+        """ Opens the file after creation using your favorite editor. """
+
         editor = self.config.get('editor', os.environ.get('EDITOR', ''))
         if not editor:
-            print('open: No editor could be found!')
-            helpmsg = 'Set one in {} (editor=/path/editor)'
-            print(helpmsg.format(self.config_file))
+            msg = '\n'.join((
+                'No editor could be found!',
+                '\nSet one in {}  with {{"editor": "path/editor"}}\n'))
+            raise ValueError(msg.format(self.config_file))
             return 1
-        debug('open: using editor: {}'.format(editor))
+
         try:
             self.open_file(editor, path)
         except Exception as ex:
