@@ -47,9 +47,6 @@ sys.path.insert(1, PLUGINDIR)
 # Global debug flag.
 DEBUG = False
 
-# THIS SHOULD BE DELETED, AND ANYWHERE ITS USED SHOULD BE DELETED
-PRINT = print
-
 
 def main(argd):
     """ Main entry point, expects doctopt arg dict as argd """
@@ -84,6 +81,7 @@ def main(argd):
     try:
         content = plugin.create(fname, argd['ARGS'])
     except plugins.SignalAction as action:
+        # Plugin is changing the file name.
         if not action.content:
             print('Plugin action with no content: {}'.format(action.message))
             return 1
@@ -93,7 +91,7 @@ def main(argd):
         if action.filename:
             fname = action.filename
     except Exception as ex:
-        print('Plugin error: {}'.format(ex))
+        print('{} error: {}'.format(plugin.get_name().title(), ex))
         return 1
 
     if not content:

@@ -109,8 +109,8 @@ class JQueryPlugin(Plugin):
         cssfile = args[2] if len(args) > 2 else 'main.css'
         jqueryfile = self.ensure_jquery_version(ver)
         if not jqueryfile:
-            print('\nUnable to download jQuery!')
-            return None
+            errmsg = 'Unable to find or download jQuery {}!'
+            raise Exception(errmsg.format(ver))
 
         template_args = {
             'title': title,
@@ -135,8 +135,8 @@ class JQueryPlugin(Plugin):
                 filename=filename,
                 reporthook=self.download_reporter)
         except HTTPError as ex:
-            print('Unable to download: {}\n{}'.format(url, ex))
-            return None
+            raise Exception('Unable to download: {}\n{}'.format(url, ex))
+
         return path
 
     def download_reporter(self, blocknum, readsize, totalsize):

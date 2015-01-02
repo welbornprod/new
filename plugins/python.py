@@ -3,11 +3,10 @@
 """
 
 from datetime import datetime
-import json
 import os
 import sys
 
-from plugins import debug, Plugin, SignalAction
+from plugins import Plugin, SignalAction
 
 SCRIPTDIR = os.path.abspath(sys.path[0])
 DATE = datetime.strftime(datetime.today(), '%m-%d-%Y')
@@ -131,8 +130,7 @@ class PythonPlugin(Plugin):
     def __init__(self):
         self.name = ('python', 'py')
         self.extensions = ('.py',)
-        self.config_file = os.path.join(SCRIPTDIR, 'new.python.json')
-        self.config = self.load_config()
+        self.load_config()
         self.usage = """
     Usage:
         python [template] [extra_imports...]
@@ -164,14 +162,15 @@ class PythonPlugin(Plugin):
             errmsg = 'Misconfigured template base: {}'
             raise ValueError(errmsg.format(templateid))
 
+        author = self.config.get('author', '')
         imports = extra_imports + template_args['imports']
         scriptname = os.path.split(filename)[-1]
         shebangexe = self.config.get('shebangexe', '/usr/bin/env python3')
         version = self.config.get('version', DEFAULT_VERSION)
         template_args.update({
-            'author': self.config.get('author', ''),
+            'author': author,
             'explanation': self.config.get('explanation', '...'),
-            'date': DATE,
+            'date': ' {}'.format(DATE) if author else DATE,
             'default_version': version,
             'imports': self.parse_importlist(imports),
             'scriptname': scriptname,
@@ -202,23 +201,6 @@ class PythonPlugin(Plugin):
 
         # Render a normal template and return the content.
         return template_base.format(**template_args)
-
-    def load_config(self):
-        """ Load config file. """
-        config = {}
-        try:
-            with open(self.config_file, 'r') as f:
-                config = json.load(f)
-        except FileNotFoundError:
-            debug('No config file for python: {}'.format(self.config_file))
-        except EnvironmentError as ex:
-            errmsg = 'Unable to open python config: {}\n{}'
-            debug(errmsg.format(self.config_file, ex))
-        except ValueError as exjson:
-            errmsg = 'Error loading json from: {}\n{}'
-            debug(errmsg.format(self.config_file, exjson))
-
-        return config
 
     def parse_importitem(self, modulename):
         """ Returns proper import line based on import name.
