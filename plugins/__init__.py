@@ -9,7 +9,7 @@ import sys
 from importlib import import_module
 
 
-SCRIPTDIR = os.path.split(os.path.abspath(sys.argv[0]))[0]
+SCRIPTDIR = os.path.abspath(sys.path[0])
 DEBUG = False
 plugins = {'types': {}, 'post': {}, 'deferred': {}}
 
@@ -40,8 +40,8 @@ def do_post_plugins(fname):
     """ Handle all post-processing plugins.
         These plugins will be given the file name to work with.
         The plugin return values are not used.
-        If the plugin raises pluginbase.SignalExit the processing will stop.
-        Any other Exceptions are ignored.
+        If the plugin raises pluginbase.SignalExit all processing will stop.
+        Any other Exceptions are debug-printed, but processing continues.
         Returns: Number of errors encountered (can be used as an exit code)
     """
     errors = 0
@@ -173,6 +173,7 @@ def iter_py_files(path):
 
 def list_plugins():
     """ Lists all plugins for the terminal. """
+    # Normal Plugins (file-type)
     if plugins['types']:
         indent = 20
         aliaslbl = 'aliases'.rjust(indent)
@@ -185,13 +186,20 @@ def list_plugins():
                 print('{}: {}'.format(aliaslbl, ', '.join(plugin.name)))
             print('{}: {}'.format(extlbl, ', '.join(plugin.extensions)))
 
-    if plugins['post']:
-        postlen = len(plugins['post'])
-        print('\nFound {} post-processing plugins:'.format(postlen))
-        for pname in sorted(plugins['post']):
-            plugin = plugins['post'][pname]
-            print('    {}:'.format(pname))
-            print('        {}'.format(plugin.get_desc()))
+    # Do PostPlugin and DeferredPostPlugin
+    posttypes = (
+        ('post', 'post-processing'),
+        ('deferred', 'deferred post-processing')
+    )
+    for ptype, pname in posttypes:
+        if plugins[ptype]:
+            postlen = len(plugins[ptype])
+            plural = 'plugin' if postlen == 1 else 'plugins'
+            print('\nFound {} {} {}:'.format(postlen, pname, plural))
+            for pname in sorted(plugins[ptype]):
+                plugin = plugins[ptype][pname]
+                print('    {}:'.format(pname))
+                print('        {}'.format(plugin.get_desc()))
 
 
 def load_config(filename):

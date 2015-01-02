@@ -91,7 +91,7 @@ def main(argd):
         if action.filename:
             fname = action.filename
     except Exception as ex:
-        print('{} error: {}'.format(plugin.get_name().title(), ex))
+        print('\n{} error: {}'.format(plugin.get_name().title(), ex))
         return 1
 
     if not content:
@@ -99,7 +99,7 @@ def main(argd):
         return 1
 
     if argd['--dryrun']:
-        print('\nWould\'ve written:')
+        print('\nWould\'ve written: {}'.format(fname))
         print(content)
     else:
         created = write_file(fname, content)
@@ -108,9 +108,9 @@ def main(argd):
         else:
             print('\nUnable to create: {}'.format(created))
             return 1
+        # Do post-processing plugins on the created file.
+        plugins.do_post_plugins(fname)
 
-    # Do post-processing plugins on the created file.
-    plugins.do_post_plugins(fname)
     return 0
 
 
@@ -154,7 +154,7 @@ def valid_filename(fname):
     if not os.path.exists(fname):
         return True
 
-    if not confirm('File exists!: {}\nOverwrite the file?'.format(fname)):
+    if not confirm('File exists!: {}\n\nOverwrite the file?'.format(fname)):
         print('\nUser cancelled.\n')
         return False
 

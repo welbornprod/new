@@ -33,13 +33,13 @@ template_args = {
 }
 
 template_ready = """
-        $(document).ready(function () {
+            $(document).ready(function () {
 
-        });
+            });
 """
-template_scriptblk = """    <script type='text/javascript'>
-        {}
-    </script>
+template_scriptblk = """<script type='text/javascript'>
+            {}
+        </script>
 """
 template_scriptsrc = '<script type=\'text/javascript\' src=\'{}\'></script>'
 template_csssrc = '<link type=\'text/css\' rel=\'stylesheet\' href=\'{}\'/>'
