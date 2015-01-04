@@ -11,7 +11,39 @@ from importlib import import_module
 
 SCRIPTDIR = os.path.abspath(sys.path[0])
 DEBUG = False
+config = {}
 plugins = {'types': {}, 'post': {}, 'deferred': {}}
+
+
+def conflicting_file(plugin, filearg, filename):
+    """ Make sure this file name and plugin mixture isn't going to cause a
+        show-stopping conflict with New.
+    """
+    # The python plugin can create conflicting files when ran in New's dir.
+    # It happens by thinking 'new bash' is going to create a new bash file,
+    # but if 'default_plugin' is set to 'python' it will create 'bash.py'.
+    # This bash.py will be imported instead of the real bash plugin.
+    if plugin.get_name() != 'python':
+        return False
+
+    for plugintype in plugins:
+        conflict = plugins[plugintype].get(filearg, None)
+        if conflict:
+            break
+    else:
+        return False
+
+    debug('WARNING: File name conflicts with a plugin name!')
+    debug('         This will create a file named: {}'.format(filename))
+
+    if os.getcwd() == SCRIPTDIR:
+        print('\n'.join((
+            '\nCreating this file here ({}) will override the {} plugin:',
+            '{}')).format(SCRIPTDIR, conflict.get_name(), filename))
+        print('\nPlease create it in another directory.\n')
+        return True
+
+    return False
 
 
 def debug(*args, **kwargs):
@@ -202,20 +234,31 @@ def list_plugins():
                 print('        {}'.format(plugin.get_desc()))
 
 
-def load_config(filename):
-    """ Load plugin config from a json file. """
+def load_config(section=None):
+    """ Load global config, or a specific section. """
+    configfile = os.path.join(SCRIPTDIR, 'new.json')
     config = {}
     try:
-        with open(filename, 'r') as f:
+        with open(configfile, 'r') as f:
             config = json.load(f)
     except FileNotFoundError:
-        debug('No config for plugins: {}'.format(filename))
+        debug('No config file: {}'.format(configfile))
     except EnvironmentError as exread:
-        debug('Error reading config from: {}\n{}'.format(filename, exread))
+        debug('Unable to read config file: {}\n{}'.format(configfile, exread))
     except ValueError as exjson:
-        debug('Error loading json config: {}\n{}'.format(filename, exjson))
+        debug('Invalid JSON config: {}\n{}'.format(configfile, exjson))
     except Exception as ex:
-        debug('Error loading config: {}\n{}'.format(filename, ex))
+        debug('Error loading config: {}\n{}'.format(configfile, ex))
+    if section:
+        sectionconfig = config.get(section, {})
+        if not sectionconfig:
+            debug('No config for: {}'.format(section))
+        else:
+            config = sectionconfig
+            debug('Loaded {} config from: {}'.format(section, configfile))
+    elif config:
+        # Loading gobal config.
+        debug('Loaded config from: {}'.format(configfile))
     return config
 
 
@@ -224,7 +267,7 @@ def load_plugin_config(plugin):
         Sets plugin.config to a dict on success.
     """
     if not getattr(plugin, 'config_file', None):
-        configfile = 'new.{}.json'.format(plugin.get_name())
+        configfile = 'new.json'
         plugin.config_file = os.path.join(SCRIPTDIR, configfile)
 
     config = {}
@@ -243,8 +286,14 @@ def load_plugin_config(plugin):
     except Exception as ex:
         errmsg = 'Error loading plugin config: {}\n{}'
         debug(errmsg.format(plugin.config_file, ex))
-
-    plugin.config = config
+    pluginconfig = config.get(plugin.get_name(), {})
+    if pluginconfig:
+        loadmsg = 'Loaded {} config from: {}'
+        debug(loadmsg.format(plugin.get_name(), plugin.config_file))
+    else:
+        errmsg = 'No config for {}: {}'
+        debug(errmsg.format(plugin.get_name(), plugin.config_file))
+    plugin.config = pluginconfig
 
 
 def load_plugins(plugindir):
@@ -254,7 +303,7 @@ def load_plugins(plugindir):
     """
     global plugins, config
     # Load general plugin config.
-    config = load_config(os.path.join(SCRIPTDIR, 'new.plugins.json'))
+    config = load_config('plugins')
 
     debug('Loading plugins from: {}'.format(plugindir))
     tmp_plugins = {'types': {}, 'post': {}, 'deferred': {}}
@@ -300,7 +349,9 @@ def load_plugins(plugindir):
                         skipmsg = 'Skipping disabled type plugin: {}'
                         debug(skipmsg.format(fullname))
                         continue
-
+                    elif name in tmp_plugins['types']:
+                        debug('Conflicting Plugin: {}'.format(name))
+                        continue
                     tmp_plugins['types'][name] = plugin
                     debug('loaded: {} (Plugin)'.format(fullname))
                 elif isinstance(plugin, DeferredPostPlugin):
@@ -310,6 +361,10 @@ def load_plugins(plugindir):
                     if name in disabled_deferred:
                         skipmsg = 'Skipping disabled deferred-post plugin: {}'
                         debug(skipmsg.format(fullname))
+                        continue
+                    elif name in tmp_plugins['deferred']:
+                        errmsg = 'Conflicting DeferredPostPlugin: {}'
+                        debug(errmsg.format(name))
                         continue
                     tmp_plugins['deferred'][name] = plugin
                     debug('loaded: {} (DeferredPostPlugin)'.format(fullname))
@@ -322,7 +377,9 @@ def load_plugins(plugindir):
                         skipmsg = 'Skipping disabled post plugin: {}'
                         debug(skipmsg.format(fullname))
                         continue
-
+                    elif name in tmp_plugins['post']:
+                        debug('Conflicting PostPlugin: {}'.format(name))
+                        continue
                     tmp_plugins['post'][name] = plugin
                     debug('loaded: {} (PostPlugin)'.format(fullname))
                 else:
@@ -348,6 +405,32 @@ def print_inplace(s):
     """ Overwrites the last printed line. """
     print('\033[2A\033[160D')
     print(s)
+
+
+def save_config(config, section=None):
+    """ Save config to global config file. """
+    configfile = os.path.join(SCRIPTDIR, 'new.json')
+    if section:
+        existing = load_config(section)
+        existing[section] = config
+        writeconfig = existing
+    else:
+        writeconfig = config
+
+    try:
+        with open(configfile, 'w') as f:
+            json.dump(writeconfig, f, indent=4, sort_keys=True)
+    except (TypeError, ValueError) as exjson:
+        debug('Invalid JSON config error: {}'.format(exjson))
+    except EnvironmentError as exwrite:
+        debug('Unable to write config: {}\n{}'.format(configfile, exwrite))
+    except Exception as ex:
+        debug('Error writing config: {}\n{}'.format(configfile, ex))
+    else:
+        # Success.
+        return True
+    # Failure.
+    return False
 
 
 def try_post_plugin(plugin, fname):

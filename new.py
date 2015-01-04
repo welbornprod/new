@@ -6,7 +6,6 @@
     -Christopher Welborn 12-25-2014
 """
 
-# TODO: Implement the basic plugins (python, bash, html)
 import os
 import sys
 import docopt
@@ -62,9 +61,11 @@ def main(argd):
         return 1
 
     # Get plugin needed for this file type.
-    ftype = argd['FILETYPE'] or 'python'
+    ftype = argd['FILETYPE'] or plugins.config.get('default_plugin', 'python')
     plugin = plugins.get_plugin_byname(ftype)
-    if not plugin:
+    if plugin:
+        debug('Using plugin: {}'.format(plugin.get_name()))
+    else:
         print('\nNot a valid file type (not supported): {}'.format(ftype))
         print('\nUse --plugins to list available plugins.\n')
         return 1
@@ -76,6 +77,10 @@ def main(argd):
     # Get valid file name for this file.
     fname = ensure_file_ext(argd['FILENAME'], plugin)
     if not valid_filename(fname):
+        return 1
+
+    # Make sure the file name doesn't conflict with any plugins.
+    if plugins.conflicting_file(plugin, argd['FILENAME'], fname):
         return 1
 
     try:
