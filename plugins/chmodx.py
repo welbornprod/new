@@ -12,6 +12,7 @@ class ChmodxPlugin(PostPlugin):
 
     def __init__(self):
         self.name = 'chmodx'
+        self.version = '0.0.1'
 
     def process(self, fname):
         """ Makes the newly created file executable. """
@@ -23,5 +24,7 @@ class ChmodxPlugin(PostPlugin):
             raise SignalExit('No file was created: {}'.format(fname))
         except EnvironmentError as ex:
             debug('Error during chmod: {}\n{}'.format(fname, ex))
+        else:
+            print('Made executable (chmod 774): {}'.format(fname))
 
 plugins = (ChmodxPlugin(),)

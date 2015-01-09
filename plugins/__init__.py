@@ -6,6 +6,7 @@
 import json
 import os
 import sys
+from enum import Enum
 from importlib import import_module
 
 
@@ -18,15 +19,19 @@ plugins = {'types': {}, 'post': {}, 'deferred': {}}
 def conflicting_file(plugin, filearg, filename):
     """ Make sure this file name and plugin mixture isn't going to cause a
         show-stopping conflict with New.
+        This only happens when creating .py files in New's directory, and only
+        if they happen to have the same name as a plugin.
+        Common mistake:
+            When in config: {plugins : { default_plugin: 'python' }}
+               And running: ./new bash
+            ...creates bash.py that will be found in sys.path.
     """
     # The python plugin can create conflicting files when ran in New's dir.
-    # It happens by thinking 'new bash' is going to create a new bash file,
-    # but if 'default_plugin' is set to 'python' it will create 'bash.py'.
-    # This bash.py will be imported instead of the real bash plugin.
     if plugin.get_name() != 'python':
         return False
 
     for plugintype in plugins:
+        # If the filename arg matches a plugin module name we have a conflict.
         conflict = plugins[plugintype].get(filearg, None)
         if conflict:
             break
@@ -79,11 +84,9 @@ def do_post_plugins(fname):
     errors = 0
     for plugin in plugins['post'].values():
         pluginret = try_post_plugin(plugin, fname)
-        if pluginret == 2:
-            # 2 means a SignalExit occurred.
+        if pluginret == PluginReturn.fatal:
             return errors + 1
-        else:
-            errors += pluginret
+        errors += pluginret.value
 
     # Cancel deferred plugins if there were errors.
     if errors:
@@ -101,10 +104,10 @@ def do_post_plugins(fname):
     # Defferred plugins.
     for deferred in plugins['deferred'].values():
         pluginret = try_post_plugin(deferred, fname)
-        if pluginret == 2:
+        if pluginret == PluginReturn.fatal:
             return errors + 1
-        else:
-            errors += pluginret
+        errors += pluginret.value
+
     return errors
 
 
@@ -392,11 +395,16 @@ def load_plugins(plugindir):
 
 def plugin_help(plugin):
     """ Show help for a plugin if available. """
+    name = plugin.get_name()
+    ver = getattr(plugin, 'version', '')
+    if ver:
+        name = '{} v. {}'.format(name, ver)
+
     if not hasattr(plugin, 'usage'):
-        print('\nNo help available for {}.\n'.format(plugin.get_name()))
+        print('\nNo help available for {}.\n'.format(name))
         return False
 
-    print('\nHelp for {}:'.format(plugin.get_name()))
+    print('\nHelp for {}:'.format(name))
     print(plugin.usage)
     return True
 
@@ -433,24 +441,29 @@ def save_config(config, section=None):
     return False
 
 
-def try_post_plugin(plugin, fname):
-    """ Try running a single post-plugin.
-        Returns 0 on success, 1 on failure, 2 for SignalExit.
+def try_post_plugin(plugin, filename):
+    """ Try running plugin.process(filename).
+        Returns one of:
+            PluginReturn.success (0)
+            PluginReturn.error (1)
+            PluginReturn.fatal (2)
     """
     try:
-        plugin.process(fname)
+        plugin.process(filename)
     except SignalExit as exstop:
         if exstop.reason:
             errmsg = '\nFatal error in post-processing plugin \'{}\':\n{}'
             print(errmsg.format(plugin.name, exstop.reason))
-            print('Cancelling all post plugins.')
-            return 2
+        else:
+            errmsg = '\nFatal error in post-processing plugin: \'{}\''
+            print(errmsg.format(plugin.name))
+        print('\nCancelling all post plugins.')
+        return PluginReturn.fatal
     except Exception as ex:
         errmsg = '\nError in post-processing plugin \'{}\':\n{}'
         print(errmsg.format(plugin.name, ex))
-        return 1
-    # Success.
-    return 0
+        return PluginReturn.error
+    return PluginReturn.success
 
 
 class Plugin(object):
@@ -458,6 +471,7 @@ class Plugin(object):
     """ Base for file-type plugins. """
     name = None
     extensions = None
+    version = '0.0.1'
     usage = None
     load_config = load_plugin_config
 
@@ -517,6 +531,7 @@ class PostPlugin(object):
 
     """ Base for post-processing plugins. """
     name = None
+    version = '0.0.1'
     description = None
     load_config = load_plugin_config
 
@@ -561,11 +576,35 @@ class DeferredPostPlugin(PostPlugin):
     pass
 
 
+class PluginReturn(Enum):
+
+    """ Return values for try_post_plugin().
+        These provide readable names for the return values, but can be used
+        as integers (or exit codes) with '.value'.
+    """
+    success = 0
+    error = 1
+    fatal = 2
+
+
 class SignalAction(Exception):
 
     """ An  exception to raise when the plugin.create() function is a success,
         but changes need to be made to the filename.
-        It has attributes that hold information about the new file.
+        Arguments:
+            message   : A message about the action. Printed with no formatting
+                        when 'content' is set.
+                        Defaults to: 'No message provided.' when 'content' is
+                        not set.
+            filename  : The new file name to use.
+            content   : Content for the new file. If this is not set an error
+                        message is printed along with 'message', and the
+                        program exits.
+
+        If you raise a SignalAction like a normal Exception:
+            raise SignalAction(mystring)
+        ...then SignalAction.message is set to mystring.
+
     """
 
     def __init__(self, *args, message=None, filename=None, content=None):
@@ -586,6 +625,8 @@ class SignalAction(Exception):
             elif arglen > 1:
                 if not self.filename:
                     self.filename = args[1]
+        if (not self.content) and (not self.message):
+            self.message = 'No message was provided.'
 
 
 class SignalExit(Exception):

@@ -29,6 +29,7 @@ class BashPlugin(Plugin):
     def __init__(self):
         self.name = ('bash', 'sh')
         self.extensions = ('.sh', '.bash')
+        self.version = '0.0.1'
         self.load_config()
         self.usage = """
     Usage:

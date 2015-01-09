@@ -130,6 +130,7 @@ class PythonPlugin(Plugin):
     def __init__(self):
         self.name = ('python', 'py')
         self.extensions = ('.py',)
+        self.version = '0.0.1'
         self.load_config()
         self.usage = """
     Usage:
@@ -169,7 +170,7 @@ class PythonPlugin(Plugin):
         version = self.config.get('version', DEFAULT_VERSION)
         template_args.update({
             'author': author,
-            'explanation': self.config.get('explanation', '...'),
+            'explanation': self.config.get('explanation', ''),
             'date': ' {}'.format(DATE) if author else DATE,
             'default_version': version,
             'imports': self.parse_importlist(imports),
@@ -190,7 +191,7 @@ class PythonPlugin(Plugin):
                 filename = os.path.join(path, scriptname)
                 # Create an action that will allow the filename change.
                 testaction = SignalAction(
-                    message='Filename change.',
+                    message='Switching to unittest file name format.',
                     filename=filename)
             # Fix the scriptname, add the testtarget args.
             template_args['scriptname'] = scriptname

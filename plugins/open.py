@@ -12,6 +12,7 @@ class OpenPlugin(DeferredPostPlugin):
 
     def __init__(self):
         self.name = 'open'
+        self.version = '0.0.1'
         self.load_config()
 
     def open_file(self, editor, filename):
