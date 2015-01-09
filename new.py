@@ -5,7 +5,6 @@
     ...Creates new files based on templates (plugin-based templates)
     -Christopher Welborn 12-25-2014
 """
-
 import os
 import sys
 import docopt
@@ -13,7 +12,7 @@ import docopt
 import plugins
 
 NAME = 'New'
-VERSION = '0.0.1'
+VERSION = '0.0.1-2'
 VERSIONSTR = '{} v. {}'.format(NAME, VERSION)
 SCRIPT = os.path.split(os.path.abspath(sys.argv[0]))[1]
 SCRIPTDIR = os.path.abspath(sys.path[0])
@@ -86,12 +85,17 @@ def main(argd):
     try:
         content = plugin.create(fname, argd['ARGS'])
     except plugins.SignalAction as action:
-        # Plugin is changing the file name.
+        # See if we have content to write (no content is fatal).
         if not action.content:
-            print('Plugin action with no content: {}'.format(action.message))
+            errmsg = 'Plugin action with no content!\n    {}'
+            print(errmsg.format(action.message))
             return 1
         else:
             content = action.content
+        # Print a plain message if set.
+        if action.message:
+            print(action.message)
+
         # Changing the output file name.
         if action.filename:
             fname = action.filename
@@ -183,7 +187,6 @@ def write_file(fname, content):
     return fname
 
 if __name__ == '__main__':
-
     # Parse args with docopt.
     argd = docopt.docopt(USAGESTR, version=VERSIONSTR)
     # Okay, run.
