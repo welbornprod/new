@@ -3,3 +3,4 @@
 *.conf
 new.*.json
 new.json
+*.pyc
