@@ -400,13 +400,17 @@ def plugin_help(plugin):
     if ver:
         name = '{} v. {}'.format(name, ver)
 
-    if not hasattr(plugin, 'usage'):
-        print('\nNo help available for {}.\n'.format(name))
-        return False
+    usage = getattr(plugin, 'usage', '')
+    if usage:
+        print('\nHelp for {}:'.format(name))
+        print(usage)
+        return True
 
-    print('\nHelp for {}:'.format(name))
-    print(plugin.usage)
-    return True
+    # No real usage available, try getting a description instead.
+    usage = plugin.get_desc()
+    print('\nNo help available for {}.\n'.format(name))
+    print(usage)
+    return False
 
 
 def print_inplace(s):
@@ -471,8 +475,9 @@ class Plugin(object):
     """ Base for file-type plugins. """
     name = None
     extensions = None
-    version = '0.0.1'
+    description = None
     usage = None
+    version = '0.0.1'
     load_config = load_plugin_config
 
     def __init__(self, name=None, extensions=None):
@@ -496,6 +501,21 @@ class Plugin(object):
                             uses it to create the main doc str.
         """
         raise NotImplementedError('create() must be overridden!')
+
+    def get_desc(self):
+        """ Get the description for this plugin.
+            It uses the first line in create.__doc__ if self.description is
+            not set. This is not the same as self.usage.
+        """
+        if self.description:
+            return self.description
+
+        docs = self.create.__doc__
+        if docs:
+            self.description = self.create.__doc__.split('\n')[0].strip()
+        else:
+            self.description = '(no description)'
+        return self.description
 
     def get_name(self):
         """ Get the proper name for this plugin (no aliases). """
