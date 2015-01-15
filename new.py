@@ -100,7 +100,9 @@ def main(argd):
         if action.filename:
             fname = action.filename
     except Exception as ex:
-        print('\n{} error: {}'.format(plugin.get_name().title(), ex))
+        pluginname = plugin.get_name().title()
+        errmsg = '\n{} error ({}): {}'
+        print(errmsg.format(pluginname, get_ex_class(ex, '?'), ex))
         return 1
 
     if not content:
@@ -153,6 +155,17 @@ def ensure_file_ext(fname, plugin):
 
     # Add the extension (first extension in the list wins.)
     return '{}{}'.format(fname, plugin.extensions[0])
+
+
+def get_ex_class(ex, default=None):
+    """ Returns a string containing the __class__ for an object.
+        The string repr is cleaned up a little bit. If it can't be
+        determined then 'default' is returned.
+    """
+    errclass = str(getattr(ex, '__class__', '')).split()[-1]
+    if errclass:
+        return errclass[1:-2]
+    return default
 
 
 def valid_filename(fname):
