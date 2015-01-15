@@ -3,9 +3,11 @@
     and general plugin helper/loading functions.
     The raw plugins can be accessed with plugins.plugins.
 """
+import inspect
 import json
 import os
 import sys
+from datetime import datetime
 from enum import Enum
 from importlib import import_module
 
@@ -51,10 +53,25 @@ def conflicting_file(plugin, filearg, filename):
     return False
 
 
+def date():
+    """ Returns a string formatted date for today. """
+    return datetime.strftime(datetime.today(), '%m-%d-%Y')
+
+
 def debug(*args, **kwargs):
     """ Print a message only if DEBUG is truthy. """
-    if DEBUG:
-        print(*args, **kwargs)
+    if not (DEBUG and args):
+        return None
+    # Get filename, line number, and function name.
+    frame = inspect.currentframe()
+    frame = frame.f_back
+    fname = os.path.split(frame.f_code.co_filename)[-1]
+    lineno = frame.f_lineno
+    func = frame.f_code.co_name
+    pargs = list(args)
+    lineinfo = '{}: #{} {}(): '.format(fname, lineno, func).ljust(40)
+    pargs[0] = ''.join((lineinfo, pargs[0]))
+    print(*pargs, **kwargs)
 
 
 def debug_load_error(plugintype, modname, plugin, exmsg):
@@ -356,7 +373,7 @@ def load_plugins(plugindir):
                         debug('Conflicting Plugin: {}'.format(name))
                         continue
                     tmp_plugins['types'][name] = plugin
-                    debug('loaded: {} (Plugin)'.format(fullname))
+                    debug('Loaded: {} (Plugin)'.format(fullname))
                 elif isinstance(plugin, DeferredPostPlugin):
                     if not name:
                         debug_missing('name', 'deferred', modname, plugin)
@@ -370,7 +387,7 @@ def load_plugins(plugindir):
                         debug(errmsg.format(name))
                         continue
                     tmp_plugins['deferred'][name] = plugin
-                    debug('loaded: {} (DeferredPostPlugin)'.format(fullname))
+                    debug('Loaded: {} (DeferredPostPlugin)'.format(fullname))
                 elif isinstance(plugin, PostPlugin):
                     if not name:
                         debug_missing('name', 'post', modname, plugin)
@@ -384,7 +401,7 @@ def load_plugins(plugindir):
                         debug('Conflicting PostPlugin: {}'.format(name))
                         continue
                     tmp_plugins['post'][name] = plugin
-                    debug('loaded: {} (PostPlugin)'.format(fullname))
+                    debug('Loaded: {} (PostPlugin)'.format(fullname))
                 else:
                     debug('\nNon-plugin type!: {}'.format(type(plugin)))
         except Exception as ex:
