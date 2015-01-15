@@ -1,9 +1,8 @@
 """ Bash plugin for New.
     -Christopher Welborn 12-25-14
 """
-from plugins import Plugin
-from datetime import datetime
-DATE = datetime.strftime(datetime.today(), '%m-%d-%y')
+from plugins import Plugin, date
+DATE = date()
 
 template = """#!/bin/bash
 

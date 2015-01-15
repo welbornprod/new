@@ -2,14 +2,13 @@
     -Christopher Welborn 12-25-14
 """
 
-from datetime import datetime
 import os
 import sys
 
-from plugins import Plugin, SignalAction
+from plugins import Plugin, SignalAction, date
 
 SCRIPTDIR = os.path.abspath(sys.path[0])
-DATE = datetime.strftime(datetime.today(), '%m-%d-%Y')
+DATE = date()
 
 # Default imports to use if '--noimports' isn't given.
 DEFAULT_IMPORTS = ['os', 'sys']
