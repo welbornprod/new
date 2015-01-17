@@ -52,7 +52,7 @@ class HtmlPlugin(Plugin):
     def __init__(self):
         self.name = ('html', 'htm')
         self.extensions = ('.html', '.htm')
-        self.version = '0.0.1'
+        self.version = '0.0.1-1'
         self.usage = """
     Usage:
         html [title] [cssfile] [jsfile]
@@ -89,7 +89,7 @@ class JQueryPlugin(Plugin):
     def __init__(self):
         self.name = ('jquery', 'jq', 'htmljq')
         self.extensions = ('.html', '.htm')
-        self.version = '0.0.1'
+        self.version = '0.0.1-1'
         self.usage = """
     Usage:
         jquery [version] [title] [cssfile]
@@ -130,7 +130,7 @@ class JQueryPlugin(Plugin):
         filename = 'jquery-{}.min.js'.format(ver)
         url = 'http://code.jquery.com/{}'.format(filename)
 
-        print('Downloading: {}\n'.format(url))
+        self.print_status('Downloading: {}\n'.format(url))
         try:
             path, httpmsg = request.urlretrieve(
                 url,
@@ -160,10 +160,9 @@ class JQueryPlugin(Plugin):
 
         filename = 'jquery-{ver}.min.js'.format(ver=ver)
         if os.path.exists(filename):
-            debug('ensure_jquery_version: Exists: {}'.format(filename))
+            debug('Exists: {}'.format(filename))
             return filename
 
-        debug('ensure_jquery_version: Downloading {}'.format(ver))
         return self.download_jquery(ver)
 
 plugins = (HtmlPlugin(), JQueryPlugin())

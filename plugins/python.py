@@ -129,7 +129,7 @@ class PythonPlugin(Plugin):
     def __init__(self):
         self.name = ('python', 'py')
         self.extensions = ('.py',)
-        self.version = '0.0.1'
+        self.version = '0.0.1-1'
         self.load_config()
         self.usage = """
     Usage:

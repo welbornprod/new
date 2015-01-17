@@ -10,9 +10,10 @@ import sys
 import docopt
 
 import plugins
+debug = plugins.debug
 
 NAME = 'New'
-VERSION = '0.0.1-2'
+VERSION = '0.0.1-4'
 VERSIONSTR = '{} v. {}'.format(NAME, VERSION)
 SCRIPT = os.path.split(os.path.abspath(sys.argv[0]))[1]
 SCRIPTDIR = os.path.abspath(sys.path[0])
@@ -101,8 +102,7 @@ def main(argd):
             fname = action.filename
     except Exception as ex:
         pluginname = plugin.get_name().title()
-        errmsg = '\n{} error ({}): {}'
-        print(errmsg.format(pluginname, get_ex_class(ex, '?'), ex))
+        print_ex(ex, '{} error:'.format(pluginname), with_class=True)
         return 1
 
     if not content:
@@ -115,7 +115,7 @@ def main(argd):
     else:
         created = write_file(fname, content)
         if created:
-            print('\nCreated: {}'.format(created))
+            print_status('Created {}'.format(created))
         else:
             print('\nUnable to create: {}'.format(created))
             return 1
@@ -135,12 +135,6 @@ def confirm(question):
 
     answer = input('\n{} (y/N): '.format(question)).lower().strip()
     return answer.startswith('y')
-
-
-def debug(*args, **kwargs):
-    """ Debug print (only if DEBUG == Truthy). """
-    if DEBUG:
-        print(*args, **kwargs)
 
 
 def ensure_file_ext(fname, plugin):
@@ -168,6 +162,53 @@ def get_ex_class(ex, default=None):
     return default
 
 
+def make_dirs(path):
+    """ Use os.mkdirs() to ensure a path exists, and create it if needed.
+        Returns the existing path on success.
+        Returns None on failure.
+        Errors are printed, except for FileExistsError (it is ignored)
+    """
+    try:
+        os.makedirs(path)
+        debug('Directory created: {}'.format(path))
+    except FileExistsError:
+        debug('Directory exists: {}'.format(path))
+        return path
+    except EnvironmentError as ex:
+        print_ex(ex, 'Failed to create directory: {}'.format(path))
+        return None
+    return path
+
+
+def print_err(msg):
+    """ Print a formatted error msg.
+        (color-formatting in the future.)
+    """
+    print('\n{}'.format(msg))
+
+
+def print_ex(msg, ex, with_class=False):
+    """ Print an error msg, formatted with str(Exception).
+        Arguments:
+            msg         : User message to print.
+            ex          : Exception to print.
+            with_class  : Use the Exception.__class__ in the message.
+                          Default: False
+    """
+    if with_class:
+        kls = get_ex_class(ex, '?')
+        print_err('({}) {}\n  {}'.format(kls, msg, ex))
+        return None
+    print_err('{}\n  {}'.format(msg, ex))
+
+
+def print_status(msg):
+    """ Print a status message.
+        (color-formatting in the future)
+    """
+    print('{}: {}'.format('new'.ljust(15), msg))
+
+
 def valid_filename(fname):
     """ Make sure a file doesn't exist already.
         If it does exist, confirm that the user wants to overwrite it.
@@ -187,15 +228,20 @@ def write_file(fname, content):
     """ Write a new file given a filename and it's content.
         Returns the file name on success, or None on failure.
     """
+    # Create directories if needed.
+    dirs = os.path.split(fname)[0]
+    if ('/' in fname) and (not make_dirs(dirs)):
+        print_err('Failed to create directory: {}'.format(dirs))
+        return None
 
     try:
         with open(fname, 'w') as f:
             f.write(content)
     except EnvironmentError as ex:
-        print('\nFailed to write file: {}\n{}'.format(fname, ex))
+        print_ex(ex, 'Failed to write file: {}'.format(fname))
         return None
     except Exception as exgen:
-        print('\nError writing file: {}\n{}'.format(fname, exgen))
+        print_ex(exgen, 'Error writing file: {}'.format(fname))
         return None
     return fname
 

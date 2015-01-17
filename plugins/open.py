@@ -12,7 +12,7 @@ class OpenPlugin(DeferredPostPlugin):
 
     def __init__(self):
         self.name = 'open'
-        self.version = '0.0.1'
+        self.version = '0.0.1-1'
         self.load_config()
 
     def open_file(self, editor, filename):
@@ -21,7 +21,7 @@ class OpenPlugin(DeferredPostPlugin):
         """
         # Open the process, we don't care what happens after.
         cmd = [editor, filename]
-        print('\nOpening editor: {}'.format(' '.join(cmd)))
+        self.print_status('Opening with: {}'.format(' '.join(cmd)))
         proc = subprocess.Popen(cmd)
         return proc
 

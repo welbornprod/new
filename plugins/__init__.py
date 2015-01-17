@@ -32,11 +32,18 @@ def conflicting_file(plugin, filearg, filename):
     if plugin.get_name() != 'python':
         return False
 
+    # Check for conflicting dir.
+    rootdir = filearg.partition('/')[0]
+
     for plugintype in plugins:
         # If the filename arg matches a plugin module name we have a conflict.
         conflict = plugins[plugintype].get(filearg, None)
         if conflict:
             break
+        elif rootdir:
+            conflict = plugins[plugintype].get(rootdir, None)
+            if conflict:
+                break
     else:
         return False
 
@@ -68,8 +75,9 @@ def debug(*args, **kwargs):
     fname = os.path.split(frame.f_code.co_filename)[-1]
     lineno = frame.f_lineno
     func = frame.f_code.co_name
+    # Patch args to stay compatible with print().
     pargs = list(args)
-    lineinfo = '{}: #{} {}(): '.format(fname, lineno, func).ljust(40)
+    lineinfo = '{}:{} {}(): '.format(fname, lineno, func).ljust(40)
     pargs[0] = ''.join((lineinfo, pargs[0]))
     print(*pargs, **kwargs)
 
@@ -504,7 +512,7 @@ class Plugin(object):
         # A docopt usage string for this plugin.
         self.usage = None
 
-    def create(self, filename, args):
+    def create(self, filename, args=None):
         """ (unimplemented plugin description)
 
             This should return a string that is ready to be written to a file.
@@ -563,6 +571,12 @@ class Plugin(object):
         """
         return getattr(self, 'usage', None)
 
+    def print_status(self, msg):
+        """ Print a status message including the plugin name and file name
+            if available.
+        """
+        print('{}: {}'.format(self.get_name().ljust(15), msg))
+
 
 class PostPlugin(object):
 
@@ -595,6 +609,12 @@ class PostPlugin(object):
             Returns a str. (empty str on failure)
         """
         return self.name if self.name else ''
+
+    def print_status(self, msg):
+        """ Print a status message including the plugin name and file name
+            if available.
+        """
+        print('{}: {}'.format(self.get_name().ljust(15), msg))
 
     def process(self, filename):
         """ (unimplented post-plugin description)
@@ -651,17 +671,14 @@ class SignalAction(Exception):
         self.content = content
         arglen = len(args)
         if args:
+            arglen = len(args)
+            if (not self.content) and (arglen > 2):
+                self.content = args[2]
+            if (not self.filename) and (arglen > 1):
+                self.filename = args[1]
             if not self.message:
                 self.message = args[0]
-            arglen = len(args)
-            if arglen > 2:
-                if not self.filename:
-                    self.filename = args[1]
-                if not self.content:
-                    self.content = args[2]
-            elif arglen > 1:
-                if not self.filename:
-                    self.filename = args[1]
+
         if (not self.content) and (not self.message):
             self.message = 'No message was provided.'
 
