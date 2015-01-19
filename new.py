@@ -13,7 +13,7 @@ import plugins
 debug = plugins.debug
 
 NAME = 'New'
-VERSION = '0.0.1-4'
+VERSION = '0.0.1-5'
 VERSIONSTR = '{} v. {}'.format(NAME, VERSION)
 SCRIPT = os.path.split(os.path.abspath(sys.argv[0]))[1]
 SCRIPTDIR = os.path.abspath(sys.path[0])
@@ -120,7 +120,7 @@ def main(argd):
             print('\nUnable to create: {}'.format(created))
             return 1
         # Do post-processing plugins on the created file.
-        plugins.do_post_plugins(fname)
+        plugins.do_post_plugins(fname, plugin)
 
     return 0
 

@@ -98,17 +98,25 @@ def debug_missing(attr, plugintype, modname, plugin):
     debug_load_error(plugintype, modname, plugin, msg)
 
 
-def do_post_plugins(fname):
+def do_post_plugins(fname, plugin):
     """ Handle all post-processing plugins.
         These plugins will be given the file name to work with.
         The plugin return values are not used.
         If the plugin raises pluginbase.SignalExit all processing will stop.
         Any other Exceptions are debug-printed, but processing continues.
         Returns: Number of errors encountered (can be used as an exit code)
+        Arguments:
+            fname   : The created file name.
+            plugin  : The Plugin that was used to create the file.
     """
     errors = 0
-    for plugin in plugins['post'].values():
-        pluginret = try_post_plugin(plugin, fname)
+    for post in plugins['post'].values():
+        if plugin.ignore_post and (post.get_name() in plugin.ignore_post):
+            skipmsg = 'Skipping post-plugin {} for {}.'
+            debug(skipmsg.format(post.get_name(), plugin.get_name()))
+            continue
+
+        pluginret = try_post_plugin(post, fname)
         if pluginret == PluginReturn.fatal:
             return errors + 1
         errors += pluginret.value
@@ -128,6 +136,12 @@ def do_post_plugins(fname):
 
     # Defferred plugins.
     for deferred in plugins['deferred'].values():
+        if (
+                plugin.ignore_deferred and
+                (deferred.get_name() in plugin.ignore_deferred)):
+            skipmsg = 'Skipping deferred-plugin {} for {}.'
+            debug(skipmsg.format(deferred.get_name(), plugin.get_name()))
+            continue
         pluginret = try_post_plugin(deferred, fname)
         if pluginret == PluginReturn.fatal:
             return errors + 1
@@ -501,6 +515,8 @@ class Plugin(object):
     name = None
     extensions = None
     description = None
+    ignore_deferred = []
+    ignore_post = []
     usage = None
     version = '0.0.1'
     load_config = load_plugin_config
