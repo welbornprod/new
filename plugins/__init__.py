@@ -512,6 +512,7 @@ def try_post_plugin(plugin, filename):
 class Plugin(object):
 
     """ Base for file-type plugins. """
+    # TODO: Comments about what each of these mean (mainly the ignore_ stuff.)
     name = None
     extensions = None
     description = None
