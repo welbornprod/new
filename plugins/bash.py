@@ -9,8 +9,9 @@ template = """#!/bin/bash
 # ...{description}
 # -{author}{date}
 APPPATH="$(realpath ${{BASH_SOURCE[0]}})"
-APPDIR="$(dirname "$APPPATH")"
-APPNAME="$(basename "$APPPATH")"
+APPSCRIPT="${APPPATH##*/}"
+APPDIR="${APPPATH%/*}"
+APPNAME="$APPSCRIPT"
 VERSION="0.0.1"
 """
 
@@ -28,7 +29,7 @@ class BashPlugin(Plugin):
     def __init__(self):
         self.name = ('bash', 'sh')
         self.extensions = ('.sh', '.bash')
-        self.version = '0.0.1-1'
+        self.version = '0.0.1-2'
         self.load_config()
         self.usage = """
     Usage:
