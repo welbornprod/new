@@ -1,6 +1,7 @@
 """ Bash plugin for New.
     -Christopher Welborn 12-25-14
 """
+import os.path
 from plugins import Plugin, date
 DATE = date()
 
@@ -8,11 +9,11 @@ template = """#!/bin/bash
 
 # ...{description}
 # -{author}{date}
+APPNAME="{filename}"
+VERSION="0.0.1"
 APPPATH="$(realpath ${{BASH_SOURCE[0]}})"
 APPSCRIPT="${APPPATH##*/}"
 APPDIR="${APPPATH%/*}"
-APPNAME="$APPSCRIPT"
-VERSION="0.0.1"
 """
 
 template_func = """
@@ -53,7 +54,8 @@ class BashPlugin(Plugin):
         return tmplate.format(
             author=author,
             date=date,
-            description=description)
+            description=description,
+            filename=os.path.splitext(os.path.split(filename)[-1])[0])
 
     def pop_args(self, lst, args):
         """ Removes any occurrence of an argument from a list.
