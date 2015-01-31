@@ -150,10 +150,26 @@ def do_post_plugins(fname, plugin):
     return errors
 
 
+def get_plugin_byext(name):
+    """ Retrieves a plugin by file extension.
+        Returns the plugin on success, or None on failure.
+    """
+    ext = os.path.splitext(name)[-1].lower()
+    if not ext:
+        return None
+
+    for name, plugin in plugins['types'].items():
+        if ext in plugin.extensions:
+            return plugin
+    return None
+
+
 def get_plugin_byname(name, use_post=False):
     """ Retrieves a plugin module by name or alias.
         Returns the plugin on success, or None on failure.
     """
+    if not name:
+        return None
     name = name.lower()
     for plugin in plugins['types'].values():
         names = (pname.lower() for pname in plugin.name)
@@ -308,14 +324,17 @@ def load_plugin_config(plugin):
     """ Load config file for a plugin instance.
         Sets plugin.config to a dict on success.
     """
+    # Load global config if available.
+    pluginconfig = config.get('global', {})
+
     if not getattr(plugin, 'config_file', None):
         configfile = 'new.json'
         plugin.config_file = os.path.join(SCRIPTDIR, configfile)
 
-    config = {}
+    pluginconfig = {}
     try:
         with open(plugin.config_file, 'r') as f:
-            config = json.load(f)
+            pluginconfig = json.load(f)
     except FileNotFoundError:
         msg = 'No config file for {}: {}'
         debug(msg.format(plugin.get_name(), plugin.config_file))
@@ -328,7 +347,7 @@ def load_plugin_config(plugin):
     except Exception as ex:
         errmsg = 'Error loading plugin config: {}\n{}'
         debug(errmsg.format(plugin.config_file, ex))
-    pluginconfig = config.get(plugin.get_name(), {})
+    pluginconfig = pluginconfig.get(plugin.get_name(), {})
     if pluginconfig:
         loadmsg = 'Loaded {} config from: {}'
         debug(loadmsg.format(plugin.get_name(), plugin.config_file))
@@ -512,14 +531,37 @@ def try_post_plugin(plugin, filename):
 class Plugin(object):
 
     """ Base for file-type plugins. """
-    # TODO: Comments about what each of these mean (mainly the ignore_ stuff.)
+    # (list/tuple)
+    # Names/aliases for this plugin/filetype.
+    # The proper name will be self.name[0].
     name = None
+    # (list/tuple)
+    # File extensions for this file type.
+    # Default file extension is self.extensions[0].
     extensions = None
+    # (str)
+    # Description for this plugin.
+    # When present, this overrides the default behaviour of using
+    # self.create()'s __doc__ string.
     description = None
-    ignore_deferred = []
-    ignore_post = []
-    usage = None
+    # (str)
+    # Version for this plugin.
     version = '0.0.1'
+    # (bool)
+    # Whether this plugin is allowed to create blank content.
+    # Plugins such as the 'text' plugin might use this.
+    # Otherwise, no content means an error occurred and no file is written.
+    allow_blank = False
+    # (list/tuple)
+    # Names of deferred plugins that will be skipped when using this plugin.
+    ignore_deferred = []
+    # (list/tuple)
+    # Names of post plugins that will be skipped when using this plugin.
+    ignore_post = []
+    # (list/tuple) Usage string for this plugin when `new plugin -H` is used.
+    usage = None
+    # (function)
+    # Internal use. Function to load config data into self.config.
     load_config = load_plugin_config
 
     def __init__(self, name=None, extensions=None):

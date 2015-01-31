@@ -13,7 +13,7 @@ import plugins
 debug = plugins.debug
 
 NAME = 'New'
-VERSION = '0.0.1-5'
+VERSION = '0.0.1-6'
 VERSIONSTR = '{} v. {}'.format(NAME, VERSION)
 SCRIPT = os.path.split(os.path.abspath(sys.argv[0]))[1]
 SCRIPTDIR = os.path.abspath(sys.path[0])
@@ -60,11 +60,31 @@ def main(argd):
         plugins.list_plugins()
         return 1
 
-    # Get plugin needed for this file type.
-    ftype = argd['FILETYPE'] or plugins.config.get('default_plugin', 'python')
-    plugin = plugins.get_plugin_byname(ftype)
+    namedplugin = plugins.get_plugin_byname(argd['FILENAME'])
+    if namedplugin:
+        plugin = namedplugin
+        # Use default file name since none was given.
+        argd['FILENAME'] = plugins.config.get('global', {}).get(
+            'default_filename', 'new_file')
+        debug('Plugin loaded by name, no file name.')
+    else:
+        extplugin = plugins.get_plugin_byext(argd['FILENAME'])
+        if extplugin:
+            # Determined plugin by file extension.
+            plugin = extplugin
+            debug('Plugin determined by file name/extension.')
+        else:
+            # Fall back to default plugin.
+            ftype = (
+                argd['FILETYPE'] or
+                plugins.config.get('default_plugin', 'python'))
+            plugin = plugins.get_plugin_byname(ftype)
+            debug('Plugin loaded {}.'.format(
+                'by given name.' if argd['FILETYPE'] else 'by default'))
+
     if plugin:
-        debug('Using plugin: {}'.format(plugin.get_name()))
+        pluginname = plugin.get_name().title()
+        debug('Using plugin: {}'.format(pluginname))
     else:
         print('\nNot a valid file type (not supported): {}'.format(ftype))
         print('\nUse --plugins to list available plugins.\n')
@@ -101,17 +121,17 @@ def main(argd):
         if action.filename:
             fname = action.filename
     except Exception as ex:
-        pluginname = plugin.get_name().title()
         print_ex(ex, '{} error:'.format(pluginname), with_class=True)
         return 1
 
-    if not content:
+    if not (plugin.allow_blank or content):
+        debug('{} is not allowed to create a blank file.'.format(pluginname))
         print('\nFailed to create file: {}'.format(fname))
         return 1
 
     if argd['--dryrun']:
         print('\nWould\'ve written: {}'.format(fname))
-        print(content)
+        print(content or '<No Content>')
     else:
         created = write_file(fname, content)
         if created:
@@ -228,6 +248,8 @@ def write_file(fname, content):
     """ Write a new file given a filename and it's content.
         Returns the file name on success, or None on failure.
     """
+    if content is None:
+        content = ''
     # Create directories if needed.
     dirs = os.path.split(fname)[0]
     if ('/' in fname) and (not make_dirs(dirs)):

@@ -52,7 +52,9 @@ class HtmlPlugin(Plugin):
     def __init__(self):
         self.name = ('html', 'htm')
         self.extensions = ('.html', '.htm')
-        self.version = '0.0.1-1'
+        self.version = '0.0.1-2'
+        # Html files are not executable.
+        self.ignore_post = ('chmodx',)
         self.usage = """
     Usage:
         html [title] [cssfile] [jsfile]
@@ -89,7 +91,9 @@ class JQueryPlugin(Plugin):
     def __init__(self):
         self.name = ('jquery', 'jq', 'htmljq')
         self.extensions = ('.html', '.htm')
-        self.version = '0.0.1-1'
+        self.version = '0.0.1-2'
+        # Html files are not executable.
+        self.ignore_post = ('chmodx',)
         self.usage = """
     Usage:
         jquery [version] [title] [cssfile]
