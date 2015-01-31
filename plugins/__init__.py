@@ -18,6 +18,18 @@ config = {}
 plugins = {'types': {}, 'post': {}, 'deferred': {}}
 
 
+def config_dump():
+    """ Dump config to stdout. """
+    if not config:
+        print('\nNo config found for plugins.\n')
+        return False
+
+    configstr = json.dumps(config, sort_keys=True, indent=4)
+    print('\nConfig for plugins:\n')
+    print(configstr)
+    return True
+
+
 def conflicting_file(plugin, filearg, filename):
     """ Make sure this file name and plugin mixture isn't going to cause a
         show-stopping conflict with New.
@@ -154,6 +166,8 @@ def get_plugin_byext(name):
     """ Retrieves a plugin by file extension.
         Returns the plugin on success, or None on failure.
     """
+    if not name:
+        return None
     ext = os.path.splitext(name)[-1].lower()
     if not ext:
         return None
@@ -178,7 +192,9 @@ def get_plugin_byname(name, use_post=False):
 
     # Try post plugins also.
     if use_post:
-        for plugin in plugins['post'].values():
+        postplugins = list(plugins['post'].values())
+        postplugins.extend(list(plugins['deferred'].values()))
+        for plugin in postplugins:
             if name == plugin.name.lower():
                 return plugin
     # The plugin wasn't found.
@@ -325,13 +341,12 @@ def load_plugin_config(plugin):
         Sets plugin.config to a dict on success.
     """
     # Load global config if available.
-    pluginconfig = config.get('global', {})
+    globalconfig = config.get('global', {})
 
     if not getattr(plugin, 'config_file', None):
         configfile = 'new.json'
         plugin.config_file = os.path.join(SCRIPTDIR, configfile)
 
-    pluginconfig = {}
     try:
         with open(plugin.config_file, 'r') as f:
             pluginconfig = json.load(f)
@@ -347,6 +362,7 @@ def load_plugin_config(plugin):
     except Exception as ex:
         errmsg = 'Error loading plugin config: {}\n{}'
         debug(errmsg.format(plugin.config_file, ex))
+    # Actual config is in {'<plugin_name>': {}}
     pluginconfig = pluginconfig.get(plugin.get_name(), {})
     if pluginconfig:
         loadmsg = 'Loaded {} config from: {}'
@@ -354,6 +370,11 @@ def load_plugin_config(plugin):
     else:
         errmsg = 'No config for {}: {}'
         debug(errmsg.format(plugin.get_name(), plugin.config_file))
+    # Merge global config with plugin config.
+    for k, v in globalconfig.items():
+        if v and (not pluginconfig.get(k, None)):
+            pluginconfig[k] = v
+
     plugin.config = pluginconfig
 
 
@@ -449,6 +470,19 @@ def load_plugins(plugindir):
             print('\nError loading plugin: {}\n{}'.format(modname, ex))
     # Set module-level copy of plugins.
     plugins = tmp_plugins
+
+
+def plugin_config_dump(plugin):
+    """ Dump plugin config to stdout. """
+    pluginname = plugin.get_name().title()
+    if not getattr(plugin, 'config', None):
+        print('\nNo config for: {}\n'.format(pluginname))
+        return False
+
+    configstr = json.dumps(plugin.config, sort_keys=True, indent=4)
+    print('\nConfig for: {}\n'.format(pluginname))
+    print(configstr)
+    return True
 
 
 def plugin_help(plugin):

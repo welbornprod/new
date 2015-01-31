@@ -20,8 +20,8 @@ SCRIPTDIR = os.path.abspath(sys.path[0])
 
 USAGESTR = """{versionstr}
     Usage:
-        {script} -h | -v | -p [-D]
-        {script} FILETYPE -H
+        {script} -c | -h | -v | -p [-D]
+        {script} FILETYPE (-C | -H) [-D]
         {script} FILENAME [-d] [-D]
         {script} FILETYPE FILENAME [-d] [-D]
         {script} FILETYPE FILENAME ARGS... [-d] [-D]
@@ -31,6 +31,8 @@ USAGESTR = """{versionstr}
         FILETYPE           : Type of file to create (bash, python, html)
                              Defaults to: python
         FILENAME           : File name for the new file.
+        -c,--config        : Dump global config.
+        -C,--pluginconfig  : Dump plugin config.
         -d,--dryrun        : Show what would be written, don't write anything.
         -D,--debug         : Show more debugging info.
         -H,--HELP          : Show plugin help.
@@ -59,6 +61,8 @@ def main(argd):
     if argd['--plugins']:
         plugins.list_plugins()
         return 1
+    elif argd['--config']:
+        return 0 if plugins.config_dump() else 1
 
     namedplugin = plugins.get_plugin_byname(argd['FILENAME'])
     if namedplugin:
@@ -78,7 +82,10 @@ def main(argd):
             ftype = (
                 argd['FILETYPE'] or
                 plugins.config.get('default_plugin', 'python'))
-            plugin = plugins.get_plugin_byname(ftype)
+            # Allow loading post-plugins by name when using --pluginconfig.
+            plugin = plugins.get_plugin_byname(
+                ftype,
+                use_post=argd['--pluginconfig'])
             debug('Plugin loaded {}.'.format(
                 'by given name.' if argd['FILETYPE'] else 'by default'))
 
@@ -93,7 +100,8 @@ def main(argd):
     # Do plugin help.
     if argd['--HELP']:
         return 0 if plugins.plugin_help(plugin) else 1
-
+    elif argd['--pluginconfig']:
+        return 0 if plugins.plugin_config_dump(plugin) else 1
     # Get valid file name for this file.
     fname = ensure_file_ext(argd['FILENAME'], plugin)
     if not valid_filename(fname):
