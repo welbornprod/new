@@ -111,6 +111,9 @@ class JQueryPlugin(Plugin):
         """ Creates an html file including jQuery.
             This will download jQuery if needed.
         """
+        if not args:
+            args = self.get_default_args()
+
         ver = args[0] if args else '2.1.3'
         title = args[1] if len(args) > 1 else '...'
         cssfile = args[2] if len(args) > 2 else 'main.css'

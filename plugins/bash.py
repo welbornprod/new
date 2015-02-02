@@ -42,6 +42,10 @@ class BashPlugin(Plugin):
     """
 
     def create(self, filename, args):
+        """ Creates a basic bash source file. """
+        if not args:
+            args = self.get_default_args()
+
         if ('f' in args) or ('func' in args):
             self.pop_args(args, ('f', 'func'))
             tmplate = '\n\n'.join((template, template_func))

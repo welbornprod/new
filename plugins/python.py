@@ -149,6 +149,11 @@ class PythonPlugin(Plugin):
     """
 
     def create(self, filename, args):
+        """ Creates a new python source file. Several templates are available.
+        """
+        if not args:
+            args = self.get_default_args()
+
         if args:
             templateid = args[0].lower()
         else:

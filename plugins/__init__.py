@@ -666,6 +666,15 @@ class Plugin(object):
         """
         raise NotImplementedError('create() must be implemented!')
 
+    def get_default_args(self):
+        """ Loads default args from config, if any are set.
+            Returns a list of args on success, or [] on failure.
+        """
+        args = getattr(self, 'config', {}).get('default_args', [])
+        if args:
+            debug('Got default args for {}: {}'.format(self.get_name(), args))
+        return args
+
     def get_desc(self):
         """ Get the description for this plugin.
             It uses the first line in create.__doc__ if self.description is
