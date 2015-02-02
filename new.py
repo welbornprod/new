@@ -67,7 +67,7 @@ def main(argd):
     namedplugin = plugins.get_plugin_byname(argd['FILENAME'])
     if namedplugin:
         plugin = namedplugin
-        # Use default file name since none was given.
+        # Use default file name since no file name was given.
         argd['FILENAME'] = plugins.config.get('global', {}).get(
             'default_filename', 'new_file')
         debug('Plugin loaded by name, no file name.')
@@ -115,7 +115,7 @@ def main(argd):
         content = plugin.create(fname, argd['ARGS'])
     except plugins.SignalAction as action:
         # See if we have content to write (no content is fatal).
-        if not action.content:
+        if not (action.content or plugin.allow_blank):
             errmsg = 'Plugin action with no content!\n    {}'
             print(errmsg.format(action.message))
             return 1

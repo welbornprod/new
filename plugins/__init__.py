@@ -576,7 +576,7 @@ class Plugin(object):
     # (str)
     # Description for this plugin.
     # When present, this overrides the default behaviour of using
-    # self.create()'s __doc__ string.
+    # the first line of self.create.__doc__.
     description = None
     # (str)
     # Version for this plugin.
@@ -596,13 +596,14 @@ class Plugin(object):
     usage = None
     # (function)
     # Internal use. Function to load config data into self.config.
+    # This may be overridden.
     load_config = load_plugin_config
 
     def __init__(self, name=None, extensions=None):
         self._name = None
         self.name = name
         self.extensions = extensions
-        # A docopt usage string for this plugin.
+        # A usage string for this plugin.
         self.usage = None
 
     def create(self, filename, args=None):
@@ -618,7 +619,7 @@ class Plugin(object):
                             may be useful information. The python plugin
                             uses it to create the main doc str.
         """
-        raise NotImplementedError('create() must be overridden!')
+        raise NotImplementedError('create() must be implemented!')
 
     def get_desc(self):
         """ Get the description for this plugin.
@@ -674,9 +675,18 @@ class Plugin(object):
 class PostPlugin(object):
 
     """ Base for post-processing plugins. """
+    # (str)
+    # A name for this post plugin. Alises are not needed.
     name = None
+    # (str)
+    # A version string for this post plugin.
     version = '0.0.1'
+    # (str)
+    # A description for this plugin. This is optional.
+    # When not given, the first line of self.process.__doc__ is used.
     description = None
+    # (function)
+    # Internal use. This may be overridden to load config for this plugin.
     load_config = load_plugin_config
 
     def __init__(self, name=None):
