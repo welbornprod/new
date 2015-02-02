@@ -91,9 +91,10 @@ class JQueryPlugin(Plugin):
     def __init__(self):
         self.name = ('jquery', 'jq', 'htmljq')
         self.extensions = ('.html', '.htm')
-        self.version = '0.0.1-2'
+        self.version = '0.0.1-3'
         # Html files are not executable.
         self.ignore_post = ('chmodx',)
+        self.load_config()
         self.usage = """
     Usage:
         jquery [version] [title] [cssfile]
@@ -113,15 +114,20 @@ class JQueryPlugin(Plugin):
         ver = args[0] if args else '2.1.3'
         title = args[1] if len(args) > 1 else '...'
         cssfile = args[2] if len(args) > 2 else 'main.css'
-        jqueryfile = self.ensure_jquery_version(ver)
-        if not jqueryfile:
-            errmsg = 'Unable to find or download jQuery {}!'
-            raise Exception(errmsg.format(ver))
+        if self.config.get('no_download', False):
+            debug('Skipping jquery download.')
+            scripts = ''
+        else:
+            jqueryfile = self.ensure_jquery_version(ver)
+            if not jqueryfile:
+                errmsg = 'Unable to find or download jQuery {}!'
+                raise Exception(errmsg.format(ver))
+            scripts = template_scriptsrc.format(jqueryfile)
 
         template_args = {
             'title': title,
             'css': template_csssrc.format(cssfile),
-            'scripts': template_scriptsrc.format(jqueryfile),
+            'scripts': scripts,
             'body': '...',
             'bodyend': template_scriptblk.format(template_ready)
         }

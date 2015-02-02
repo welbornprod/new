@@ -64,35 +64,12 @@ def main(argd):
     elif argd['--config']:
         return 0 if plugins.config_dump() else 1
 
-    namedplugin = plugins.get_plugin_byname(argd['FILENAME'])
-    if namedplugin:
-        plugin = namedplugin
-        # Use default file name since no file name was given.
-        argd['FILENAME'] = plugins.config.get('global', {}).get(
-            'default_filename', 'new_file')
-        debug('Plugin loaded by name, no file name.')
-    else:
-        extplugin = plugins.get_plugin_byext(argd['FILENAME'])
-        if extplugin:
-            # Determined plugin by file extension.
-            plugin = extplugin
-            debug('Plugin determined by file name/extension.')
-        else:
-            # Fall back to default plugin.
-            ftype = (
-                argd['FILETYPE'] or
-                plugins.config.get('default_plugin', 'python'))
-            # Allow loading post-plugins by name when using --pluginconfig.
-            plugin = plugins.get_plugin_byname(
-                ftype,
-                use_post=argd['--pluginconfig'])
-            debug('Plugin loaded {}.'.format(
-                'by given name.' if argd['FILETYPE'] else 'by default'))
-
+    plugin = plugins.determine_plugin(argd)
     if plugin:
         pluginname = plugin.get_name().title()
         debug('Using plugin: {}'.format(pluginname))
     else:
+        ftype = argd['FILETYPE'] or argd['FILENAME']
         print('\nNot a valid file type (not supported): {}'.format(ftype))
         print('\nUse --plugins to list available plugins.\n')
         return 1

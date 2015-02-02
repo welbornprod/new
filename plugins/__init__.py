@@ -110,6 +110,50 @@ def debug_missing(attr, plugintype, modname, plugin):
     debug_load_error(plugintype, modname, plugin, msg)
 
 
+def determine_plugin(argd):
+    """ Determine which plugin to use based on user's filename, or filetype.
+        Arguments:
+            argd  : Docopt arg dict from user.
+        Returns Plugin() on success, or None on failure.
+        This may modify argd['FILENAME'] if needed.
+    """
+    default_file = config.get('global', {}).get('default_filename', 'new_file')
+    use_post = argd['--pluginconfig']
+    namedplugin = get_plugin_byname(argd['FILENAME'])
+    if namedplugin:
+        # Use default file name since no file name was given.
+        argd['FILENAME'] = default_file
+        debug('Plugin loaded by name, no file name.')
+        return namedplugin
+
+    if argd['FILETYPE']:
+        plugin = get_plugin_byname(argd['FILETYPE'], use_post=use_post)
+        if not argd['FILENAME']:
+            argd['FILENAME'] = default_file
+        if plugin:
+            msg = ['Plugin loaded by given name.']
+            if argd['FILENAME'] == default_file:
+                msg.append('Default file name used.')
+            debug(' '.join(msg))
+            return plugin
+
+    extplugin = get_plugin_byext(argd['FILENAME'])
+    if extplugin:
+        # Determined plugin by file extension.
+        debug('Plugin determined by file name/extension.')
+        return extplugin
+
+    # Fall back to default plugin, or user specified.
+    plugin = None
+    ftype = argd['FILETYPE'] or config.get('default_plugin', 'python')
+    # Allow loading post-plugins by name when using --pluginconfig.
+    plugin = get_plugin_byname(ftype, use_post=use_post)
+    if plugin:
+        debug('Plugin loaded {}.'.format(
+            'by given name.' if argd['FILETYPE'] else 'by default'))
+    return plugin
+
+
 def do_post_plugins(fname, plugin):
     """ Handle all post-processing plugins.
         These plugins will be given the file name to work with.
@@ -172,7 +216,8 @@ def get_plugin_byext(name):
     if not ext:
         return None
 
-    for name, plugin in plugins['types'].items():
+    for name in sorted(plugins['types']):
+        plugin = plugins['types'][name]
         if ext in plugin.extensions:
             return plugin
     return None
