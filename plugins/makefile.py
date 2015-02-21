@@ -21,7 +21,7 @@ clean:
 class MakefilePost(PostPlugin):
 
     def __init__(self):
-        self.name = 'makefile'
+        self.name = 'automakefile'
         self.version = '0.0.1'
         self.description = '\n'.join((
             'Creates a makefile for new C files.',
