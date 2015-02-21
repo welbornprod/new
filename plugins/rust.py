@@ -5,6 +5,7 @@
 from plugins import Plugin
 
 # Not much in this plugin at the moment.
+# Cargo works really well. This is just for little "testruns" and additions.
 
 
 class RustPlugin(Plugin):
