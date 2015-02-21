@@ -18,7 +18,7 @@ clean:
 """
 
 
-class MakefilePlugin(PostPlugin):
+class MakefilePost(PostPlugin):
 
     def __init__(self):
         self.name = 'makefile'
@@ -56,4 +56,4 @@ class MakefilePlugin(PostPlugin):
         print('Makefile created: {}'.format(makefile))
         return makefile
 
-plugins = (MakefilePlugin(),)
+plugins = (MakefilePost(),)
