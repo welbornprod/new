@@ -544,9 +544,13 @@ def plugin_help(plugin):
         return True
 
     # No real usage available, try getting a description instead.
-    usage = plugin.get_desc()
+    desc = plugin.get_desc()
     print('\nNo help available for {}.\n'.format(name))
-    print(usage)
+    if desc:
+        print('Description:')
+        print(desc)
+    else:
+        print('(no description available)')
     return False
 
 
@@ -687,7 +691,7 @@ class Plugin(object):
         if docs:
             self.description = self.create.__doc__.split('\n')[0].strip()
         else:
-            self.description = '(no description)'
+            self.description = ''
         return self.description
 
     def get_name(self):
@@ -758,7 +762,7 @@ class PostPlugin(object):
         if docs:
             self.description = self.process.__doc__.split('\n')[0].strip()
         else:
-            self.description = '(no description)'
+            self.description = ''
         return self.description
 
     def get_name(self):
