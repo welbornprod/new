@@ -34,7 +34,7 @@ class CPlugin(Plugin):
         self.load_config()
 
     def create(self, filename, args):
-        """ Create a basic C file, and a Makefile to go with it.
+        """ Creates a basic C file.
         """
         parentdir, basename = os.path.split(filename)
         author = self.config.get('author', '')
