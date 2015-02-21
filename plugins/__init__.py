@@ -192,8 +192,7 @@ def do_post_plugins(fname, plugin):
 
     # Defferred plugins.
     for deferred in plugins['deferred'].values():
-        if (
-                plugin.ignore_deferred and
+        if (plugin.ignore_deferred and
                 (deferred.get_name() in plugin.ignore_deferred)):
             skipmsg = 'Skipping deferred-plugin {} for {}.'
             debug(skipmsg.format(deferred.get_name(), plugin.get_name()))

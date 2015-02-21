@@ -28,7 +28,7 @@ class CPlugin(Plugin):
         self.version = '0.0.1'
         self.ignore_post = ('chmodx',)
         self.description = '\n'.join((
-            'Creates a basic C file for a binary.',
+            'Creates a basic C file for small programs.',
             'If no Makefile exists, it will be created with basic targets.'
         ))
         self.load_config()

@@ -23,7 +23,10 @@ class MakefilePlugin(PostPlugin):
     def __init__(self):
         self.name = 'makefile'
         self.version = '0.0.1'
-        self.description = 'Creates a makefile when the C plugin is used.'
+        self.description = '\n'.join((
+            'Creates a makefile for new C files.',
+            'This will not overwrite existing makefiles.'
+        ))
 
     def process(self, filename):
         """ When a C file is created, create a basic Makefile to go with it.
