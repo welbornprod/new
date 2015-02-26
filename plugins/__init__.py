@@ -348,8 +348,9 @@ def list_plugins():
             print('\nFound {} {} {}:'.format(postlen, pname, plural))
             for pname in sorted(plugins[ptype]):
                 plugin = plugins[ptype][pname]
+                desc = plugin.get_desc().replace('\n', '\n        ')
                 print('    {}:'.format(pname))
-                print('        {}'.format(plugin.get_desc()))
+                print('        {}'.format(desc))
 
 
 def load_config(section=None):
