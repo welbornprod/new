@@ -334,7 +334,11 @@ def list_plugins():
             print('    {}:'.format(pname))
             if len(plugin.name) > 1:
                 print('{}: {}'.format(aliaslbl, ', '.join(plugin.name)))
-            print('{}: {}'.format(extlbl, ', '.join(plugin.extensions)))
+            if plugin.extensions:
+                extlist = ', '.join(plugin.extensions)
+            else:
+                extlist = 'None'
+            print('{}: {}'.format(extlbl, extlist))
 
     # Do PostPlugin and DeferredPostPlugin
     posttypes = (

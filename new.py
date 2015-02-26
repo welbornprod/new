@@ -65,15 +65,14 @@ def main(argd):
         return 0 if plugins.config_dump() else 1
 
     plugin = plugins.determine_plugin(argd)
-    if plugin:
-        pluginname = plugin.get_name().title()
-        debug('Using plugin: {}'.format(pluginname))
-    else:
+    if not plugin:
         ftype = argd['FILETYPE'] or argd['FILENAME']
         print('\nNot a valid file type (not supported): {}'.format(ftype))
         print('\nUse --plugins to list available plugins.\n')
         return 1
 
+    pluginname = plugin.get_name().title()
+    debug('Using plugin: {}'.format(pluginname))
     # Do plugin help.
     if argd['--HELP']:
         return 0 if plugins.plugin_help(plugin) else 1
@@ -81,8 +80,6 @@ def main(argd):
         return 0 if plugins.plugin_config_dump(plugin) else 1
     # Get valid file name for this file.
     fname = ensure_file_ext(argd['FILENAME'], plugin)
-    if not valid_filename(fname):
-        return 1
 
     # Make sure the file name doesn't conflict with any plugins.
     if plugins.conflicting_file(plugin, argd['FILENAME'], fname):
@@ -96,8 +93,8 @@ def main(argd):
             errmsg = 'Plugin action with no content!\n    {}'
             print(errmsg.format(action.message))
             return 1
-        else:
-            content = action.content
+
+        content = action.content
         # Print a plain message if set.
         if action.message:
             print(action.message)
@@ -105,8 +102,12 @@ def main(argd):
         # Changing the output file name.
         if action.filename:
             fname = action.filename
+
     except Exception as ex:
         print_ex(ex, '{} error:'.format(pluginname), with_class=True)
+        return 1
+    # Confirm overwriting existing files, exit on refusal.
+    if not valid_filename(fname):
         return 1
 
     if not (plugin.allow_blank or content):
@@ -114,20 +115,7 @@ def main(argd):
         print('\nFailed to create file: {}'.format(fname))
         return 1
 
-    if argd['--dryrun']:
-        print('\nWould\'ve written: {}'.format(fname))
-        print(content or '<No Content>')
-    else:
-        created = write_file(fname, content)
-        if created:
-            print_status('Created {}'.format(created))
-        else:
-            print('\nUnable to create: {}'.format(created))
-            return 1
-        # Do post-processing plugins on the created file.
-        plugins.do_post_plugins(fname, plugin)
-
-    return 0
+    return handle_content(fname, content, plugin, dryrun=argd['--dryrun'])
 
 
 def confirm(question):
@@ -146,6 +134,9 @@ def ensure_file_ext(fname, plugin):
     """ Ensure the file name has a valid extension for it's plugin.
         Returns a str containing a valid file name (fixed or original)
     """
+    if not plugin.extensions:
+        # Some files don't have an extension (like makefiles)
+        return fname
 
     for plugin_ext in plugin.extensions:
         if fname.endswith(plugin_ext):
@@ -165,6 +156,27 @@ def get_ex_class(ex, default=None):
     if errclass:
         return errclass[1:-2]
     return default
+
+
+def handle_content(fname, content, plugin, dryrun=False):
+    """ Either write the new content to a file,
+        or print it if this is a dryrun.
+        Run post-processing plugins if a file was written.
+        Returns exit code status.
+    """
+    if dryrun:
+        print('\nWould\'ve written: {}'.format(fname))
+        print(content or '<No Content>')
+        return 0 if content else 1
+
+    created = write_file(fname, content)
+    if not created:
+        print('\nUnable to create: {}'.format(created))
+        return 1
+
+    print_status('Created {}'.format(created))
+    # Do post-processing plugins on the created file.
+    return plugins.do_post_plugins(fname, plugin)
 
 
 def make_dirs(path):

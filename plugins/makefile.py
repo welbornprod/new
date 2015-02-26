@@ -4,9 +4,12 @@
 """
 
 import os.path
-from plugins import PostPlugin, debug
+from plugins import debug, Plugin, PostPlugin, SignalAction
 
-template = """CC=gcc
+# I'm not very good with makefiles. I hate all the errors it spits out for
+# `make clean`, hince all the conditionals.
+template = """SHELL=bash
+CC=gcc
 CFLAGS=-std=c11 -Wall
 binaries={binary}
 
@@ -14,7 +17,15 @@ binaries={binary}
 \t$(CC) -o {binary} $(CFLAGS) {filename}
 
 clean:
-\trm -f $(binaries) *.o
+\t-@ (test -e $(binaries)\\
+\t\t&& (echo "Removing binaries.";\\
+\t\t\trm -f $(binaries);))\\
+\t|| echo "Binaries already clean."
+
+\t-@ (test -e *.o\\
+\t\t&& (echo "Removing objects.";\\
+\t\t\trm *.o;))\\
+\t|| echo "Objects already clean."
 """
 
 
@@ -56,4 +67,46 @@ class MakefilePost(PostPlugin):
         print('Makefile created: {}'.format(makefile))
         return makefile
 
-plugins = (MakefilePost(),)
+
+class MakefilePlugin(Plugin):
+
+    """ Creates a basic Makefile for a given c file name. """
+
+    def __init__(self):
+        self.name = ('makefile', 'make')
+        self.extensions = tuple()
+        self.version = '0.0.1'
+        self.description = '\n'.join((
+            'Creates a basic makefile for a given c file name.'
+            'The file created is always called "Makefile".'
+        ))
+        self.usage = """
+    Usage:
+        makefile [makefile_filename]
+
+    Options:
+        makefile_filename  : Desired file name for the makefile.
+                             Can also be set in config as 'default_filename'.
+    """
+        self.load_config()
+
+    def create(self, filename, args):
+        """ Creates a basic Makefile for a given c file name. """
+        parentdir, basename = os.path.split(filename)
+        binary = os.path.splitext(basename)[0]
+        makefile = os.path.join(
+            parentdir,
+            args[0] if args else self.config.get(
+                'default_filename',
+                'Makefile')
+        )
+        msg = '\n'.join((
+            'Creating a makefile for: {}'.format(basename),
+            '              File path: {}'.format(makefile)
+        ))
+        raise SignalAction(
+            message=msg,
+            filename=makefile,
+            content=template.format(binary=binary, filename=basename))
+
+plugins = (MakefilePost(), MakefilePlugin())
