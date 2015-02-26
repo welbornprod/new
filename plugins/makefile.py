@@ -13,33 +13,52 @@ from plugins import (
     SignalExit
 )
 
-# I'm not very good with makefiles. I hate all the errors it spits out for
-# `make clean`, hince all the conditionals.
+# I'm not very good with makefiles. The .replace() is just for my sanity.
 template = """SHELL=bash
 CC=gcc
 CFLAGS=-std=c11 -Wall
-binaries={binary}
+binary={binary}
+source={filename}
 
-{binary}: {filename}
-\t$(CC) -o {binary} $(CFLAGS) {filename}
+all: {objects}
+    $(CC) -o $(binary) $(CFLAGS) *.o
 
+{objects}: $(source)
+    $(CC) -c $(source) $(CFLAGS)
+
+.PHONY: clean
 clean:
-    -@if [[ -e $(binaries) ]]; then\\
-        if rm -f $(binaries); then\\
+    -@if [[ -e $(binary) ]]; then\\
+        if rm -f $(binary); then\\
             echo "Binaries cleaned.";\\
         fi;\\
     else\\
         echo "Binaries already clean.";\\
-    fi\\
+    fi;
 
-    -@if [[ -e *.o ]]; then\\
+    -@if ls *.o &>/dev/null; then\\
         if rm *.o; then\\
             echo "Objects cleaned.";\\
         fi;\\
     else\\
         echo "Objects already clean.";\\
-    fi\\
+    fi;
 """.replace('    ', '\t')
+
+
+def template_render(filepath, makefile=None):
+    """ Render the makefile template for a given c source file name. """
+    parentdir, filename = os.path.split(filepath)
+    makefile = os.path.join(
+        parentdir,
+        makefile if makefile else 'makefile')
+    binary = os.path.splitext(filename)[0]
+    objects = '{}.o'.format(binary)
+    content = template.format(
+        binary=binary,
+        filename=filename,
+        objects=objects)
+    return makefile, content
 
 
 class MakefilePost(PostPlugin):
@@ -55,25 +74,25 @@ class MakefilePost(PostPlugin):
     def process(self, filename):
         """ When a C file is created, create a basic Makefile to go with it.
         """
-        parentdir, basename = os.path.split(filename)
-        fileext = os.path.splitext(basename)[-1]
+        fileext = os.path.splitext(filename)[-1]
         if fileext != '.c':
             return None
-        self.create_makefile(parentdir, basename)
+        self.create_makefile(filename)
 
-    def create_makefile(self, parentdir, filename):
+    def create_makefile(self, filepath):
         """ Create a basic Makefile with the C file as it's target. """
+        parentdir, filename = os.path.split(filepath)
         trynames = 'Makefile', 'makefile'
         for makefilename in trynames:
             fullpath = os.path.join(parentdir, makefilename)
             if os.path.exists(fullpath):
                 debug('Makefile already exists: {}'.format(fullpath))
                 return None
-
         debug('Creating a makefile for: {}'.format(filename))
-        makefile = os.path.join(parentdir, 'Makefile')
-        binary = os.path.splitext(filename)[0]
-        content = template.format(binary=binary, filename=filename)
+        config = MakefilePlugin().config
+        makefile, content = template_render(
+            filepath,
+            makefile=config.get('default_filename', 'makefile'))
 
         with open(makefile, 'w') as f:
             f.write(content)
@@ -89,6 +108,7 @@ class MakefilePlugin(Plugin):
         self.name = ('makefile', 'make')
         self.extensions = tuple()
         self.version = '0.0.1'
+        self.ignore_post = ('chmodx',)
         self.description = '\n'.join((
             'Creates a basic makefile for a given c file name.'
             'The file created is always called "Makefile".'
@@ -113,14 +133,15 @@ class MakefilePlugin(Plugin):
             if not confirm(msg):
                 raise SignalExit('User cancelled.')
 
-        parentdir, basename = os.path.split(filename)
-        binary = os.path.splitext(basename)[0]
-        makefile = os.path.join(
-            parentdir,
-            args[0] if args else self.config.get(
-                'default_filename',
-                'makefile')
-        )
+        defaultfile = (args[0] if args else self.config.get(
+            'default_filename',
+            'makefile'))
+
+        makefile, content = template_render(
+            filename,
+            makefile=defaultfile)
+
+        _, basename = os.path.split(filename)
         msg = '\n'.join((
             'Creating a makefile for: {}'.format(basename),
             '              File path: {}'.format(makefile)
@@ -128,6 +149,6 @@ class MakefilePlugin(Plugin):
         raise SignalAction(
             message=msg,
             filename=makefile,
-            content=template.format(binary=binary, filename=basename))
+            content=content)
 
 plugins = (MakefilePost(), MakefilePlugin())
