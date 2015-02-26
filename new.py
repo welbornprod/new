@@ -102,7 +102,11 @@ def main(argd):
         # Changing the output file name.
         if action.filename:
             fname = action.filename
-
+    except plugins.SignalExit as excancel:
+        # The plugin wants to stop immediately.
+        if excancel.reason:
+            print('\n{}\n'.format(excancel.reason))
+        return 1
     except Exception as ex:
         print_ex(ex, '{} error:'.format(pluginname), with_class=True)
         return 1
@@ -116,18 +120,6 @@ def main(argd):
         return 1
 
     return handle_content(fname, content, plugin, dryrun=argd['--dryrun'])
-
-
-def confirm(question):
-    """ Confirm a question. Returns True for yes, False for no. """
-    if not question:
-        raise ValueError('No question provided to confirm()!')
-
-    if not question.endswith('?'):
-        question = '{}?'.format(question)
-
-    answer = input('\n{} (y/N): '.format(question)).lower().strip()
-    return answer.startswith('y')
 
 
 def ensure_file_ext(fname, plugin):
@@ -204,7 +196,7 @@ def print_err(msg):
     print('\n{}'.format(msg))
 
 
-def print_ex(msg, ex, with_class=False):
+def print_ex(ex, msg, with_class=False):
     """ Print an error msg, formatted with str(Exception).
         Arguments:
             msg         : User message to print.
@@ -212,6 +204,7 @@ def print_ex(msg, ex, with_class=False):
             with_class  : Use the Exception.__class__ in the message.
                           Default: False
     """
+
     if with_class:
         kls = get_ex_class(ex, '?')
         print_err('({}) {}\n  {}'.format(kls, msg, ex))
@@ -234,11 +227,7 @@ def valid_filename(fname):
     if not os.path.exists(fname):
         return True
 
-    if not confirm('File exists!: {}\n\nOverwrite the file?'.format(fname)):
-        print('\nUser cancelled.\n')
-        return False
-
-    return True
+    return plugins.confirm_overwrite(fname)
 
 
 def write_file(fname, content):
