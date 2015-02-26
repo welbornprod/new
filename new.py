@@ -13,7 +13,7 @@ import plugins
 debug = plugins.debug
 
 NAME = 'New'
-VERSION = '0.0.2'
+VERSION = '0.0.3'
 VERSIONSTR = '{} v. {}'.format(NAME, VERSION)
 SCRIPT = os.path.split(os.path.abspath(sys.argv[0]))[1]
 SCRIPTDIR = os.path.abspath(sys.path[0])
