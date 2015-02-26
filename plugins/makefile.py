@@ -4,7 +4,14 @@
 """
 
 import os.path
-from plugins import debug, Plugin, PostPlugin, SignalAction
+from plugins import (
+    confirm,
+    debug,
+    Plugin,
+    PostPlugin,
+    SignalAction,
+    SignalExit
+)
 
 # I'm not very good with makefiles. I hate all the errors it spits out for
 # `make clean`, hince all the conditionals.
@@ -17,16 +24,22 @@ binaries={binary}
 \t$(CC) -o {binary} $(CFLAGS) {filename}
 
 clean:
-\t-@ (test -e $(binaries)\\
-\t\t&& (echo "Removing binaries.";\\
-\t\t\trm -f $(binaries);))\\
-\t|| echo "Binaries already clean."
+    -@if [[ -e $(binaries) ]]; then\\
+        if rm -f $(binaries); then\\
+            echo "Binaries cleaned.";\\
+        fi;\\
+    else\\
+        echo "Binaries already clean.";\\
+    fi\\
 
-\t-@ (test -e *.o\\
-\t\t&& (echo "Removing objects.";\\
-\t\t\trm *.o;))\\
-\t|| echo "Objects already clean."
-"""
+    -@if [[ -e *.o ]]; then\\
+        if rm *.o; then\\
+            echo "Objects cleaned.";\\
+        fi;\\
+    else\\
+        echo "Objects already clean.";\\
+    fi\\
+""".replace('    ', '\t')
 
 
 class MakefilePost(PostPlugin):
@@ -92,6 +105,14 @@ class MakefilePlugin(Plugin):
 
     def create(self, filename, args):
         """ Creates a basic Makefile for a given c file name. """
+        if not os.path.exists(filename):
+            msg = '\n'.join((
+                'The target source file doesn\'t exist: {}',
+                'Continue anyway?'
+            )).format(filename)
+            if not confirm(msg):
+                raise SignalExit('User cancelled.')
+
         parentdir, basename = os.path.split(filename)
         binary = os.path.splitext(basename)[0]
         makefile = os.path.join(
