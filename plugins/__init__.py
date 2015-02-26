@@ -30,6 +30,27 @@ def config_dump():
     return True
 
 
+def confirm(question):
+    """ Confirm a question. Returns True for yes, False for no. """
+    if not question:
+        raise ValueError('No question provided to confirm()!')
+
+    if not question.endswith('?'):
+        question = '{}?'.format(question)
+
+    answer = input('\n{} (y/N): '.format(question)).lower().strip()
+    return answer.startswith('y')
+
+
+def confirm_overwrite(filename):
+    """ Use confirm() to confirm overwriting a file. """
+    msg = 'File exists!: {}\n\nOverwrite the file?'.format(filename)
+    if not confirm(msg):
+        print('\nUser cancelled.\n')
+        return False
+    return True
+
+
 def conflicting_file(plugin, filearg, filename):
     """ Make sure this file name and plugin mixture isn't going to cause a
         show-stopping conflict with New.
@@ -855,8 +876,8 @@ class SignalExit(Exception):
         The plugin may give a reason/message by initializing with a str as the
         first argument.
         Example:
-            raise pluginbase.SignalExit('Program was not installed!')
+            raise plugins.SignalExit('Program was not installed!')
     """
 
     def __init__(self, *args):
-        self.reason = args[0] if args else None
+        self.reason = args[0] if args else 'No reason given for the exit.'
