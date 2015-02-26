@@ -119,7 +119,7 @@ class MakefilePlugin(Plugin):
             parentdir,
             args[0] if args else self.config.get(
                 'default_filename',
-                'Makefile')
+                'makefile')
         )
         msg = '\n'.join((
             'Creating a makefile for: {}'.format(basename),
