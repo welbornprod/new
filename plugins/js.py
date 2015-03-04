@@ -15,7 +15,7 @@ TEMPLATE = """#!/usr/bin/env node
 
 var XXX = function () {{
 
-}}
+}};
 """
 
 
