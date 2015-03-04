@@ -13,7 +13,7 @@ TEMPLATE = """#!/usr/bin/env node
    {author}{date}
 */
 
-function XXX {{
+var XXX = function () {{
 
 }}
 """
@@ -26,7 +26,7 @@ class JSPlugin(Plugin):
     def __init__(self):
         self.name = ('js', 'node', 'nodejs')
         self.extensions = ('.js',)
-        self.version = '0.0.1'
+        self.version = '0.0.2'
         self.load_config()
 
     def create(self, fname, args):
