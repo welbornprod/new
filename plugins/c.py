@@ -28,8 +28,9 @@ class CPlugin(Plugin):
         self.version = '0.0.2'
         self.ignore_post = ('chmodx',)
         self.description = '\n'.join((
-            'Creates a basic C file for small programs.',
-            'If no Makefile exists, it will be created with basic targets.'
+            'Creates a basic C or C++ file for small programs.',
+            'If no Makefile exists, it will be created with basic targets.',
+            'The Makefile is provided by the automakefile plugin.'
         ))
         self.load_config()
 
