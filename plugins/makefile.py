@@ -15,16 +15,16 @@ from plugins import (
 
 # I'm not very good with makefiles. The .replace() is just for my sanity.
 template = """SHELL=bash
-CC=gcc
-CFLAGS=-std=c11 -Wall
+{compilervar}={compiler}
+{cflagsvar}=-std={std} -Wall
 binary={binary}
 source={filename}
 
 all: {objects}
-    $(CC) -o $(binary) $(CFLAGS) *.o
+    $({compilervar}) -o $(binary) $({cflagsvar}) *.o
 
 {objects}: $(source)
-    $(CC) -c $(source) $(CFLAGS)
+    $({compilervar}) -c $(source) $({cflagsvar})
 
 .PHONY: clean
 clean:
@@ -45,27 +45,50 @@ clean:
     fi;
 """.replace('    ', '\t')
 
+# Template options based on compiler name.
+coptions = {
+    'gcc': {
+        'compilervar': 'CC',
+        'cflagsvar': 'CFLAGS',
+        'std': 'c11'
+    },
+    'g++': {
+        'compilervar': 'CXX',
+        'cflagsvar': 'CXXFLAGS',
+        'std': 'c++11'
+    }
+}
+
 
 def template_render(filepath, makefile=None):
     """ Render the makefile template for a given c source file name. """
     parentdir, filename = os.path.split(filepath)
+    fileext = os.path.splitext(filename)[-1]
     makefile = os.path.join(
         parentdir,
         makefile if makefile else 'makefile')
     binary = os.path.splitext(filename)[0]
     objects = '{}.o'.format(binary)
-    content = template.format(
-        binary=binary,
-        filename=filename,
-        objects=objects)
-    return makefile, content
+
+    # Get compiler and make options by file extension (default to gcc).
+    compiler = {'.c': 'gcc', '.cpp': 'g++'}.get(fileext, 'gcc')
+    # Create template args, update with compiler-based options.
+    templateargs = {
+        'compiler': compiler,
+        'binary': binary,
+        'filename': filename,
+        'objects': objects
+    }
+    templateargs.update(coptions[compiler])
+
+    return makefile, template.format(**templateargs)
 
 
 class MakefilePost(PostPlugin):
 
     def __init__(self):
         self.name = 'automakefile'
-        self.version = '0.0.1'
+        self.version = '0.0.2'
         self.description = '\n'.join((
             'Creates a makefile for new C files.',
             'This will not overwrite existing makefiles.'
@@ -75,7 +98,7 @@ class MakefilePost(PostPlugin):
         """ When a C file is created, create a basic Makefile to go with it.
         """
         fileext = os.path.splitext(filename)[-1]
-        if fileext != '.c':
+        if fileext not in ('.c', '.cpp'):
             return None
         self.create_makefile(filename)
 
@@ -107,7 +130,7 @@ class MakefilePlugin(Plugin):
     def __init__(self):
         self.name = ('makefile', 'make')
         self.extensions = tuple()
-        self.version = '0.0.1'
+        self.version = '0.0.2'
         self.ignore_post = ('chmodx',)
         self.description = '\n'.join((
             'Creates a basic makefile for a given c file name.'

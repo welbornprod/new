@@ -11,8 +11,8 @@ template = """/*  {filename}
     {author} {date}
 */
 
-#include <stdio.h>
-
+#include <{include}>
+{namespace}
 int main(int argc, char *argv[]) {{
 
     return 0;
@@ -23,9 +23,9 @@ int main(int argc, char *argv[]) {{
 class CPlugin(Plugin):
 
     def __init__(self):
-        self.name = ('c',)
-        self.extensions = ('.c',)
-        self.version = '0.0.1'
+        self.name = ('c', 'cpp')
+        self.extensions = ('.c', '.cpp')
+        self.version = '0.0.2'
         self.ignore_post = ('chmodx',)
         self.description = '\n'.join((
             'Creates a basic C file for small programs.',
@@ -38,9 +38,17 @@ class CPlugin(Plugin):
         """
         parentdir, basename = os.path.split(filename)
         author = self.config.get('author', '')
+
+        fileext = os.path.splitext(filename)[-1]
+        include = {'.c': 'stdio.h', '.cpp': 'iostream'}.get(fileext, 'stdio.h')
         if author:
             author = '-{}'.format(author)
-        return template.format(filename=basename, author=author, date=DATE)
+        return template.format(
+            filename=basename,
+            author=author,
+            date=DATE,
+            include=include,
+            namespace='\nusing namespace std;\n' if fileext == '.cpp' else '')
 
 
 plugins = (CPlugin(),)
