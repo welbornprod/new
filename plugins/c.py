@@ -23,7 +23,7 @@ int main(int argc, char *argv[]) {{
 class CPlugin(Plugin):
 
     def __init__(self):
-        self.name = ('c', 'cpp')
+        self.name = ('c', 'cpp', 'c++')
         self.extensions = ('.c', '.cpp')
         self.version = '0.0.2'
         self.ignore_post = ('chmodx',)
