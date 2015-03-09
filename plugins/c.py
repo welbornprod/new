@@ -52,4 +52,4 @@ class CPlugin(Plugin):
             namespace='\nusing namespace std;\n' if fileext == '.cpp' else '')
 
 
-plugins = (CPlugin(),)
+exports = (CPlugin(),)

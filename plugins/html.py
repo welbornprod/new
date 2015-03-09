@@ -178,4 +178,4 @@ class JQueryPlugin(Plugin):
 
         return self.download_jquery(ver)
 
-plugins = (HtmlPlugin(), JQueryPlugin())
+exports = (HtmlPlugin(), JQueryPlugin())

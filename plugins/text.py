@@ -21,4 +21,4 @@ class TextPlugin(Plugin):
         """ Creates a blank text file (no content). """
         return None
 
-plugins = (TextPlugin(), )
+exports = (TextPlugin(), )

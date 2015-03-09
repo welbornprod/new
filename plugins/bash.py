@@ -72,4 +72,4 @@ class BashPlugin(Plugin):
             while lst.count(a) > 0:
                 lst.remove(a)
 
-plugins = (BashPlugin(), )
+exports = (BashPlugin(), )

@@ -174,4 +174,4 @@ class MakefilePlugin(Plugin):
             filename=makefile,
             content=content)
 
-plugins = (MakefilePost(), MakefilePlugin())
+exports = (MakefilePost(), MakefilePlugin())

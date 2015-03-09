@@ -294,8 +294,8 @@ def get_usage(indent=0):
 def is_plugins_module(module):
     """ Returns True if the module appears to be a plugins module. """
     return (
-        hasattr(module, 'plugins') and
-        isinstance(module.plugins, (list, tuple)))
+        hasattr(module, 'exports') and
+        isinstance(module.exports, (list, tuple)))
 
 
 def is_py_file(path):
@@ -477,7 +477,7 @@ def load_plugins(plugindir):
             debug('Plugin failed: {}\n{}'.format(modname, eximp))
             continue
         try:
-            for plugin in module.plugins:
+            for plugin in module.exports:
                 # debug('    checking {}'.format(plugin))
                 invalidreason = is_invalid_plugin(plugin)
                 if invalidreason:

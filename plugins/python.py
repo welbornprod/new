@@ -231,4 +231,4 @@ class PythonPlugin(Plugin):
         # Remove any duplicates and sort the lines.
         return '\n'.join(sorted(set(lines)))
 
-plugins = (PythonPlugin(),)
+exports = (PythonPlugin(),)

@@ -27,4 +27,4 @@ class ChmodxPlugin(PostPlugin):
         else:
             self.print_status('Made executable (chmod 774)')
 
-plugins = (ChmodxPlugin(),)
+exports = (ChmodxPlugin(),)

@@ -43,4 +43,4 @@ class JSPlugin(Plugin):
             author=author,
             date=datestr)
 
-plugins = (JSPlugin(),)
+exports = (JSPlugin(),)

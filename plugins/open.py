@@ -43,4 +43,4 @@ class OpenPlugin(DeferredPostPlugin):
             return 1
         return 0
 
-plugins = (OpenPlugin(),)
+exports = (OpenPlugin(),)

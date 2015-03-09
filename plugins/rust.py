@@ -29,4 +29,4 @@ fn main() {
 """
 
 
-plugins = (RustPlugin(),)
+exports = (RustPlugin(),)

@@ -26,7 +26,7 @@ a method with the signature `create(self, filename, args)`.
 Usage:
 ------
 
-```bash
+```
 Usage:
     new -c | -h | -v | -p [-D]
     new FILETYPE (-C | -H) [-D]
@@ -53,17 +53,17 @@ Example Usage:
 --------------
 
 Creating a file called `myscript.py` using the python plugin:
-```bash
+```
 new py myscript
 ```
 
 Creating the same file when the default plugin is set to `python`:
-```bash
+```
 new myscript
 ```
 
 Creating a new directory and html file:
-```bash
+```
 new html myproject/myfile.html
 ```
 
@@ -72,7 +72,7 @@ default to whatever the plugin has defined for the `extensions` attribute.
 
 You can omit the plugin name if you do add the extension.
 This would create a new file using the `bash` plugin:
-```bash
+```
 new myscript.sh
 ```
 
@@ -125,7 +125,7 @@ Plugin Modules:
 
 The minimum requirements for a plugin module are that it must be located in
 the `./plugins` directory, and must contain a module-level attribute called
-`plugins` which is a `tuple` or `list` of Plugin instances.
+`exports` which is a `tuple` or `list` of Plugin instances.
 
 Example plugin module:
 ----------------------
@@ -140,7 +140,7 @@ class HelloPlugin(Plugin):
     def create(self, filename, args):
         return 'Hello World'
 
-plugins = (HelloPlugin(),)
+exports = (HelloPlugin(),)
 ```
 
 This example plugin can be used in three different ways:
@@ -161,12 +161,13 @@ Post Plugins:
 -------------
 
 PostPlugins run after the file is created. Normal errors are printed but
-skipped. A plugin can cause the program to abort if it raises a
-`plugins.SignalExit`. Normal errors will cause DeferredPlugins to be aborted.
+skipped. Normal errors will cause DeferredPlugins to be aborted.
+A plugin can cause the program to abort if it raises a `plugins.SignalExit`.
 
 
 Deferred Plugins:
 -----------------
 
 DeferredPlugins are the same as PostPlugins, except they will only run if
-all PostPlugins succeeded (no normal errors, or SignalExit() errors).
+all PostPlugins succeeded (no normal errors, or SignalExit() errors). They are
+meant to run last. The `open` plugin is the only DeferredPlugin right now.
