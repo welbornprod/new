@@ -195,7 +195,7 @@ def do_post_plugins(fname, plugin):
             debug(skipmsg.format(post.get_name(), plugin.get_name()))
             continue
 
-        pluginret = try_post_plugin(post, fname)
+        pluginret = try_post_plugin(post, plugin, fname)
         if pluginret == PluginReturn.fatal:
             return errors + 1
         errors += pluginret.value
@@ -220,7 +220,7 @@ def do_post_plugins(fname, plugin):
             skipmsg = 'Skipping deferred-plugin {} for {}.'
             debug(skipmsg.format(deferred.get_name(), plugin.get_name()))
             continue
-        pluginret = try_post_plugin(deferred, fname)
+        pluginret = try_post_plugin(deferred, plugin, fname)
         if pluginret == PluginReturn.fatal:
             return errors + 1
         errors += pluginret.value
@@ -330,7 +330,7 @@ def is_invalid_plugin(plugin):
             return 'missing process function'
         return None
 
-    return 'not a Plugin or PostPlugin'
+    return 'not a Plugin, PostPlugin, or DeferredPostPlugin'
 
 
 def iter_py_files(path):
@@ -581,6 +581,14 @@ def plugin_help(plugin):
     return False
 
 
+def plugin_print_status(plugin, msg, padlines=0):
+    """ Print a status msg for a plugin instance.
+        This function provides implementation of 'self.print_status' for
+        Plugins and PostPlugins.
+    """
+    print('{}{}: {}'.format('\n' * padlines, plugin.get_name().ljust(15), msg))
+
+
 def print_inplace(s):
     """ Overwrites the last printed line. """
     print('\033[2A\033[160D')
@@ -613,15 +621,19 @@ def save_config(config, section=None):
     return False
 
 
-def try_post_plugin(plugin, filename):
+def try_post_plugin(plugin, typeplugin, filename):
     """ Try running plugin.process(filename).
+        Arguments:
+            plugin      : Post or Deferred plugin to try running.
+            typeplugin  : The original Plugin that created the content.
+            filename    : The requested filename for file creation.
         Returns one of:
             PluginReturn.success (0)
             PluginReturn.error (1)
             PluginReturn.fatal (2)
     """
     try:
-        plugin.process(filename)
+        plugin.process(typeplugin, filename)
     except SignalExit as exstop:
         if exstop.reason:
             errmsg = '\nFatal error in post-processing plugin \'{}\':\n{}'
@@ -693,27 +705,38 @@ class Plugin(object):
 
     def _create(self, filename, args=None):
         """ This method is called for content creation, and is responsible
-            for calling the user's create() method. It sets self.args
-            so they are available to all other methods after create() is
-            called.
+            for calling the plugin's create() method.
+            It sets self.args so they are available in create() and afterwards.
+            If no args were given then get_default_args() is used to grab them
+            from config.
         """
-        self.args = args if args else tuple()
-        return self.create(filename, args)
+        self.args = args if args else self.get_default_args()
+        return self.create(filename)
 
-    def create(self, filename, args=None):
+    def create(self, filename):
         """ (unimplemented plugin description)
 
             This should return a string that is ready to be written to a file.
             It may raise an exception to signal that something went wrong.
 
             Arguments:
-                args      : A list of plugin-specific arguments.
                 filename  : The file name that will be written.
                             Plugins do not write the file, but the file name
                             may be useful information. The python plugin
                             uses it to create the main doc str.
         """
         raise NotImplementedError('create() must be implemented!')
+
+    def get_arg(self, index, default=None):
+        """ Safely retrieve an argument by index.
+            On failure (index error), return 'default'.
+        """
+        args = getattr(self, 'args', tuple())
+        try:
+            val = args[index]
+        except IndexError:
+            return default
+        return val
 
     def get_default_args(self):
         """ Loads default args from config, if any are set.
@@ -787,11 +810,11 @@ class Plugin(object):
             return False
         return exists
 
-    def print_status(self, msg):
+    def print_status(self, msg, padlines=0):
         """ Print a status message including the plugin name and file name
             if available.
         """
-        print('{}: {}'.format(self.get_name().ljust(15), msg))
+        return plugin_print_status(self, msg, padlines=padlines)
 
 
 class PostPlugin(object):
@@ -835,17 +858,21 @@ class PostPlugin(object):
         """
         return self.name if self.name else ''
 
-    def print_status(self, msg):
+    def print_status(self, msg, padlines=0):
         """ Print a status message including the plugin name and file name
             if available.
         """
-        print('{}: {}'.format(self.get_name().ljust(15), msg))
+        return plugin_print_status(self, msg, padlines=padlines)
 
-    def process(self, filename):
-        """ (unimplented post-plugin description)
+    def process(self, plugin, filename):
+        """ (unimplemented post-plugin description)
 
             This should accept an existing file name and do some processing.
             It may raise an exception to signal that something went wrong.
+
+            Arguments:
+                plugin    : The original Plugin that created the content.
+                filename  : The requested file name for file creation.
         """
         raise NotImplementedError('process() must be overridden!')
 
