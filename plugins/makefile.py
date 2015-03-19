@@ -94,7 +94,7 @@ class MakefilePost(PostPlugin):
             'This will not overwrite existing makefiles.'
         ))
 
-    def process(self, filename):
+    def process(self, plugin, filename):
         """ When a C file is created, create a basic Makefile to go with it.
         """
         fileext = os.path.splitext(filename)[-1]
@@ -146,7 +146,7 @@ class MakefilePlugin(Plugin):
     """
         self.load_config()
 
-    def create(self, filename, args):
+    def create(self, filename):
         """ Creates a basic Makefile for a given c file name. """
         if not os.path.exists(filename):
             msg = '\n'.join((
@@ -156,9 +156,8 @@ class MakefilePlugin(Plugin):
             if not confirm(msg):
                 raise SignalExit('User cancelled.')
 
-        defaultfile = (args[0] if args else self.config.get(
-            'default_filename',
-            'makefile'))
+        defaultfile = (
+            self.get_arg(0, self.config.get('default_filename', 'makefile')))
 
         makefile, content = template_render(
             filename,

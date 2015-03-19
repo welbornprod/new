@@ -41,19 +41,17 @@ class BashPlugin(Plugin):
         f,func       : Include an empty function.
     """
 
-    def create(self, filename, args):
+    def create(self, filename):
         """ Creates a basic bash source file. """
-        if not args:
-            args = self.get_default_args()
 
-        if ('f' in args) or ('func' in args):
-            self.pop_args(args, ('f', 'func'))
+        if self.has_arg('f(unc)'):
+            self.pop_args(self.args, ('f', 'func'))
             tmplate = '\n\n'.join((template, template_func))
         else:
             tmplate = template
         author = self.config.get('author', '')
         date = ' {}'.format(DATE) if author else DATE
-        description = ' '.join(args) if args else ''
+        description = ' '.join(self.args) if self.args else ''
 
         return tmplate.format(
             author=author,

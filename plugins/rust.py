@@ -19,7 +19,7 @@ class RustPlugin(Plugin):
         self.ignore_post = {'chmodx'}
         self.version = '1.0.0'
 
-    def create(self, fname, args):
+    def create(self, filename):
         """ Creates a blank Rust file. """
         return """use std::io;
 

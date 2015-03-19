@@ -25,7 +25,7 @@ class OpenPlugin(DeferredPostPlugin):
         proc = subprocess.Popen(cmd)
         return proc
 
-    def process(self, path):
+    def process(self, plugin, path):
         """ Opens the file after creation using your favorite editor. """
 
         editor = self.config.get('editor', os.environ.get('EDITOR', ''))

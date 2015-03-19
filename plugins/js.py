@@ -29,7 +29,7 @@ class JSPlugin(Plugin):
         self.version = '0.0.2'
         self.load_config()
 
-    def create(self, fname, args):
+    def create(self, fname):
         """ Creates a blank js/node file. """
         # Using the node shebang, even though this may not be for node.
         author = self.config.get('author', '')

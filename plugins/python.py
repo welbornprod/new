@@ -148,17 +148,13 @@ class PythonPlugin(Plugin):
         unittest, test  : A unittest module.
     """
 
-    def create(self, filename, args):
+    def create(self, filename):
         """ Creates a new python source file. Several templates are available.
         """
-        if not args:
-            args = self.get_default_args()
+        templateid = (
+            self.get_arg(0) or self.config.get('template', 'docopt')).lower()
+        extra_imports = self.args[1:]
 
-        if args:
-            templateid = args[0].lower()
-        else:
-            templateid = self.config.get('template', 'docopt')
-        extra_imports = args[1:] if len(args) > 1 else []
         template_args = templates.get(templateid, None)
         if not template_args:
             raise ValueError('No template by that name: {}'.format(templateid))

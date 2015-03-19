@@ -48,7 +48,7 @@ class CPlugin(Plugin):
     """
         self.load_config()
 
-    def create(self, filename, args):
+    def create(self, filename):
         """ Creates a basic C file.
         """
         library = self.has_arg('l(ib)?')

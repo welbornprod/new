@@ -14,7 +14,7 @@ class ChmodxPlugin(PostPlugin):
         self.name = 'chmodx'
         self.version = '0.0.1-1'
 
-    def process(self, fname):
+    def process(self, plugin, fname):
         """ Makes the newly created file executable. """
         chmod774 = stat.S_IRWXU | stat.S_IRWXG | stat.S_IROTH
         try:
