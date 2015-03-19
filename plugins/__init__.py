@@ -3,9 +3,11 @@
     and general plugin helper/loading functions.
     The raw plugins can be accessed with plugins.plugins.
 """
+
 import inspect
 import json
 import os
+import re
 import sys
 from datetime import datetime
 from enum import Enum
@@ -639,35 +641,44 @@ def try_post_plugin(plugin, filename):
 class Plugin(object):
 
     """ Base for file-type plugins. """
-    # (list/tuple)
+    # (tuple)
     # Names/aliases for this plugin/filetype.
     # The proper name will be self.name[0].
     name = None
-    # (list/tuple)
+
+    # (tuple)
     # File extensions for this file type.
     # Default file extension is self.extensions[0].
     extensions = None
+
     # (str)
     # Description for this plugin.
     # When present, this overrides the default behaviour of using
     # the first line of self.create.__doc__.
     description = None
+
     # (str)
     # Version for this plugin.
     version = '0.0.1'
+
     # (bool)
     # Whether this plugin is allowed to create blank content.
     # Plugins such as the 'text' plugin might use this.
     # Otherwise, no content means an error occurred and no file is written.
     allow_blank = False
-    # (list/tuple)
+
+    # (set)
     # Names of deferred plugins that will be skipped when using this plugin.
-    ignore_deferred = []
-    # (list/tuple)
+    ignore_deferred = set()
+
+    # (set)
     # Names of post plugins that will be skipped when using this plugin.
-    ignore_post = []
-    # (list/tuple) Usage string for this plugin when `new plugin -H` is used.
+    ignore_post = set()
+
+    # (list/tuple)
+    # Usage string for this plugin when `new plugin -H` is used.
     usage = None
+
     # (function)
     # Internal use. Function to load config data into self.config.
     # This may be overridden.
@@ -679,6 +690,15 @@ class Plugin(object):
         self.extensions = extensions
         # A usage string for this plugin.
         self.usage = None
+
+    def _create(self, filename, args=None):
+        """ This method is called for content creation, and is responsible
+            for calling the user's create() method. It sets self.args
+            so they are available to all other methods after create() is
+            called.
+        """
+        self.args = args if args else tuple()
+        return self.create(filename, args)
 
     def create(self, filename, args=None):
         """ (unimplemented plugin description)
@@ -747,6 +767,25 @@ class Plugin(object):
             Returns self.usage on success, or None on failure.
         """
         return getattr(self, 'usage', None)
+
+    def has_arg(self, pattern, position=None):
+        """ Determine if an argument was given using a regex pattern.
+            If position is given it simply returns:
+                re.search(pattern, args[position]) is not None
+            If position is None then all args are searched.
+            Returns True if any match, otherwise False.
+        """
+        args = getattr(self, 'args', tuple())
+        if position is None:
+            for a in args:
+                if re.search(pattern, a) is not None:
+                    return True
+            return False
+        try:
+            exists = re.search(pattern, args[position]) is not None
+        except IndexError:
+            return False
+        return exists
 
     def print_status(self, msg):
         """ Print a status message including the plugin name and file name
