@@ -13,7 +13,7 @@ import plugins
 debug = plugins.debug
 
 NAME = 'New'
-VERSION = '0.0.3'
+VERSION = '0.0.4'
 VERSIONSTR = '{} v. {}'.format(NAME, VERSION)
 SCRIPT = os.path.split(os.path.abspath(sys.argv[0]))[1]
 SCRIPTDIR = os.path.abspath(sys.path[0])
@@ -86,7 +86,7 @@ def main(argd):
         return 1
 
     try:
-        content = plugin.create(fname, argd['ARGS'])
+        content = plugin._create(fname, argd['ARGS'])
     except plugins.SignalAction as action:
         # See if we have content to write (no content is fatal).
         if not (action.content or plugin.allow_blank):
