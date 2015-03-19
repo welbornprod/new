@@ -1,16 +1,11 @@
 New
 ===
 
-**New** creates new files from templates. This is an attempt to move 3 separate
-programs that I made into a single plugin-based program. Instead of using
-templates from whatever IDE I may be using, or just creating a master template
-on my harddrive and copying it every time I need to new file, I decided to
-make a simple command capable of creating several types of files. I know this
-been done before.
+**New** dynamically creates new files from templates.
+It's a simple command capable of creating several types of files.
+I know this been done before.
 
-
-There are a couple advantages this program has over the other two methods I
-mentioned. Plugins can be created to modify the file after it has been created,
+Plugins can be created to modify the file after it has been created,
 such as running `chmod +x` (the `chmodx` plugin), or opening it automatically
 after creation (the `open` plugin). Also, information can be dynamically added
 to the file during creation (like a date/time).
@@ -21,7 +16,7 @@ A default template can be set, so typing a file name without the extension
 automatically uses the default template/plugin. New templates can be added
 easily by dropping a `.py` file in the `./plugins` folder and subclassing
 `plugins.Plugin`. They only need the `name` and `extensions` attribute, and
-a method with the signature `create(self, filename, args)`.
+a method with the signature `create(self, filename)`.
 
 Usage:
 ------
@@ -137,7 +132,7 @@ class HelloPlugin(Plugin):
         self.name = ('hello',)
         self.extensions = ('.tmp',)
 
-    def create(self, filename, args):
+    def create(self, filename):
         return 'Hello World'
 
 exports = (HelloPlugin(),)
@@ -145,16 +140,23 @@ exports = (HelloPlugin(),)
 
 This example plugin can be used in three different ways:
 ```bash
+
+# Explicit, by name.
 new hello myfile
+
+# Automatic, by file extension.
 new myfile.tmp
+
+# Explicit, using default file name.
 new hello
 ```
 
 Plugin Base:
 ------------
 
-This must be subclassed to create a new plugin. All attributes and methods
-are documented.
+This must be subclassed to create a new plugin. Regular plugins are responsible
+for creating content and returning it. All attributes and methods are
+documented.
 
 
 Post Plugins:
@@ -163,7 +165,7 @@ Post Plugins:
 PostPlugins run after the file is created. Normal errors are printed but
 skipped. Normal errors will cause DeferredPlugins to be aborted.
 A plugin can cause the program to abort if it raises a `plugins.SignalExit`.
-
+The load/run order of PostPlugins may vary.
 
 Deferred Plugins:
 -----------------
@@ -171,3 +173,5 @@ Deferred Plugins:
 DeferredPlugins are the same as PostPlugins, except they will only run if
 all PostPlugins succeeded (no normal errors, or SignalExit() errors). They are
 meant to run last. The `open` plugin is the only DeferredPlugin right now.
+The load/run order of DeferredPlugins may vary.
+
