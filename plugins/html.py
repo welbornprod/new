@@ -1,12 +1,7 @@
 """ Html plugin for New.
     -Christopher Welborn 12-25-14
 """
-from plugins import Plugin, debug, print_inplace
-
-import os
-
-from urllib import request
-from urllib.error import HTTPError
+from plugins import Plugin, debug
 
 
 template = """<!DOCTYPE html>
@@ -52,7 +47,7 @@ class HtmlPlugin(Plugin):
     def __init__(self):
         self.name = ('html', 'htm')
         self.extensions = ('.html', '.htm')
-        self.version = '0.0.1-2'
+        self.version = '0.0.1-3'
         # Html files are not executable.
         self.ignore_post = {'chmodx'}
         self.usage = """
@@ -67,11 +62,11 @@ class HtmlPlugin(Plugin):
         title    : Title for the new file.
     """
 
-    def create(self, filename, args):
+    def create(self, filename):
         """ Creates a simple html file. """
-        title = args[0] if args else '...'
-        cssfile = args[1] if len(args) > 1 else 'main.css'
-        jsfile = args[2] if len(args) > 2 else 'main.js'
+        title = self.get_arg(0, '...')
+        cssfile = self.get_arg(1, 'main.css')
+        jsfile = self.get_arg(2, 'main.js')
         template_args = {
             'title': title,
             'css': template_csssrc.format(cssfile),
@@ -91,7 +86,7 @@ class JQueryPlugin(Plugin):
     def __init__(self):
         self.name = ('jquery', 'jq', 'htmljq')
         self.extensions = ('.html', '.htm')
-        self.version = '0.0.1-3'
+        self.version = '0.0.1-4'
         # Html files are not executable.
         self.ignore_post = {'chmodx'}
         self.load_config()
@@ -104,27 +99,26 @@ class JQueryPlugin(Plugin):
                    Default: main.css
         title    : Title for the new file.
         version  : jQuery version to use.
+                   Using 'no' or 'none' will skip the download entirely.
                    Default: 2.1.3
     """
 
-    def create(self, filename, args):
+    def create(self, filename):
         """ Creates an html file including jQuery.
             This will download jQuery if needed.
         """
-        if not args:
-            args = self.get_default_args()
 
-        ver = args[0] if args else '2.1.3'
-        title = args[1] if len(args) > 1 else '...'
-        cssfile = args[2] if len(args) > 2 else 'main.css'
+        title = self.get_arg(1, '...')
+        cssfile = self.get_arg(2, 'main.css')
         if self.config.get('no_download', False):
             debug('Skipping jquery download.')
             scripts = ''
+            self.ignore_deferred.add('jquerydl')
         else:
-            jqueryfile = self.ensure_jquery_version(ver)
-            if not jqueryfile:
-                errmsg = 'Unable to find or download jQuery {}!'
-                raise Exception(errmsg.format(ver))
+            # Set an attribute for the jquerydl plugin.
+            self.jquery_ver = (
+                self.get_arg(0, self.config.get('jq_ver', '2.1.3')))
+            jqueryfile = self.get_jquery_file(self.jquery_ver)
             scripts = template_scriptsrc.format(jqueryfile)
 
         template_args = {
@@ -136,46 +130,8 @@ class JQueryPlugin(Plugin):
         }
         return template.format(**template_args)
 
-    def download_jquery(self, ver):
-        """ Downloads a specific jquery version to the current directory.
-            Returns the file name on success, or None on failure.
-        """
-        filename = 'jquery-{}.min.js'.format(ver)
-        url = 'http://code.jquery.com/{}'.format(filename)
-
-        self.print_status('Downloading: {}\n'.format(url))
-        try:
-            path, httpmsg = request.urlretrieve(
-                url,
-                filename=filename,
-                reporthook=self.download_reporter)
-        except HTTPError as ex:
-            raise Exception('Unable to download: {}\n{}'.format(url, ex))
-
-        return path
-
-    def download_reporter(self, blocknum, readsize, totalsize):
-        """ A reporter for downloads. Prints current status for the download.
-        """
-        size = (blocknum - 1) * readsize
-        print_inplace('Downloading: {}b/{}b'.format(size, totalsize))
-
-    def ensure_jquery_version(self, ver):
-        """ Ensures that a local copy of jquery-{ver}.min.js can be found.
-            If ver is None, returns None.
-            If the file can't be found, it is downloaded.
-            If the download fails, errors are printed and None is returned.
-            Returns the filepath if the file exists, and None if it doesn't.
-        """
-        if ver is None:
-            debug('ensure_jquery_version: None')
-            return None
-
-        filename = 'jquery-{ver}.min.js'.format(ver=ver)
-        if os.path.exists(filename):
-            debug('Exists: {}'.format(filename))
-            return filename
-
-        return self.download_jquery(ver)
+    def get_jquery_file(self, ver):
+        """ Get jquery filename for download based on version number. """
+        return 'jquery-{ver}.min.js'.format(ver=ver)
 
 exports = (HtmlPlugin(), JQueryPlugin())
