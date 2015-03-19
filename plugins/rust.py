@@ -16,7 +16,7 @@ class RustPlugin(Plugin):
         self.name = ('rust', 'rs')
         self.extensions = ('.rs',)
         # Rust doesnt need to be made executable.
-        self.ignore_post = ('chmodx',)
+        self.ignore_post = {'chmodx'}
         self.version = '1.0.0'
 
     def create(self, fname, args):

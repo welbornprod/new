@@ -54,7 +54,7 @@ class HtmlPlugin(Plugin):
         self.extensions = ('.html', '.htm')
         self.version = '0.0.1-2'
         # Html files are not executable.
-        self.ignore_post = ('chmodx',)
+        self.ignore_post = {'chmodx'}
         self.usage = """
     Usage:
         html [title] [cssfile] [jsfile]
@@ -93,7 +93,7 @@ class JQueryPlugin(Plugin):
         self.extensions = ('.html', '.htm')
         self.version = '0.0.1-3'
         # Html files are not executable.
-        self.ignore_post = ('chmodx',)
+        self.ignore_post = {'chmodx'}
         self.load_config()
         self.usage = """
     Usage:

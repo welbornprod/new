@@ -15,7 +15,7 @@ class TextPlugin(Plugin):
         self.version = '0.0.1'
         self.allow_blank = True
         # Text files are not executable.
-        self.ignore_post = ('chmodx',)
+        self.ignore_post = {'chmodx'}
 
     def create(self, filename, args):
         """ Creates a blank text file (no content). """

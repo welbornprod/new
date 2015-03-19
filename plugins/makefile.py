@@ -131,7 +131,7 @@ class MakefilePlugin(Plugin):
         self.name = ('makefile', 'make')
         self.extensions = tuple()
         self.version = '0.0.2'
-        self.ignore_post = ('chmodx',)
+        self.ignore_post = {'chmodx'}
         self.description = '\n'.join((
             'Creates a basic makefile for a given c file name.'
             'The file created is always called "Makefile".'
