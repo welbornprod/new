@@ -32,7 +32,7 @@ class CPlugin(Plugin):
     def __init__(self):
         self.name = ('c', 'cpp', 'c++')
         self.extensions = ('.c', '.cpp')
-        self.version = '0.0.3'
+        self.version = '0.0.3-1'
         self.ignore_post = {'chmodx'}
         self.description = '\n'.join((
             'Creates a basic C or C++ file for small programs.',
@@ -64,12 +64,16 @@ class CPlugin(Plugin):
         include = {'.c': 'stdio.h', '.cpp': 'iostream'}.get(fileext, 'stdio.h')
         if author:
             author = '-{}'.format(author)
+        if fileext == '.cpp':
+            namespace = '\nusing std::cout;\nusing std::endl;\n'
+        else:
+            namespace = ''
         return (template_lib if library else template).format(
             filename=basename,
             author=author,
             date=DATE,
             include=include,
-            namespace='\nusing std::cout;\n' if fileext == '.cpp' else '')
+            namespace=namespace)
 
 
 exports = (CPlugin(),)
