@@ -30,8 +30,9 @@ template_lib = """/* {filename}
 class CPlugin(Plugin):
 
     def __init__(self):
-        self.name = ('c', 'cpp', 'c++')
-        self.extensions = ('.c', '.cpp')
+        self.name = ('c', 'cpp', 'c++', 'cc')
+        self.extensions = ('.c', '.cpp', '.cc')
+        self.cpp_extensions = ('.cpp', '.cc')
         self.version = '0.0.3-1'
         self.ignore_post = {'chmodx'}
         self.description = '\n'.join((
@@ -60,14 +61,17 @@ class CPlugin(Plugin):
         parentdir, basename = os.path.split(filename)
         author = self.config.get('author', '')
 
-        fileext = os.path.splitext(filename)[-1]
-        include = {'.c': 'stdio.h', '.cpp': 'iostream'}.get(fileext, 'stdio.h')
-        if author:
-            author = '-{}'.format(author)
-        if fileext == '.cpp':
+        fileext = os.path.splitext(filename)[-1].lower()
+        if fileext in self.cpp_extensions:
+            include = 'iostream'
             namespace = '\nusing std::cout;\nusing std::endl;\n'
         else:
+            include = 'stdio.h'
             namespace = ''
+
+        if author:
+            author = '-{}'.format(author)
+
         return (template_lib if library else template).format(
             filename=basename,
             author=author,
