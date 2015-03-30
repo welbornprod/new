@@ -3,7 +3,7 @@
 """
 
 import os.path
-from plugins import Plugin, date, debug
+from plugins import Plugin, date
 DATE = date()
 
 TEMPLATE = """#!/usr/bin/env node
@@ -37,7 +37,7 @@ class JSPlugin(Plugin):
             author = '- {}'.format(author)
         datestr = ' {}'.format(DATE) if author else DATE
         name = os.path.splitext(os.path.split(fname)[-1])[0]
-        debug('Retrieved config..')
+        self.debug('Retrieved config..')
         return TEMPLATE.format(
             name=name,
             author=author,

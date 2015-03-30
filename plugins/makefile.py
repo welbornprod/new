@@ -6,7 +6,6 @@
 import os.path
 from plugins import (
     confirm,
-    debug,
     Plugin,
     PostPlugin,
     SignalAction,
@@ -109,9 +108,9 @@ class MakefilePost(PostPlugin):
         for makefilename in trynames:
             fullpath = os.path.join(parentdir, makefilename)
             if os.path.exists(fullpath):
-                debug('Makefile already exists: {}'.format(fullpath))
+                self.debug('Makefile already exists: {}'.format(fullpath))
                 return None
-        debug('Creating a makefile for: {}'.format(filename))
+        self.debug('Creating a makefile for: {}'.format(filename))
         config = MakefilePlugin().config
         makefile, content = template_render(
             filepath,

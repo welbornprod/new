@@ -104,12 +104,31 @@ def debug(*args, **kwargs):
     """ Print a message only if DEBUG is truthy. """
     if not (DEBUG and args):
         return None
+    parent = kwargs.get('parent', None)
+    try:
+        kwargs.pop('parent')
+    except KeyError:
+        pass
+    backlevel = kwargs.get('back', 1)
+    try:
+        kwargs.pop('back')
+    except KeyError:
+        pass
+
     # Get filename, line number, and function name.
     frame = inspect.currentframe()
-    frame = frame.f_back
+    # Go back a number of frames (usually 1).
+    while backlevel > 0:
+        frame = frame.f_back
+        backlevel -= 1
+
     fname = os.path.split(frame.f_code.co_filename)[-1]
     lineno = frame.f_lineno
-    func = frame.f_code.co_name
+    if parent:
+        func = '{}.{}'.format(parent.__class__.__name__, frame.f_code.co_name)
+    else:
+        func = frame.f_code.co_name
+
     # Patch args to stay compatible with print().
     pargs = list(args)
     lineinfo = '{}:{} {}(): '.format(fname, lineno, func).ljust(40)
@@ -727,6 +746,12 @@ class Plugin(object):
         """
         raise NotImplementedError('create() must be implemented!')
 
+    def debug(self, *args, **kwargs):
+        """ Uses the debug() function, but includes the class name. """
+        kargs = kwargs.copy()
+        kargs.update({'parent': self, 'back': 2})
+        return debug(*args, **kargs)
+
     def get_arg(self, index, default=None):
         """ Safely retrieve an argument by index.
             On failure (index error), return 'default'.
@@ -744,7 +769,7 @@ class Plugin(object):
         """
         args = getattr(self, 'config', {}).get('default_args', [])
         if args:
-            debug('Got default args for {}: {}'.format(self.get_name(), args))
+            self.debug('Got default args: {}'.format(args))
         return args
 
     def get_desc(self):
@@ -799,6 +824,15 @@ class Plugin(object):
             Returns True if any match, otherwise False.
         """
         args = getattr(self, 'args', tuple())
+        if not args:
+            self.debug('No args to check.')
+            return False
+
+        self.debug(
+            'Checking for arg: (pattern {}) (position: {}) in {!r}'.format(
+                pattern,
+                position,
+                args))
         if position is None:
             for a in args:
                 if re.search(pattern, a) is not None:
@@ -836,6 +870,12 @@ class PostPlugin(object):
 
     def __init__(self, name=None):
         self.name = name
+
+    def debug(self, *args, **kwargs):
+        """ Uses the debug() function, but includes the class name. """
+        kargs = kwargs.copy()
+        kargs.update({'parent': self, 'back': 2})
+        return debug(*args, **kargs)
 
     def get_desc(self):
         """ Get the description for this plugin.

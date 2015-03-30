@@ -8,7 +8,7 @@ import os
 from urllib import request
 from urllib.error import HTTPError
 
-from plugins import PostPlugin, debug, print_inplace
+from plugins import PostPlugin, print_inplace
 
 
 class JQueryDownloadPost(PostPlugin):
@@ -66,7 +66,7 @@ class JQueryDownloadPost(PostPlugin):
         """
         destname = os.path.join(basedir, self.get_jquery_file(ver))
         if os.path.exists(destname):
-            debug('Exists: {}'.format(destname))
+            self.debug('Exists: {}'.format(destname))
             return destname
 
         return self.download_jquery(ver, destname)
@@ -80,10 +80,10 @@ class JQueryDownloadPost(PostPlugin):
             return None
         ver = getattr(plugin, 'jquery_ver', None)
         if not ver:
-            debug('No jquery_ver passed by jquery plugin!')
+            self.debug('No jquery_ver passed by jquery plugin!')
             return None
         elif ver.lower() in ('no', 'none'):
-            debug('Skipping jquery download. Version was {}'.format(ver))
+            self.debug('Skipping jquery download. Version was {}'.format(ver))
             return None
 
         self.ensure_jquery_version(ver, os.path.split(filename)[0])

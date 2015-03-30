@@ -5,7 +5,7 @@
 import os
 import stat
 
-from plugins import debug, PostPlugin, SignalExit
+from plugins import PostPlugin, SignalExit
 
 
 class ChmodxPlugin(PostPlugin):
@@ -23,7 +23,7 @@ class ChmodxPlugin(PostPlugin):
             # The file was never created, all other plugins will fail.
             raise SignalExit('No file was created: {}'.format(fname))
         except EnvironmentError as ex:
-            debug('Error during chmod: {}\n{}'.format(fname, ex))
+            self.debug('Error during chmod: {}\n{}'.format(fname, ex))
         else:
             self.print_status('Made executable (chmod 774)')
 

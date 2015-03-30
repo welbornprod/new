@@ -44,7 +44,9 @@ class BashPlugin(Plugin):
     def create(self, filename):
         """ Creates a basic bash source file. """
 
-        if self.has_arg('f(unc)'):
+        if self.has_arg('f(unc)?'):
+            self.debug(
+                'Using function template, user args: {!r}'.format(self.args))
             self.pop_args(self.args, ('f', 'func'))
             tmplate = '\n\n'.join((template, template_func))
         else:

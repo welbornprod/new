@@ -3,7 +3,7 @@
     -Christopher Welborn 2-20-15
 """
 import os.path
-from plugins import Plugin, date, debug
+from plugins import Plugin, date
 DATE = date()
 
 template = """/*  {filename}
@@ -52,10 +52,10 @@ class CPlugin(Plugin):
     def create(self, filename):
         """ Creates a basic C file.
         """
-        library = self.has_arg('l(ib)?')
         # Disable automakefile if asked.
+        library = self.has_arg('l(ib)?')
         if library:
-            debug('Library file mode, no automakefile.')
+            self.debug('Library file mode, no automakefile.')
             self.ignore_post.add('automakefile')
 
         parentdir, basename = os.path.split(filename)

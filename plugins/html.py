@@ -1,7 +1,7 @@
 """ Html plugin for New.
     -Christopher Welborn 12-25-14
 """
-from plugins import Plugin, debug
+from plugins import Plugin
 
 
 template = """<!DOCTYPE html>
@@ -111,7 +111,7 @@ class JQueryPlugin(Plugin):
         title = self.get_arg(1, '...')
         cssfile = self.get_arg(2, 'main.css')
         if self.config.get('no_download', False):
-            debug('Skipping jquery download.')
+            self.debug('Skipping jquery download.')
             scripts = ''
             self.ignore_deferred.add('jquerydl')
         else:
