@@ -1,0 +1,25 @@
+{
+    "bash": {
+        "default_args": []
+    },
+    "jquery": {
+        "no_download": false
+    },
+    "open": {
+        "editor": "/usr/bin/vim"
+    },
+    "plugins" : {
+        "global": {
+            "author": "Your Name (set in config)"
+        },
+        "default_filename": "new_file",
+        "default_plugin": "python",
+        "disabled_deferred": [],
+        "disabled_post": [],
+        "disabled_types": []
+    },
+    "python": {
+        "version": "0.0.1",
+        "template": "docopt"
+    }
+}

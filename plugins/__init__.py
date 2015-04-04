@@ -8,6 +8,7 @@ import inspect
 import json
 import os
 import re
+import shutil
 import sys
 from datetime import datetime
 from enum import Enum
@@ -247,6 +248,36 @@ def do_post_plugins(fname, plugin):
     return errors
 
 
+def find_config_file():
+    """ Loads the defult config file. If no file is present, it will look
+        for the distribution (example) file, and copy it to the default name.
+
+    """
+    mainfile = os.path.join(SCRIPTDIR, 'new.json')
+    if os.path.exists(mainfile):
+        return mainfile
+
+    distfile = '{}.dist'.format(mainfile)
+    if not os.path.exists(distfile):
+        # No main file or dist, load_config will handle this error.
+        debug('No distribution config file exists!')
+        return mainfile
+
+    try:
+        debug('Copying dist config file to: {}'.format(mainfile))
+        shutil.copyfile(distfile, mainfile)
+    except EnvironmentError as ex:
+        debug('Unable to copy dist config file: {} -> {}\n {}'.format(
+            distfile,
+            mainfile,
+            ex))
+    else:
+        debug('Copied dist config file.')
+
+    # Whether the file was copied or not load_config will handle it.
+    return mainfile
+
+
 def get_plugin_byext(name):
     """ Retrieves a plugin by file extension.
         Returns the plugin on success, or None on failure.
@@ -401,7 +432,8 @@ def list_plugins():
 
 def load_config(section=None):
     """ Load global config, or a specific section. """
-    configfile = os.path.join(SCRIPTDIR, 'new.json')
+    configfile = find_config_file()
+
     config = {}
     try:
         with open(configfile, 'r') as f:
@@ -438,6 +470,7 @@ def load_plugin_config(plugin):
         configfile = 'new.json'
         plugin.config_file = os.path.join(SCRIPTDIR, configfile)
 
+    pluginconfig = {}
     try:
         with open(plugin.config_file, 'r') as f:
             pluginconfig = json.load(f)
@@ -453,6 +486,7 @@ def load_plugin_config(plugin):
     except Exception as ex:
         errmsg = 'Error loading plugin config: {}\n{}'
         debug(errmsg.format(plugin.config_file, ex))
+
     # Actual config is in {'<plugin_name>': {}}
     pluginconfig = pluginconfig.get(plugin.get_name(), {})
     if pluginconfig:
