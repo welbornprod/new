@@ -5,7 +5,7 @@
 import os
 import sys
 
-from plugins import Plugin, SignalAction, date
+from plugins import Plugin, SignalAction, SignalExit, date
 
 SCRIPTDIR = os.path.abspath(sys.path[0])
 DATE = date()
@@ -134,11 +134,15 @@ class PythonPlugin(Plugin):
         self.usage = """
     Usage:
         python [template] [extra_imports...]
+        python templates
 
     Options:
-        template       : Which template to use. Template ids are listed below.
-        extra_imports  : Any extra modules to import. In the form of:
-                         module1 module2.childmod1
+        template        : Which template to use. Template ids are listed below.
+        extra_imports   : Any extra modules to import. In the form of:
+                          module1 module2.childmod1
+
+    Commands:
+        t, templates    : List known template names.
 
     Templates:
         blank, none     : Only a shebang and the main doc str.
@@ -151,13 +155,21 @@ class PythonPlugin(Plugin):
     def create(self, filename):
         """ Creates a new python source file. Several templates are available.
         """
+        if self.has_arg('t(emplates)?'):
+            exitcode = self.print_templates()
+            raise SignalExit(code=exitcode)
+
         templateid = (
             self.get_arg(0) or self.config.get('template', 'docopt')).lower()
         extra_imports = self.args[1:]
 
         template_args = templates.get(templateid, None)
         if not template_args:
-            raise ValueError('No template by that name: {}'.format(templateid))
+            msg = '\n'.join((
+                'No template by that name: {}'.format(templateid),
+                'Use \'t\' or \'templates\' to list known templates.'
+            ))
+            raise ValueError(msg)
         template_base = template_bases.get(template_args['base'], None)
         if not template_base:
             errmsg = 'Misconfigured template base: {}'
@@ -226,5 +238,17 @@ class PythonPlugin(Plugin):
         lines = [self.parse_importitem(imp) for imp in imports]
         # Remove any duplicates and sort the lines.
         return '\n'.join(sorted(set(lines)))
+
+    def print_templates(self):
+        """ Print known tempalte names. """
+        if not templates:
+            print('\nNo known templates.')
+            return 1
+
+        tmplen = len(templates)
+        plural = 'template' if tmplen == 1 else 'templates'
+        print('Found {} {}:'.format(tmplen, plural))
+        print('\n    {}'.format('\n    '.join(sorted(templates))))
+        return 0
 
 exports = (PythonPlugin(),)
