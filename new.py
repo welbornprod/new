@@ -20,9 +20,10 @@ SCRIPTDIR = os.path.abspath(sys.path[0])
 
 USAGESTR = """{versionstr}
     Usage:
-        {script} -c | -h | -v | -p [-D]
+        {script} (-c | -h | -v | -p) [-D]
         {script} FILETYPE (-C | -H) [-D]
         {script} FILENAME [-d] [-D]
+        {script} FILENAME ARGS... [-d] [-D]
         {script} FILETYPE FILENAME [-d] [-D]
         {script} FILETYPE FILENAME ARGS... [-d] [-D]
 

@@ -164,6 +164,13 @@ def determine_plugin(argd):
     use_post = argd['--pluginconfig']
     namedplugin = get_plugin_byname(argd['FILENAME'])
     if namedplugin:
+        if argd['ARGS']:
+            # Hack to allow plugin args with plugin name or file name missing.
+            argd['FILENAME'] = argd['ARGS'][0]
+            argd['ARGS'] = argd['ARGS'][1:]
+            debug('Plugin loaded by name with args, guessed filename.')
+            return namedplugin
+
         # Use default file name since no file name was given.
         argd['FILENAME'] = default_file
         debug('Plugin loaded by name, no file name.')
