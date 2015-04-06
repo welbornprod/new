@@ -166,14 +166,21 @@ def determine_plugin(argd):
     if namedplugin:
         if argd['ARGS']:
             # Hack to allow plugin args with plugin name or file name missing.
-            argd['FILENAME'] = argd['ARGS'][0]
-            argd['ARGS'] = argd['ARGS'][1:]
-            debug('Plugin loaded by name with args, guessed filename.')
-            return namedplugin
+            tryfilename = argd['ARGS'][0]
+            tryext = os.path.splitext(tryfilename)[-1]
+            if tryext in namedplugin.extensions:
+                # Explicit file name given by extension, remove from ARGS.
+                argd['FILENAME'] = tryfilename
+                argd['ARGS'] = argd['ARGS'][1:]
+                debug('Plugin loaded by name with args, file name given.')
+                return namedplugin
+            else:
+                # Not a recognized file name, use it as an argument.
+                debug('Plugin loaded by name with args, no known filename.')
 
         # Use default file name since no file name was given.
         argd['FILENAME'] = default_file
-        debug('Plugin loaded by name, no file name.')
+        debug('Plugin loaded by name, using default file name.')
         return namedplugin
 
     if argd['FILETYPE']:
