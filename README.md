@@ -2,13 +2,13 @@ New
 ===
 
 **New** dynamically creates new files from templates.
-It's a simple command capable of creating several types of files.
-I know this been done before.
+It's a simple command capable of creating several types of files, mainly
+focusing on source files (executable scripts and small binary projects).
 
-Plugins can be created to modify the file after it has been created,
+Plugins have been created to modify the file after it is created,
 such as running `chmod +x` (the `chmodx` plugin), or opening it automatically
 after creation (the `open` plugin). Also, information can be dynamically added
-to the file during creation (like a date/time).
+to the file during creation (like a date/time, author).
 
 Templates/plugins can be invoked by name and may have their own options.
 A template can be automatically chosen based on the new file's extension.
@@ -16,7 +16,8 @@ A default template can be set, so typing a file name without the extension
 automatically uses the default template/plugin. New templates can be added
 easily by dropping a `.py` file in the `./plugins` folder and subclassing
 `plugins.Plugin`. They only need the `name` and `extensions` attribute, and
-a method with the signature `create(self, filename)`.
+a method with the signature `create(self, filename)` which returns a string
+ready to be written to disk.
 
 Usage:
 ------
@@ -65,7 +66,7 @@ new html myproject/myfile.html
 Using the file extension is optional. When not given, the extension will
 default to whatever the plugin has defined for the `extensions` attribute.
 
-You can omit the plugin name if you do add the extension.
+You can omit the plugin name if you add a known extension.
 This would create a new file using the `bash` plugin:
 ```
 new myscript.sh
@@ -76,7 +77,7 @@ Config:
 -------
 
 Configuration is done using JSON. There is a main configuration file called
-`new.json` where all config lives. Each plugin may also handle loading config
+`new.json` where all config lives. Each plugin may also handle config
 on it's own.
 
 Config Options:
