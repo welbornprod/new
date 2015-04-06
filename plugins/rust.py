@@ -61,7 +61,8 @@ class RustPlugin(Plugin):
         def fmtname(n):
             """ Convert a single name to a full import line. """
             # Allow ':' as a shortcut to '::'.
-            line = 'use {}'.format(n.replace(':', '::'))
+            n = n.replace(':', '::').replace('::::', '::')
+            line = 'use {}'.format(n)
             if line.endswith(';'):
                 return line
             return ''.join((line, ';'))
