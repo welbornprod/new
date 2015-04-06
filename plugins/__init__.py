@@ -56,15 +56,17 @@ def confirm_overwrite(filename):
 
 def conflicting_file(plugin, filearg, filename):
     """ Make sure this file name and plugin mixture isn't going to cause a
-        show-stopping conflict with New.
+        show-stopping conflict with New (for my own sanity).
         This only happens when creating .py files in New's directory, and only
         if they happen to have the same name as a plugin.
-        Common mistake:
+
+        Known mistake when testing this app:
             When in config: {plugins : { default_plugin: 'python' }}
                And running: ./new bash
             ...creates bash.py that will be found in sys.path.
     """
     # The python plugin can create conflicting files when ran in New's dir.
+    # Any other plugins should be okay.
     if plugin.get_name() != 'python':
         return False
 
@@ -1028,10 +1030,16 @@ class SignalExit(Exception):
     """ An exception to raise when a plugin wants to stop the rest of the
         plugins from running. In other words, stop and exit completely.
         The plugin may give a reason/message by initializing with a str as the
-        first argument.
+        first argument. The programs exit code can be changed by setting the
+        optional 'code' argument.
+
+        If 'code' is 0, no extra warnings are printed.
+        The default exit code is 1.
+
         Example:
-            raise plugins.SignalExit('Program was not installed!')
+            raise plugins.SignalExit('Program was not installed!', code=2)
     """
 
-    def __init__(self, *args):
-        self.reason = args[0] if args else 'No reason given for the exit.'
+    def __init__(self, *args, code=None):
+        self.reason = args[0] if args else None
+        self.code = 1 if code is None else code

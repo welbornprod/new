@@ -105,9 +105,12 @@ def main(argd):
             fname = action.filename
     except plugins.SignalExit as excancel:
         # The plugin wants to stop immediately.
-        if excancel.reason:
-            print('\n{}\n'.format(excancel.reason))
-        return 1
+        if excancel.code != 0:
+            # This was a real error, so print a message.
+            reason = excancel.reason or 'No reason was given for the exit.'
+            print('\n{}\n'.format(reason))
+        return excancel.code
+
     except Exception as ex:
         print_ex(ex, '{} error:'.format(pluginname), with_class=True)
         return 1
