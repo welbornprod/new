@@ -16,10 +16,12 @@ DEFAULT_IMPORTS = ['os', 'sys']
 # Default versioning for all new scripts when config isn't set.
 DEFAULT_VERSION = '0.0.1'
 
-# Setting per template by name.(must at least contain 'base': 'template name' )
+# Setting per template by name.
+# ..must at least contain {'base': 'template name', 'imports': []}
 templates = {
     'blank': {
         'base': 'blank',
+        'imports': []
     },
     'normal': {
         'base': 'main',
@@ -156,7 +158,7 @@ class PythonPlugin(Plugin):
     def create(self, filename):
         """ Creates a new python source file. Several templates are available.
         """
-        if self.has_arg('t(emplates)?'):
+        if self.has_arg('^t(emplates)?$'):
             exitcode = self.print_templates()
             raise SignalExit(code=exitcode)
 

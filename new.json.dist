@@ -6,7 +6,7 @@
         "no_download": false
     },
     "open": {
-        "editor": "/usr/bin/vim"
+        "editor": ""
     },
     "plugins" : {
         "global": {

@@ -5,73 +5,77 @@ New
 It's a simple command capable of creating several types of files, mainly
 focusing on source files (executable scripts and small binary projects).
 
-Plugins have been created to modify the file after it is created,
-such as running `chmod +x` (the `chmodx` plugin), or opening it automatically
-after creation (the `open` plugin). Also, information can be dynamically added
-to the file during creation (like a date/time, author).
+There are several post-processing plugins that automatically modify the file
+after it is created, such as running `chmod +x` (the `chmodx` plugin),
+or opening it in your editor (the `open` plugin).
+Also, information can be dynamically added to the file during creation
+(like a date/time, author).
 
-Templates/plugins can be invoked by name and may have their own options.
-A template can be automatically chosen based on the new file's extension.
+A template can be automatically chosen based on the new file's extension, or
+you can explicitly use the plugin name to decide.
 A default template can be set, so typing a file name without the extension
 automatically uses the default template/plugin. New templates can be added
 easily by dropping a `.py` file in the `./plugins` folder and subclassing
 `plugins.Plugin`. They only need the `name` and `extensions` attribute, and
 a method with the signature `create(self, filename)` which returns a string
-ready to be written to disk.
+ready to be written to disk. See: [plugin modules](#plugin-modules)
 
 Usage:
 ------
 
 ```
 Usage:
-    new -c | -h | -v | -p [-D]
-    new FILETYPE (-C | -H) [-D]
+    new (-c | -h | -v | -p) [-D]
+    new PLUGIN (-C | -H) [-D]
     new FILENAME [-d] [-D]
-    new FILETYPE FILENAME [-d] [-D]
-    new FILETYPE FILENAME ARGS... [-d] [-D]
+    new FILENAME -- ARGS... [-d] [-D]
+    new PLUGIN FILENAME [-d] [-D]
+    new PLUGIN FILENAME -- ARGS... [-d] [-D]
 
 Options:
     ARGS               : Plugin-specific args.
-    FILETYPE           : Type of file to create.
-                         Defaults to: python
+                         Use -H for plugin-specific help.
+    PLUGIN             : Plugin name to use (like bash, python, etc.)
+                         Defaults to: python (unless set in config)
     FILENAME           : File name for the new file.
-    -c,--config        : Dump global config.
-    -C,--pluginconfig  : Dump plugin config.
-    -d,--dryrun        : Show what would be written, don't write anything.
+    -c,--config        : Print global config and exit.
+    -C,--pluginconfig  : Print plugin config and exit.
+    -d,--dryrun        : Don't write anything. Print to stdout instead.
     -D,--debug         : Show more debugging info.
-    -H,--HELP          : Show plugin help.
+    -H,--pluginhelp    : Show plugin help.
     -h,--help          : Show this help message.
     -p,--plugins       : List all available plugins.
     -v,--version       : Show version.
+
  ```
 
 Example Usage:
 --------------
 
-Creating a file called `myscript.py` using the python plugin:
+Creating a basic program using the python plugin:
+
 ```
-new py myscript
+new myscript.py
 ```
 
 Creating the same file when the default plugin is set to `python`:
+
 ```
 new myscript
 ```
 
-Creating a new directory and html file:
+Creating a new directory and html file using the html plugin:
+
 ```
-new html myproject/myfile.html
+new myproject/myfile.html
 ```
 
-Using the file extension is optional. When not given, the extension will
-default to whatever the plugin has defined for the `extensions` attribute.
 
-You can omit the plugin name if you add a known extension.
-This would create a new file using the `bash` plugin:
-```
-new myscript.sh
-```
+Passing arguments to the python plugin to list its templates:
 
+```
+new myfile.py -- t
+```
 
 Config:
 -------
@@ -85,31 +89,43 @@ Config Options:
 
 ```javascript
 {
-    // Plugin config belongs under a key with the plugin name.
+    // Each plugin has a top-level key (it's name).
     "open": {
+
         // The open plugin allows you to set which editor you would like to use.
         "editor": "subl"
     },
 
+    // The "plugins" key is config for all plugins.
     "plugins" : {
+
         // All plugins inherit options from global if not set already.
         "global": {
             "author": "cjwelborn"
         },
+
         // Default file name to use when only a plugin name is given.
+        // The proper extension is added automatically.
         "default_filename": "new_file",
+
         // Default plugin to use when no plugin name or extension is given.
         "default_plugin": "python",
+
         // Names of DeferredPost plugins that will be ignored on every run.
         "disabled_deferred": [],
+
         // Names of PostPlugins that will be ignored on every run.
         "disabled_post": [],
+
         // Names of Plugins (template types) that will be ignored on every run.
         "disabled_types": []
     },
+
     "python": {
+
         // The python plugin allows a default version string for new files.
         "version": "0.0.1",
+
         // A default python template to use when none is specified.
         "template": "docopt"
     }
@@ -155,9 +171,9 @@ new hello
 Plugin Base:
 ------------
 
-This must be subclassed to create a new plugin. Regular plugins are responsible
-for creating content and returning it. All attributes and methods are
-documented.
+`Plugin` must be subclassed to create a new file type plugin.
+These plugins are responsible for creating content and returning it.
+All attributes and methods are documented.
 
 
 Post Plugins:
@@ -176,3 +192,40 @@ all PostPlugins succeeded (no normal errors, or SignalExit() errors). They are
 meant to run last. The `open` plugin is the only DeferredPlugin right now.
 The load/run order of DeferredPlugins may vary.
 
+
+Notes:
+------
+
+Look in the `./plugins` directory for examples. Most plugins are fairly simple.
+
+The Python and Html/JQuery plugins are a little messy because they were
+basically copied and adapted from older 'newpython.py' and 'newhtml.py'
+scripts. They serve as an example of plugins that do more than one thing.
+
+The `MakefilePost` (automakefile) plugin is an example of a `PostPlugin` that
+only acts on certain file types.
+
+Disclaimer:
+-----------
+
+This program was designed to create small templates, and is not meant to
+replace tools like [cargo](https://crates.io) or
+[django-admin](http://djangoproject.com).
+
+Some of the templates are based on my coding style. I am working on a way to
+make them more flexible (without enforcing my own preferences on users).
+There are templates for languages that I'm not very good with,
+or don't even use (php).
+If you see any errors feel free to let me know.
+
+
+Screenshot:
+-----------
+
+![New Screenshot](http://welbornprod.com/dl/static/media/img/new-example.png)
+
+This is an example of New's output when using the python plugin, which is set
+to use the docopt template by default.
+
+The content was created, written to disk, made executable, and then opened with
+one command.

@@ -1,5 +1,9 @@
 """ ChmodX plugin for New.
-    Makes new files executable (if they have the appropriate extension)
+    Makes new files executable.
+    Any plugin can block this from happening by adding:
+        def __init__(self):
+            self.ignore_post('chmodx',)
+
     -Christopher Welborn 01-01-2015
 """
 import os

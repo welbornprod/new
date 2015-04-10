@@ -185,8 +185,8 @@ def determine_plugin(argd):
         debug('Plugin loaded by name, using default file name.')
         return namedplugin
 
-    if argd['FILETYPE']:
-        plugin = get_plugin_byname(argd['FILETYPE'], use_post=use_post)
+    if argd['PLUGIN']:
+        plugin = get_plugin_byname(argd['PLUGIN'], use_post=use_post)
         if not argd['FILENAME']:
             argd['FILENAME'] = default_file
         if plugin:
@@ -204,12 +204,12 @@ def determine_plugin(argd):
 
     # Fall back to default plugin, or user specified.
     plugin = None
-    ftype = argd['FILETYPE'] or config.get('default_plugin', 'python')
+    ftype = argd['PLUGIN'] or config.get('default_plugin', 'python')
     # Allow loading post-plugins by name when using --pluginconfig.
     plugin = get_plugin_byname(ftype, use_post=use_post)
     if plugin:
         debug('Plugin loaded {}.'.format(
-            'by given name.' if argd['FILETYPE'] else 'by default'))
+            'by given name.' if argd['PLUGIN'] else 'by default'))
     return plugin
 
 

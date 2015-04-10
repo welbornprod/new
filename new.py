@@ -13,7 +13,7 @@ import plugins
 debug = plugins.debug
 
 NAME = 'New'
-VERSION = '0.0.5-1'
+VERSION = '0.1.0'
 VERSIONSTR = '{} v. {}'.format(NAME, VERSION)
 SCRIPT = os.path.split(os.path.abspath(sys.argv[0]))[1]
 SCRIPTDIR = os.path.abspath(sys.path[0])
@@ -21,22 +21,23 @@ SCRIPTDIR = os.path.abspath(sys.path[0])
 USAGESTR = """{versionstr}
     Usage:
         {script} (-c | -h | -v | -p) [-D]
-        {script} FILETYPE (-C | -H) [-D]
+        {script} PLUGIN (-C | -H) [-D]
         {script} FILENAME [-d] [-D]
-        {script} FILENAME ARGS... [-d] [-D]
-        {script} FILETYPE FILENAME [-d] [-D]
-        {script} FILETYPE FILENAME ARGS... [-d] [-D]
+        {script} FILENAME -- ARGS... [-d] [-D]
+        {script} PLUGIN FILENAME [-d] [-D]
+        {script} PLUGIN FILENAME -- ARGS... [-d] [-D]
 
     Options:
         ARGS               : Plugin-specific args.
-        FILETYPE           : Type of file to create (bash, python, html)
-                             Defaults to: python
+                             Use -H for plugin-specific help.
+        PLUGIN             : Plugin name to use (like bash, python, etc.)
+                             Defaults to: python (unless set in config)
         FILENAME           : File name for the new file.
-        -c,--config        : Dump global config.
-        -C,--pluginconfig  : Dump plugin config.
-        -d,--dryrun        : Show what would be written, don't write anything.
+        -c,--config        : Print global config and exit.
+        -C,--pluginconfig  : Print plugin config and exit.
+        -d,--dryrun        : Don't write anything. Print to stdout instead.
         -D,--debug         : Show more debugging info.
-        -H,--HELP          : Show plugin help.
+        -H,--pluginhelp    : Show plugin help.
         -h,--help          : Show this help message.
         -p,--plugins       : List all available plugins.
         -v,--version       : Show version.
@@ -67,7 +68,7 @@ def main(argd):
 
     plugin = plugins.determine_plugin(argd)
     if not plugin:
-        ftype = argd['FILETYPE'] or argd['FILENAME']
+        ftype = argd['PLUGIN'] or argd['FILENAME']
         print('\nNot a valid file type (not supported): {}'.format(ftype))
         print('\nUse --plugins to list available plugins.\n')
         return 1
@@ -75,7 +76,7 @@ def main(argd):
     pluginname = plugin.get_name().title()
     debug('Using plugin: {}'.format(pluginname))
     # Do plugin help.
-    if argd['--HELP']:
+    if argd['--pluginhelp']:
         return 0 if plugins.plugin_help(plugin) else 1
     elif argd['--pluginconfig']:
         return 0 if plugins.plugin_config_dump(plugin) else 1
