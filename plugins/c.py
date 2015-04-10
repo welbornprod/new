@@ -4,11 +4,10 @@
 """
 import os.path
 from plugins import Plugin, date
-DATE = date()
 
 template = """/*  {filename}
     ...
-    {author} {date}
+    {author}{date}
 */
 
 #include <{include}>
@@ -21,7 +20,7 @@ int main(int argc, char *argv[]) {{
 
 template_lib = """/* {filename}
     ...
-    {author} {date}
+    {author}{date}
 */
 
 """
@@ -33,7 +32,7 @@ class CPlugin(Plugin):
         self.name = ('c', 'cpp', 'c++', 'cc')
         self.extensions = ('.c', '.cpp', '.cc')
         self.cpp_extensions = ('.cpp', '.cc')
-        self.version = '0.0.3-1'
+        self.version = '0.0.3-2'
         self.ignore_post = {'chmodx'}
         self.description = '\n'.join((
             'Creates a basic C or C++ file for small programs.',
@@ -69,13 +68,10 @@ class CPlugin(Plugin):
             include = 'stdio.h'
             namespace = ''
 
-        if author:
-            author = '-{}'.format(author)
-
         return (template_lib if library else template).format(
             filename=basename,
-            author=author,
-            date=DATE,
+            author='- {} '.format(author) if author else author,
+            date=date(),
             include=include,
             namespace=namespace)
 

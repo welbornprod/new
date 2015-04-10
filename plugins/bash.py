@@ -3,12 +3,11 @@
 """
 import os.path
 from plugins import Plugin, date
-DATE = date()
 
 template = """#!/bin/bash
 
 # ...{description}
-# -{author}{date}
+# {author}{date}
 appname="{filename}"
 appversion="0.0.1"
 apppath="$(realpath ${{BASH_SOURCE[0]}})"
@@ -30,7 +29,7 @@ class BashPlugin(Plugin):
     def __init__(self):
         self.name = ('bash', 'sh')
         self.extensions = ('.sh', '.bash')
-        self.version = '0.0.1-4'
+        self.version = '0.0.2'
         self.load_config()
         self.usage = """
     Usage:
@@ -52,12 +51,11 @@ class BashPlugin(Plugin):
         else:
             tmplate = template
         author = self.config.get('author', '')
-        date = ' {}'.format(DATE) if author else DATE
         description = ' '.join(self.args) if self.args else ''
 
         return tmplate.format(
-            author=author,
-            date=date,
+            author='- {} '.format(author) if author else author,
+            date=date(),
             description=description,
             filename=os.path.splitext(os.path.split(filename)[-1])[0])
 

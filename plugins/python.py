@@ -3,12 +3,13 @@
 """
 
 import os
-import sys
 
 from plugins import Plugin, SignalAction, SignalExit, date
 
-SCRIPTDIR = os.path.abspath(sys.path[0])
-DATE = date()
+# TODO: This plugin was basically just copied and adapted from the original
+#       'newpython' script that inspired this project.
+#       It is in need of some refactoring.
+
 
 # Default imports to use if '--noimports' isn't given.
 DEFAULT_IMPORTS = ['os', 'sys']
@@ -181,9 +182,9 @@ class PythonPlugin(Plugin):
         shebangexe = self.config.get('shebangexe', '/usr/bin/env python3')
         version = self.config.get('version', DEFAULT_VERSION)
         template_args.update({
-            'author': author,
+            'author': '- {} '.format(author) if author else author,
             'explanation': self.config.get('explanation', ''),
-            'date': ' {}'.format(DATE) if author else DATE,
+            'date': date(),
             'default_version': version,
             'imports': self.parse_importlist(imports),
             'scriptname': scriptname,

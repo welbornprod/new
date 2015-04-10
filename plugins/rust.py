@@ -11,7 +11,7 @@ from plugins import Plugin, date
 
 template = """// {name}
 // ...
-//{author} {date}
+//{author}{date}
 
 {imports}
 fn main() {{
@@ -42,12 +42,10 @@ class RustPlugin(Plugin):
     def create(self, filename):
         """ Creates a blank Rust file. """
         author = self.config.get('author', '')
-        if author:
-            author = ' -{}'.format(author)
 
         return template.format(
             name=os.path.splitext(os.path.split(filename)[-1])[0],
-            author=author,
+            author=' - {} '.format(author) if author else author,
             date=date(),
             imports=self.format_imports())
 

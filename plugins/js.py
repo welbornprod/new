@@ -4,13 +4,12 @@
 
 import os.path
 from plugins import Plugin, date
-DATE = date()
 
 TEMPLATE = """#!/usr/bin/env node
 
-/* {name}
-   ...
-   {author}{date}
+/*  {name}
+    ...
+    {author}{date}
 */
 
 'use strict';
@@ -45,24 +44,21 @@ class JSPlugin(Plugin):
     def __init__(self):
         self.name = ('js', 'node', 'nodejs')
         self.extensions = ('.js',)
-        self.version = '0.0.3'
+        self.version = '0.0.3-1'
         self.load_config()
 
     def create(self, fname):
         """ Creates a blank js/node file. """
         # Using the node shebang, even though this may not be for node.
         author = self.config.get('author', '')
-        if author:
-            author = '- {}'.format(author)
-        datestr = ' {}'.format(DATE) if author else DATE
-        scriptname = os.path.split(fname)[-1]
-        name = os.path.splitext(scriptname)[0]
+        basename = os.path.split(fname)[-1]
+        name = os.path.splitext(basename)[0]
 
         self.debug('Retrieved config..')
         return TEMPLATE.format(
             name=name,
-            author=author,
-            date=datestr,
-            scriptname=scriptname)
+            author='- {} '.format(author) if author else author,
+            date=date(),
+            scriptname=basename)
 
 exports = (JSPlugin(),)
