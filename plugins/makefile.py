@@ -115,7 +115,7 @@ class MakefilePost(PostPlugin):
 
     def __init__(self):
         self.name = 'automakefile'
-        self.version = '0.0.2'
+        self.version = '0.0.3'
         self.description = '\n'.join((
             'Creates a makefile for new C files.',
             'This will not overwrite existing makefiles.'
@@ -157,7 +157,7 @@ class MakefilePlugin(Plugin):
     def __init__(self):
         self.name = ('makefile', 'make')
         self.extensions = tuple()
-        self.version = '0.0.2'
+        self.version = '0.0.3'
         self.ignore_post = {'chmodx'}
         self.description = '\n'.join((
             'Creates a basic makefile for a given c or rust file name.'
