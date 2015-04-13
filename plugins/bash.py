@@ -54,7 +54,7 @@ class BashPlugin(Plugin):
         description = ' '.join(self.args) if self.args else ''
 
         return tmplate.format(
-            author='- {} '.format(author) if author else author,
+            author='-{} '.format(author) if author else author,
             date=date(),
             description=description,
             filename=os.path.splitext(os.path.split(filename)[-1])[0])

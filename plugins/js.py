@@ -57,7 +57,7 @@ class JSPlugin(Plugin):
         self.debug('Retrieved config..')
         return TEMPLATE.format(
             name=name,
-            author='- {} '.format(author) if author else author,
+            author='-{} '.format(author) if author else author,
             date=date(),
             scriptname=basename)
 

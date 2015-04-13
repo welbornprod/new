@@ -70,7 +70,7 @@ class CPlugin(Plugin):
 
         return (template_lib if library else template).format(
             filename=basename,
-            author='- {} '.format(author) if author else author,
+            author='-{} '.format(author) if author else author,
             date=date(),
             include=include,
             namespace=namespace)

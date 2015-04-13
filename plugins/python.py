@@ -184,7 +184,7 @@ class PythonPlugin(Plugin):
         shebangexe = self.config.get('shebangexe', '/usr/bin/env python3')
         version = self.config.get('version', DEFAULT_VERSION)
         template_args.update({
-            'author': '- {} '.format(author) if author else author,
+            'author': '-{} '.format(author) if author else author,
             'explanation': self.config.get('explanation', ''),
             'date': date(),
             'default_version': version,
