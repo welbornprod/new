@@ -6,6 +6,7 @@
 import os.path
 from plugins import (
     confirm,
+    debug,
     Plugin,
     PostPlugin,
     SignalAction,
@@ -13,17 +14,14 @@ from plugins import (
 )
 
 # I'm not very good with makefiles. The .replace() is just for my sanity.
-template = """SHELL=bash
-{compilervar}={compiler}
-{cflagsvar}=-std={std} -Wall
-binary={binary}
-source={filename}
+# {targets} is set by compiler type, and *then* the whole template is rendered.
+pre_template = """SHELL=bash
+{{compilervar}}={{compiler}}
+{{cflagsvar}}={{cflags}}
+binary={{binary}}
+source={{filename}}
 
-all: {objects}
-    $({compilervar}) -o $(binary) $({cflagsvar}) *.o
-
-{objects}: $(source)
-    $({compilervar}) -c $(source) $({cflagsvar})
+{targets}
 
 .PHONY: clean
 clean:
@@ -44,17 +42,40 @@ clean:
     fi;
 """.replace('    ', '\t')
 
+# Make targets for c/c++.
+ctargets = """
+all: {objects}
+    $({compilervar}) -o $(binary) $({cflagsvar}) *.o
+
+{{objects}}: $(source)
+    $({compilervar}) -c $(source) $({cflagsvar})
+""".replace('    ', '\t')
+
+# Make targets for rustc (until I find a better way)
+rusttargets = """
+all: $(source)
+    $({compilervar}) -o $(binary) $({cflagsvar}) $(source)
+""".replace('    ', '\t')
+
 # Template options based on compiler name.
 coptions = {
     'gcc': {
         'compilervar': 'CC',
         'cflagsvar': 'CFLAGS',
-        'std': 'c11'
+        'cflags': '-std=c11 -Wall',
+        'targets': ctargets
     },
     'g++': {
         'compilervar': 'CXX',
         'cflagsvar': 'CXXFLAGS',
-        'std': 'c++11'
+        'cflags': '-std=c++11 -Wall',
+        'targets': ctargets,
+    },
+    'rustc': {
+        'compilervar': 'RUSTC',
+        'cflagsvar': 'RUSTFLAGS',
+        'cflags': '',
+        'targets': rusttargets
     }
 }
 
@@ -70,7 +91,13 @@ def template_render(filepath, makefile=None):
     objects = '{}.o'.format(binary)
 
     # Get compiler and make options by file extension (default to gcc).
-    compiler = {'.c': 'gcc', '.cpp': 'g++'}.get(fileext, 'gcc')
+    compiler = {'.c': 'gcc', '.cpp': 'g++', '.rs': 'rustc'}.get(fileext, 'gcc')
+
+    # Create the base template, retrieve compiler-specific settings.
+    debug('Rendering makefile template for {}.'.format(compiler))
+    compileropts = coptions[compiler]
+    template = pre_template.format(targets=compileropts.pop('targets'))
+
     # Create template args, update with compiler-based options.
     templateargs = {
         'compiler': compiler,
@@ -80,6 +107,7 @@ def template_render(filepath, makefile=None):
     }
     templateargs.update(coptions[compiler])
 
+    # Format the template with compiler-specific settings.
     return makefile, template.format(**templateargs)
 
 
@@ -92,12 +120,12 @@ class MakefilePost(PostPlugin):
             'Creates a makefile for new C files.',
             'This will not overwrite existing makefiles.'
         ))
+        self._plugin = None
 
     def process(self, plugin, filename):
         """ When a C file is created, create a basic Makefile to go with it.
         """
-        fileext = os.path.splitext(filename)[-1]
-        if fileext not in ('.c', '.cpp'):
+        if plugin.get_name() not in ('c', 'rust'):
             return None
         self.create_makefile(filename)
 
@@ -132,7 +160,7 @@ class MakefilePlugin(Plugin):
         self.version = '0.0.2'
         self.ignore_post = {'chmodx'}
         self.description = '\n'.join((
-            'Creates a basic makefile for a given c file name.'
+            'Creates a basic makefile for a given c or rust file name.'
             'The file created is always called "Makefile".'
         ))
         self.usage = """
