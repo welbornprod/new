@@ -14,7 +14,6 @@ TEMPLATE = """#!/usr/bin/env node
 
 'use strict';
 var docopt = require('docopt');
-var sys = require('sys');
 
 var name = '{name}';
 var version = '0.0.1';
@@ -33,7 +32,7 @@ var usage_str = [
 
 var args = docopt.docopt(usage_str, {{'version': version_str}});
 
-sys.puts('Hello.');
+console.log('Hello.');
 """
 
 
