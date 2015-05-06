@@ -47,7 +47,7 @@ ctargets = """
 all: {objects}
     $({compilervar}) -o $(binary) $({cflagsvar}) *.o
 
-{{objects}}: $(source)
+{objects}: $(source)
     $({compilervar}) -c $(source) $({cflagsvar})
 """.replace('    ', '\t')
 
