@@ -13,7 +13,7 @@ import plugins
 debug = plugins.debug
 
 NAME = 'New'
-VERSION = '0.1.0'
+VERSION = '0.1.1'
 VERSIONSTR = '{} v. {}'.format(NAME, VERSION)
 SCRIPT = os.path.split(os.path.abspath(sys.argv[0]))[1]
 SCRIPTDIR = os.path.abspath(sys.path[0])
@@ -134,6 +134,14 @@ def ensure_file_ext(fname, plugin):
     if not plugin.extensions:
         # Some files don't have an extension (like makefiles)
         return fname
+
+    if plugin.any_extension:
+        # Some plugins allow using a custom extension.
+        # Still, fallback to default if no extension is provided.
+        filepath, basename = os.path.split(fname)
+        _, fileext = os.path.splitext(basename)
+        if fileext:
+            return fname
 
     for plugin_ext in plugin.extensions:
         if fname.endswith(plugin_ext):

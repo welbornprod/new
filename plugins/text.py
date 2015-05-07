@@ -14,6 +14,8 @@ class TextPlugin(Plugin):
         self.extensions = ('.txt',)
         self.version = '0.0.1'
         self.allow_blank = True
+        # Allow a custom extension (still .txt if no extension is provided)
+        self.any_extension = True
         # Text files are not executable.
         self.ignore_post = {'chmodx'}
 

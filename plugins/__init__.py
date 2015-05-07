@@ -748,6 +748,12 @@ class Plugin(object):
     # Otherwise, no content means an error occurred and no file is written.
     allow_blank = False
 
+    # (bool)
+    # Whether a custom extension is allowed with this plugin.
+    # The default extension is used when no user extension is given,
+    # but if the user provides an extension then use it.
+    any_extension = False
+
     # (set)
     # Names of deferred plugins that will be skipped when using this plugin.
     ignore_deferred = set()
