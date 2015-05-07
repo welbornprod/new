@@ -13,7 +13,7 @@
             "author": "Your Name (set in config)"
         },
         "default_filename": "new_file",
-        "default_plugin": "python",
+        "default_plugin": "text",
         "disabled_deferred": [],
         "disabled_post": [],
         "disabled_types": []

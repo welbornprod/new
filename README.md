@@ -36,7 +36,7 @@ Options:
     ARGS               : Plugin-specific args.
                          Use -H for plugin-specific help.
     PLUGIN             : Plugin name to use (like bash, python, etc.)
-                         Defaults to: python (unless set in config)
+                         Defaults to: text (unless set in config)
     FILENAME           : File name for the new file.
     -c,--config        : Print global config and exit.
     -C,--pluginconfig  : Print plugin config and exit.
@@ -109,7 +109,7 @@ Config Options:
         "default_filename": "new_file",
 
         // Default plugin to use when no plugin name or extension is given.
-        "default_plugin": "python",
+        "default_plugin": "text",
 
         // Names of DeferredPost plugins that will be ignored on every run.
         "disabled_deferred": [],
