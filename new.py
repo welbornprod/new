@@ -8,12 +8,13 @@
 import os
 import sys
 import docopt
+from contextlib import suppress
 
 import plugins
 debug = plugins.debug
 
 NAME = 'New'
-VERSION = '0.1.1'
+VERSION = '0.1.2'
 VERSIONSTR = '{} v. {}'.format(NAME, VERSION)
 SCRIPT = os.path.split(os.path.abspath(sys.argv[0]))[1]
 SCRIPTDIR = os.path.abspath(sys.path[0])
@@ -22,10 +23,10 @@ USAGESTR = """{versionstr}
     Usage:
         {script} (-c | -h | -v | -p) [-D]
         {script} PLUGIN (-C | -H) [-D]
-        {script} FILENAME [-d] [-D]
-        {script} FILENAME -- ARGS... [-d] [-D]
-        {script} PLUGIN FILENAME [-d] [-D]
-        {script} PLUGIN FILENAME -- ARGS... [-d] [-D]
+        {script} FILENAME [-d] [-D] [-x]
+        {script} FILENAME -- ARGS... [-d] [-D] [-x]
+        {script} PLUGIN FILENAME [-d] [-D] [-x]
+        {script} PLUGIN FILENAME -- ARGS... [-d] [-D] [-x]
 
     Options:
         ARGS               : Plugin-specific args.
@@ -40,6 +41,9 @@ USAGESTR = """{versionstr}
         -H,--pluginhelp    : Show plugin help.
         -h,--help          : Show this help message.
         -p,--plugins       : List all available plugins.
+        -x,--executable    : Force the chmodx plugin to run, to make the file
+                             executable. This is for plugin types that normally
+                             ignore the chmodx plugin.
         -v,--version       : Show version.
 """.format(script=SCRIPT, versionstr=VERSIONSTR)
 
@@ -72,6 +76,13 @@ def main(argd):
         print('\nNot a valid file type (not supported): {}'.format(ftype))
         print('\nUse --plugins to list available plugins.\n')
         return 1
+
+    if argd['--executable'] and 'chmodx' in plugin.ignore_post:
+        # Current behaviour says files are made executable unless told
+        # otherwise, so to 'force chmodx' simply means to remove it from the
+        # "ignored" list.
+        with suppress(AttributeError, KeyError):
+            plugin.ignore_post.remove('chmodx')
 
     pluginname = plugin.get_name().title()
     debug('Using plugin: {}'.format(pluginname))
