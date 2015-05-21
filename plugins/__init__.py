@@ -450,10 +450,10 @@ def load_config(section=None):
     """ Load global config, or a specific section. """
     configfile = find_config_file()
 
-    config = {}
+    conf = {}
     try:
         with open(configfile, 'r') as f:
-            config = json.load(f)
+            conf = json.load(f)
     except FileNotFoundError:
         debug('No config file: {}'.format(configfile))
     except EnvironmentError as exread:
@@ -463,16 +463,140 @@ def load_config(section=None):
     except Exception as ex:
         debug('Error loading config: {}\n{}'.format(configfile, ex))
     if section:
-        sectionconfig = config.get(section, {})
+        sectionconfig = conf.get(section, {})
         if not sectionconfig:
             debug('No config for: {}'.format(section))
         else:
-            config = sectionconfig
+            conf = sectionconfig
             debug('Loaded {} config from: {}'.format(section, configfile))
-    elif config:
+    elif conf:
         # Loading gobal config.
         debug('Loaded config from: {}'.format(configfile))
-    return config
+    return conf
+
+
+def load_module(modulename):
+    """ Load a single plugin module by name.
+        Non-plugin modules raise ImportError.
+        Return the module instance, or raises ImportError.
+    """
+    module = import_module(modulename)
+    # Ensure that the module has a list of plugins to work with.
+    if not is_plugins_module(module):
+        debug('{} ({}) is not a valid plugin!'.format(modulename, module))
+        raise ImportError('Not a valid plugin module.')
+    return module
+
+
+def load_module_plugins(module):
+    """ Load all plugin instances from a plugin module.
+        The module must have an 'exports' attribute that is a tuple of
+        plugin instances.
+
+        Returns a dict of: {
+            'types': {name: instance},
+            'post': {name: instance},
+            'deferred': {name: instance}
+        }
+    """
+    disabled_deferred = config.get('disabled_deferred', [])
+    disabled_post = config.get('disabled_post', [])
+    disabled_types = config.get('disabled_types', [])
+
+    tmp_plugins = {'types': {}, 'post': {}, 'deferred': {}}
+    modname = getattr(module, '__name__', 'unknown_module_name')
+
+    for plugin in module.exports:
+        # debug('    checking {}'.format(plugin))
+        invalidreason = is_invalid_plugin(plugin)
+        if invalidreason:
+            errmsg = 'Not a valid plugin {}: {}'
+            debug(errmsg.format(plugin, invalidreason))
+            continue
+        try:
+            name = plugin.get_name()
+        except (TypeError, ValueError) as exname:
+            debug_load_error('a', modname, plugin, exname)
+            continue
+        else:
+            fullname = '{}.{}'.format(modname, name)
+
+        if isinstance(plugin, Plugin):
+            if not name:
+                debug_missing('name', 'file-type', modname, plugin)
+                continue
+            # See if the plugin is disabled.
+            if name in disabled_types:
+                skipmsg = 'Skipping disabled type plugin: {}'
+                debug(skipmsg.format(fullname))
+                continue
+            elif name in tmp_plugins['types']:
+                debug('Conflicting Plugin: {}'.format(name))
+                continue
+            tmp_plugins['types'][name] = plugin
+            debug('Loaded: {} (Plugin)'.format(fullname))
+        elif isinstance(plugin, DeferredPostPlugin):
+            if not name:
+                debug_missing('name', 'deferred', modname, plugin)
+                continue
+            if name in disabled_deferred:
+                skipmsg = 'Skipping disabled deferred-post plugin: {}'
+                debug(skipmsg.format(fullname))
+                continue
+            elif name in tmp_plugins['deferred']:
+                errmsg = 'Conflicting DeferredPostPlugin: {}'
+                debug(errmsg.format(name))
+                continue
+            tmp_plugins['deferred'][name] = plugin
+            debug('Loaded: {} (DeferredPostPlugin)'.format(fullname))
+        elif isinstance(plugin, PostPlugin):
+            if not name:
+                debug_missing('name', 'post', modname, plugin)
+                continue
+            # See if the plugin is disabled.
+            if name in disabled_post:
+                skipmsg = 'Skipping disabled post plugin: {}'
+                debug(skipmsg.format(fullname))
+                continue
+            elif name in tmp_plugins['post']:
+                debug('Conflicting PostPlugin: {}'.format(name))
+                continue
+            tmp_plugins['post'][name] = plugin
+            debug('Loaded: {} (PostPlugin)'.format(fullname))
+        else:
+            debug('\nNon-plugin type!: {}'.format(type(plugin)))
+    return tmp_plugins
+
+
+def load_plugin(modulename, pluginname):
+    """ Load a plugin on demand by module name and plugin name.
+
+        Raises ValueError if the module cannot be imported, or the plugin
+        does not exist, or any other error while loading plugins.
+
+        Returns the Plugin instance on success.
+    """
+    try:
+        module = load_module(modulename)
+    except ImportError as eximp:
+        debug('Failed to load module: {}\n  {}'.format(modulename, eximp))
+        raise ValueError(str(eximp))
+
+    try:
+        plugins = load_module_plugins(module)
+    except Exception as ex:
+        debug('Failed to load module plugins: {}\n  {}'.format(modulename, ex))
+        raise ValueError(str(ex))
+
+    for ptype, pinfo in plugins.items():
+        for name, pinstance in pinfo.items():
+            if name == pluginname:
+                return pinstance
+
+    raise ValueError(
+        'Cannot find the \'{}\' plugin in the \'{}\' module.'.format(
+            pluginname,
+            modulename))
 
 
 def load_plugin_config(plugin):
@@ -530,85 +654,21 @@ def load_plugins(plugindir):
 
     debug('Loading plugins from: {}'.format(plugindir))
     tmp_plugins = {'types': {}, 'post': {}, 'deferred': {}}
-    disabled_deferred = config.get('disabled_deferred', [])
-    disabled_post = config.get('disabled_post', [])
-    disabled_types = config.get('disabled_types', [])
 
     for modname in (os.path.splitext(p)[0] for p in iter_py_files(plugindir)):
-        # debug('Importing: {}'.format(modname))
         try:
-            module = import_module(modname)
-            # Ensure that the module has a list of plugins to work with.
-            if not is_plugins_module(module):
-                debug('{} ({}) is not a valid plugin!'.format(modname, module))
-                continue
-            # debug('    {} ..imported.'.format(modname))
+            module = load_module(modname)
         except ImportError as eximp:
             # Bad plugin, cannot be imported.
             debug('Plugin failed: {}\n{}'.format(modname, eximp))
             continue
         try:
-            for plugin in module.exports:
-                # debug('    checking {}'.format(plugin))
-                invalidreason = is_invalid_plugin(plugin)
-                if invalidreason:
-                    errmsg = 'Not a valid plugin {}: {}'
-                    debug(errmsg.format(plugin, invalidreason))
-                    continue
-                try:
-                    name = plugin.get_name()
-                except (TypeError, ValueError) as exname:
-                    debug_load_error('a', modname, plugin, exname)
-                    continue
-                else:
-                    fullname = '{}.{}'.format(modname, name)
-
-                if isinstance(plugin, Plugin):
-                    if not name:
-                        debug_missing('name', 'file-type', modname, plugin)
-                        continue
-                    # See if the plugin is disabled.
-                    if name in disabled_types:
-                        skipmsg = 'Skipping disabled type plugin: {}'
-                        debug(skipmsg.format(fullname))
-                        continue
-                    elif name in tmp_plugins['types']:
-                        debug('Conflicting Plugin: {}'.format(name))
-                        continue
-                    tmp_plugins['types'][name] = plugin
-                    debug('Loaded: {} (Plugin)'.format(fullname))
-                elif isinstance(plugin, DeferredPostPlugin):
-                    if not name:
-                        debug_missing('name', 'deferred', modname, plugin)
-                        continue
-                    if name in disabled_deferred:
-                        skipmsg = 'Skipping disabled deferred-post plugin: {}'
-                        debug(skipmsg.format(fullname))
-                        continue
-                    elif name in tmp_plugins['deferred']:
-                        errmsg = 'Conflicting DeferredPostPlugin: {}'
-                        debug(errmsg.format(name))
-                        continue
-                    tmp_plugins['deferred'][name] = plugin
-                    debug('Loaded: {} (DeferredPostPlugin)'.format(fullname))
-                elif isinstance(plugin, PostPlugin):
-                    if not name:
-                        debug_missing('name', 'post', modname, plugin)
-                        continue
-                    # See if the plugin is disabled.
-                    if name in disabled_post:
-                        skipmsg = 'Skipping disabled post plugin: {}'
-                        debug(skipmsg.format(fullname))
-                        continue
-                    elif name in tmp_plugins['post']:
-                        debug('Conflicting PostPlugin: {}'.format(name))
-                        continue
-                    tmp_plugins['post'][name] = plugin
-                    debug('Loaded: {} (PostPlugin)'.format(fullname))
-                else:
-                    debug('\nNon-plugin type!: {}'.format(type(plugin)))
+            moduleplugins = load_module_plugins(module)
+            for ptype in ('types', 'post', 'deferred'):
+                tmp_plugins[ptype].update(moduleplugins[ptype])
         except Exception as ex:
             print('\nError loading plugin: {}\n{}'.format(modname, ex))
+
     # Set module-level copy of plugins.
     plugins = tmp_plugins
 
