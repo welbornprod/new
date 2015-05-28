@@ -212,8 +212,9 @@ class PythonPlugin(Plugin):
             template_args['scriptname'] = scriptname
             template_args['testtarget'] = testtarget
             # Render the template, action is needed because of the name change.
-            testaction.content = template_base.format(**template_args)
-            raise testaction
+            if testaction:
+                testaction.content = template_base.format(**template_args)
+                raise testaction
 
         # Render a normal template and return the content.
         return template_base.format(**template_args)
