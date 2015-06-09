@@ -49,7 +49,7 @@ templates = {
     },
     'unittest': {
         'base': 'test',
-        'imports': ['unittest'],
+        'imports': ['sys', 'unittest'],
         'testsetup': '',
 
     },
