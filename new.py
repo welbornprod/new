@@ -14,7 +14,7 @@ import plugins
 debug = plugins.debug
 
 NAME = 'New'
-VERSION = '0.1.3'
+VERSION = '0.1.4'
 VERSIONSTR = '{} v. {}'.format(NAME, VERSION)
 SCRIPT = os.path.split(os.path.abspath(sys.argv[0]))[1]
 SCRIPTDIR = os.path.abspath(sys.path[0])
@@ -66,10 +66,11 @@ def main(argd):
     # Do any procedures that don't require a file name/type.
     if argd['--plugins']:
         plugins.list_plugins()
-        return 1
+        return 0
     elif argd['--config']:
         return 0 if plugins.config_dump() else 1
 
+    # Determine plugin based on file name/file type/explicit name.
     plugin = plugins.determine_plugin(argd)
     if not plugin:
         ftype = argd['PLUGIN'] or argd['FILENAME']
@@ -101,7 +102,8 @@ def main(argd):
     try:
         content = plugin._create(fname, argd['ARGS'])
     except plugins.SignalAction as action:
-        # See if we have content to write (no content is fatal).
+        # See if we have content to write
+        # No-content is fatal unless explicitly allowed.
         if not (action.content or plugin.allow_blank):
             errmsg = 'Plugin action with no content!\n    {}'
             print(errmsg.format(action.message))
