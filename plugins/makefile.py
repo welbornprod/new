@@ -13,6 +13,8 @@ from plugins import (
     SignalExit
 )
 
+VERSION = '0.0.4'
+
 # I'm not very good with makefiles. The .replace() is just for my sanity.
 # {targets} is set by compiler type, and *then* the whole template is rendered.
 pre_template = """SHELL=bash
@@ -45,10 +47,13 @@ clean:
 # Make targets for c/c++.
 ctargets = """
 all: {objects}
-    $({compilervar}) -o $(binary) $({cflagsvar}) *.o
+    $({compilervar}) -o $(binary) $({cflagsvar}) -O3 *.o
 
 {objects}: $(source)
     $({compilervar}) -c $(source) $({cflagsvar})
+
+debug: {objects}
+    $({compilervar}) -o $(binary) $({cflagsvar}) -Og *.o
 """.replace('    ', '\t')
 
 # Make targets for rustc (until I find a better way)
@@ -115,7 +120,7 @@ class MakefilePost(PostPlugin):
 
     def __init__(self):
         self.name = 'automakefile'
-        self.version = '0.0.3-1'
+        self.version = VERSION
         self.description = '\n'.join((
             'Creates a makefile for new C files.',
             'This will not overwrite existing makefiles.'
@@ -157,7 +162,7 @@ class MakefilePlugin(Plugin):
     def __init__(self):
         self.name = ('makefile', 'make')
         self.extensions = tuple()
-        self.version = '0.0.3-1'
+        self.version = VERSION
         self.ignore_post = {'chmodx'}
         self.description = '\n'.join((
             'Creates a basic makefile for a given c or rust file name.'
