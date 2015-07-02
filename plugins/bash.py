@@ -39,16 +39,21 @@ function print_usage {{
     "
 }}
 
-if [[ -z "$1" ]]; then
+if [[ $# -eq 0 ]]; then
     print_usage "No arguments!"
     exit 1
-elif [[ "$1" =~ ^(-h)|(--help)$ ]]; then
-    print_usage
-    exit 0
-elif [[ "$1" =~ ^(-v)|(--version)$ ]]; then
-    echo -e "$appname v. $appversion\\n"
-    exit 0
 fi
+
+for arg
+do
+    if [[ "$arg" =~ ^(-h)|(--help)$ ]]; then
+        print_usage ""
+        exit 0
+    elif [[ "$arg" =~ ^(-v)|(--version)$ ]]; then
+        echo -e "$appname v. $appversion\\n"
+        exit 0
+    fi
+done
 """
 
 
