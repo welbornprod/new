@@ -1,6 +1,6 @@
 {
     "bash": {
-        "default_args": []
+        "default_args": ["args"]
     },
     "jquery": {
         "no_download": false
@@ -10,7 +10,8 @@
     },
     "plugins" : {
         "global": {
-            "author": "Your Name (set in config)"
+            "author": "Your Name (set in config)",
+            "default_version": "0.0.1"
         },
         "default_filename": "new_file",
         "default_plugin": "text",
@@ -19,7 +20,6 @@
         "disabled_types": []
     },
     "python": {
-        "version": "0.0.1",
         "template": "docopt"
     }
 }

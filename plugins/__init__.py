@@ -17,18 +17,21 @@ from importlib import import_module
 
 SCRIPTDIR = os.path.abspath(sys.path[0])
 DEBUG = False
-config = {}
 plugins = {'types': {}, 'post': {}, 'deferred': {}}
+# Config is loaded in load_plugins()
+config = {}
 
+# Default version made available to all plugins when no config is set.
+default_version = '0.0.1'
 
 def config_dump():
     """ Dump config to stdout. """
     if not config:
-        print('\nNo config found for plugins.\n')
+        print('\nNo config found.\n')
         return False
 
     configstr = json.dumps(config, sort_keys=True, indent=4)
-    print('\nConfig for plugins:\n')
+    print('\nConfig:\n')
     print(configstr)
     return True
 
@@ -162,7 +165,8 @@ def determine_plugin(argd):
         Returns Plugin() on success, or None on failure.
         This may modify argd['FILENAME'] if needed.
     """
-    default_file = config.get('global', {}).get('default_filename', 'new_file')
+    globalconfig = config.get('plugins', {}).get('global', {})
+    default_file = globalconfig.get('default_filename', 'new_file')
     use_post = argd['--pluginconfig']
     namedplugin = get_plugin_byname(argd['FILENAME'])
     if namedplugin:
@@ -204,7 +208,7 @@ def determine_plugin(argd):
 
     # Fall back to default plugin, or user specified.
     plugin = None
-    ftype = argd['PLUGIN'] or config.get('default_plugin', 'python')
+    ftype = argd['PLUGIN'] or globalconfig.get('default_plugin', 'python')
     # Allow loading post-plugins by name when using --pluginconfig.
     plugin = get_plugin_byname(ftype, use_post=use_post)
     if plugin:
@@ -448,20 +452,14 @@ def list_plugins():
 
 def load_config(section=None):
     """ Load global config, or a specific section. """
-    configfile = find_config_file()
+    if section:
+        preloaded = config.get(section, {})
+        if preloaded:
+            debug('Retrieved config for {}.'.format(section))
+            return preloaded
 
-    conf = {}
-    try:
-        with open(configfile, 'r') as f:
-            conf = json.load(f)
-    except FileNotFoundError:
-        debug('No config file: {}'.format(configfile))
-    except EnvironmentError as exread:
-        debug('Unable to read config file: {}\n{}'.format(configfile, exread))
-    except ValueError as exjson:
-        debug('Invalid JSON config: {}\n{}'.format(configfile, exjson))
-    except Exception as ex:
-        debug('Error loading config: {}\n{}'.format(configfile, ex))
+    configfile = find_config_file()
+    conf = load_config_file(configfile)
     if section:
         sectionconfig = conf.get(section, {})
         if not sectionconfig:
@@ -472,6 +470,30 @@ def load_config(section=None):
     elif conf:
         # Loading gobal config.
         debug('Loaded config from: {}'.format(configfile))
+    return conf
+
+
+def load_config_file(filename, section=None):
+    """ Load config from a JSON file. Expects a top-level dict object.
+        If `section` is given, then loadedconfig.get(section, {}) is returned
+    """
+    conf = {}
+    try:
+        with open(filename, 'r') as f:
+            conf = json.load(f)
+    except FileNotFoundError:
+        debug('No config file: {}'.format(filename))
+    except EnvironmentError as exread:
+        debug('Unable to read config file: {}\n{}'.format(filename, exread))
+    except ValueError as exjson:
+        # When loading the main config, JSON errors warrant a message.
+        reporter = print if not section else debug
+        reporter('Invalid JSON config: {}\n{}'.format(filename, exjson))
+    except Exception as ex:
+        debug('Error loading config: {}\n{}'.format(filename, ex))
+
+    if section:
+        return conf.get(section, {})
     return conf
 
 
@@ -488,7 +510,7 @@ def load_module(modulename):
     return module
 
 
-def load_module_plugins(module):
+def load_module_plugins(module):  # noqa
     """ Load all plugin instances from a plugin module.
         The module must have an 'exports' attribute that is a tuple of
         plugin instances.
@@ -499,9 +521,10 @@ def load_module_plugins(module):
             'deferred': {name: instance}
         }
     """
-    disabled_deferred = config.get('disabled_deferred', [])
-    disabled_post = config.get('disabled_post', [])
-    disabled_types = config.get('disabled_types', [])
+    pluginsconfig = config.get('plugins', {})
+    disabled_deferred = pluginsconfig.get('disabled_deferred', [])
+    disabled_post = pluginsconfig.get('disabled_post', [])
+    disabled_types = pluginsconfig.get('disabled_types', [])
 
     tmp_plugins = {'types': {}, 'post': {}, 'deferred': {}}
     modname = getattr(module, '__name__', 'unknown_module_name')
@@ -602,39 +625,33 @@ def load_plugin(modulename, pluginname):
 def load_plugin_config(plugin):
     """ Load config file for a plugin instance.
         Sets plugin.config to a dict on success.
+        Arguments:
+            plugin  : A Plugin() instance to get config for.
     """
-    # Load global config if available.
-    globalconfig = config.get('global', {})
-
-    if not getattr(plugin, 'config_file', None):
-        configfile = 'new.json'
-        plugin.config_file = os.path.join(SCRIPTDIR, configfile)
-
+    plugin_configfile = getattr(plugin, 'config_file', None)
     pluginconfig = {}
-    try:
-        with open(plugin.config_file, 'r') as f:
-            pluginconfig = json.load(f)
-    except FileNotFoundError:
-        msg = 'No config file for {}: {}'
-        debug(msg.format(plugin.get_name(), plugin.config_file))
-    except EnvironmentError as exread:
-        errmsg = 'Unable to open {} config: {}\n{}'
-        debug(errmsg.format(plugin.get_name(), plugin.config_file, exread))
-    except ValueError as exjson:
-        errmsg = 'Error loading json from: {}\n{}'
-        debug(errmsg.format(plugin.config_file, exjson))
-    except Exception as ex:
-        errmsg = 'Error loading plugin config: {}\n{}'
-        debug(errmsg.format(plugin.config_file, ex))
-
-    # Actual config is in {'<plugin_name>': {}}
-    pluginconfig = pluginconfig.get(plugin.get_name(), {})
-    if pluginconfig:
-        loadmsg = 'Loaded {} config from: {}'
-        debug(loadmsg.format(plugin.get_name(), plugin.config_file))
+    # Load plugin's file if available, otherwise the global file is used.
+    if plugin_configfile:
+        pluginconfig = load_config_file(
+            plugin_configfile,
+            section=plugin.get_name())
     else:
-        errmsg = 'No config for {}: {}'
-        debug(errmsg.format(plugin.get_name(), plugin.config_file))
+        # Use global file for config.
+        # Actual config is in {'<plugin_name>': {}}
+        pluginconfig = config.get(plugin.get_name(), {})
+        logmsg = ', '.join((
+            'No config file for {}',
+            'using global config.' if pluginconfig else 'no global config.'
+        )).format(plugin.get_name())
+        debug(logmsg)
+
+    if pluginconfig:
+        loadmsg = 'Loaded {} config from {}.'
+        debug(loadmsg.format(
+            plugin.get_name(),
+            plugin_configfile or 'global config'
+        ))
+    globalconfig = config.get('plugins', {}).get('global', {})
     # Merge global config with plugin config.
     for k, v in globalconfig.items():
         if v and (not pluginconfig.get(k, None)):
@@ -650,7 +667,7 @@ def load_plugins(plugindir):
     """
     global plugins, config
     # Load general plugin config.
-    config = load_config('plugins')
+    config = load_config()
 
     debug('Loading plugins from: {}'.format(plugindir))
     tmp_plugins = {'types': {}, 'post': {}, 'deferred': {}}

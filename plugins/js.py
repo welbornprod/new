@@ -3,7 +3,7 @@
 """
 
 import os.path
-from plugins import Plugin, date
+from plugins import Plugin, date, default_version
 
 TEMPLATE = """#!/usr/bin/env node
 
@@ -16,7 +16,7 @@ TEMPLATE = """#!/usr/bin/env node
 var docopt = require('docopt');
 
 var name = '{name}';
-var version = '0.0.1';
+var version = '{version}';
 var version_str = [name, version].join(' v. ');
 
 var usage_str = [
@@ -58,6 +58,7 @@ class JSPlugin(Plugin):
             name=name,
             author='-{} '.format(author) if author else author,
             date=date(),
-            scriptname=basename)
+            scriptname=basename,
+            version=self.config.get('default_version', default_version))
 
 exports = (JSPlugin(),)

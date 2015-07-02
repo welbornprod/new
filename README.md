@@ -90,18 +90,22 @@ Config Options:
 ```javascript
 {
     // Each plugin has a top-level key (it's name).
+    // A plugin may also provide a `config_file` attribute to load JSON from.
     "open": {
 
         // The open plugin allows you to set which editor you would like to use.
-        "editor": "subl"
+        "editor": "atom"
     },
 
-    // The "plugins" key is config for all plugins.
+    // The "plugins" key is config for plugin loading.
     "plugins" : {
 
         // All plugins inherit options from global if not set already.
         "global": {
-            "author": "cjwelborn"
+            "author": "cjwelborn",
+
+            // Some plugins provide a default version number in their templates.
+            "default_version": "0.0.1"
         },
 
         // Default file name to use when only a plugin name is given.
@@ -122,9 +126,6 @@ Config Options:
     },
 
     "python": {
-
-        // The python plugin allows a default version string for new files.
-        "version": "0.0.1",
 
         // A default python template to use when none is specified.
         "template": "docopt"

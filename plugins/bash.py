@@ -2,23 +2,53 @@
     -Christopher Welborn 12-25-14
 """
 import os.path
-from plugins import Plugin, date
+from plugins import Plugin, date, default_version
 
 template = """#!/bin/bash
 
 # ...{description}
 # {author}{date}
 appname="{filename}"
-appversion="0.0.1"
+appversion="{version}"
 apppath="$(readlink -f "${{BASH_SOURCE[0]}}")"
 appscript="${{apppath##*/}}"
 appdir="${{apppath%/*}}"
 """
 
+# Basic function template.
 template_func = """
 function XXXX {{
 
 }}
+"""
+
+# Basic arg-parsing code.
+template_args = """
+function print_usage {{
+    # Show usage reason if first arg is available.
+    [[ -n "$1" ]] && echo -e "\\n$1\\n"
+
+    echo "$appname v. $appversion
+
+    Usage:
+        $appscript -h | -v
+
+    Options:
+        -h,--help     : Show this message.
+        -v,--version  : Show $appname version and exit.
+    "
+}}
+
+if [[ -z "$1" ]]; then
+    print_usage "No arguments!"
+    exit 1
+elif [[ "$1" =~ ^(-h)|(--help)$ ]]; then
+    print_usage
+    exit 0
+elif [[ "$1" =~ ^(-v)|(--version)$ ]]; then
+    echo -e "$appname v. $appversion\\n"
+    exit 0
+fi
 """
 
 
@@ -29,35 +59,41 @@ class BashPlugin(Plugin):
     def __init__(self):
         self.name = ('bash', 'sh')
         self.extensions = ('.sh', '.bash')
-        self.version = '0.0.4'
+        self.version = '0.1.0'
         self.load_config()
         self.usage = """
     Usage:
-        bash [f] [description]
+        bash [f | a] [description]
 
     Options:
         description  : Description for the doc str, quoting is optional.
+        a,args       : Include basic arg-parsing functions.
         f,func       : Include an empty function.
     """
 
     def create(self, filename):
         """ Creates a basic bash source file. """
 
-        if self.has_arg('f(unc)?'):
-            self.debug(
-                'Using function template, user args: {!r}'.format(self.args))
+        sections = [template]
+        if self.has_arg('^a(rgs)?$'):
+            self.debug('Using args template...')
+            self.pop_args(self.args, ('a', 'args'))
+            sections.append(template_args)
+        if self.has_arg('^f(unc)?$'):
+            self.debug('Using function template...')
             self.pop_args(self.args, ('f', 'func'))
-            tmplate = '\n\n'.join((template, template_func))
-        else:
-            tmplate = template
+            sections.append(template_func)
+
         author = self.config.get('author', '')
         description = ' '.join(self.args) if self.args else ''
 
-        return tmplate.format(
+        return '\n'.join(sections).format(
             author='-{} '.format(author) if author else author,
             date=date(),
             description=description,
-            filename=os.path.splitext(os.path.split(filename)[-1])[0])
+            filename=os.path.splitext(os.path.split(filename)[-1])[0],
+            version=self.config.get('default_version', default_version)
+        )
 
     def pop_args(self, lst, args):
         """ Removes any occurrence of an argument from a list.

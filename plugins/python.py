@@ -4,7 +4,7 @@
 
 import os
 
-from plugins import Plugin, SignalAction, SignalExit, date
+from plugins import Plugin, SignalAction, SignalExit, date, default_version
 
 # TODO: This plugin was basically just copied and adapted from the original
 #       'newpython' script that inspired this project.
@@ -13,10 +13,8 @@ from plugins import Plugin, SignalAction, SignalExit, date
 
 # Default imports to use if '--noimports' isn't given.
 DEFAULT_IMPORTS = ['os', 'sys']
-# Default versioning for all new scripts when config isn't set.
-DEFAULT_VERSION = '0.0.1'
 
-# Setting per template by name.
+# Settings per template by name
 # ..must at least contain {'base': 'template name', 'imports': []}
 templates = {
     'blank': {
@@ -182,7 +180,7 @@ class PythonPlugin(Plugin):
         imports = extra_imports + template_args['imports']
         scriptname = os.path.split(filename)[-1]
         shebangexe = self.config.get('shebangexe', '/usr/bin/env python3')
-        version = self.config.get('version', DEFAULT_VERSION)
+        version = self.config.get('default_version', default_version)
         template_args.update({
             'author': '-{} '.format(author) if author else author,
             'explanation': self.config.get('explanation', ''),

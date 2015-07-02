@@ -32,7 +32,12 @@ class OpenPlugin(DeferredPostPlugin):
         if not editor:
             msg = '\n'.join((
                 'No editor could be found!',
-                '\nSet one in {}  with {{"editor": "path/editor"}}\n'))
+                '\nSet one in {} with:',
+                '  {{',
+                '      "open": {{',
+                '          "editor": "path/editor"',
+                '      }}',
+                '  }}\n'))
             raise ValueError(msg.format(self.config_file))
             return 1
 

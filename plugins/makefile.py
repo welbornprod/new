@@ -13,6 +13,7 @@ from plugins import (
     SignalExit
 )
 
+# Version number for both plugins (if one changes, usually the other changes)
 VERSION = '0.0.4'
 
 # I'm not very good with makefiles. The .replace() is just for my sanity.
