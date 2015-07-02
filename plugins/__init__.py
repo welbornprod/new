@@ -24,6 +24,7 @@ config = {}
 # Default version made available to all plugins when no config is set.
 default_version = '0.0.1'
 
+
 def config_dump():
     """ Dump config to stdout. """
     if not config:
