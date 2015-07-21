@@ -39,10 +39,15 @@ function print_usage {{
     "
 }}
 
-if [[ $# -eq 0 ]]; then
+if (( $# == 0 )); then
     print_usage "No arguments!"
     exit 1
 fi
+
+# Pattern to recognize unknown flag arguments
+# (stdin marker, -, is not included)
+flagpat="^--?(\\w|\\d)+$"
+declare -a nonflags
 
 for arg
 do
@@ -52,6 +57,11 @@ do
     elif [[ "$arg" =~ ^(-v)|(--version)$ ]]; then
         echo -e "$appname v. $appversion\\n"
         exit 0
+    elif [[ "$arg" =~ $flagpat ]]; then
+        print_usage "Unknown flag argument: $arg"
+        exit 1
+    else
+        nonflags=("${{nonflags[@]}}" "$arg")
     fi
 done
 """
@@ -64,7 +74,7 @@ class BashPlugin(Plugin):
     def __init__(self):
         self.name = ('bash', 'sh')
         self.extensions = ('.sh', '.bash')
-        self.version = '0.1.1'
+        self.version = '0.1.2'
         self.load_config()
         self.usage = """
     Usage:
