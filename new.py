@@ -14,7 +14,7 @@ import plugins
 debug = plugins.debug
 
 NAME = 'New'
-VERSION = '0.2.2'
+VERSION = '0.2.3'
 VERSIONSTR = '{} v. {}'.format(NAME, VERSION)
 SCRIPT = os.path.split(os.path.abspath(sys.argv[0]))[1]
 SCRIPTDIR = os.path.abspath(sys.path[0])
@@ -74,14 +74,17 @@ def main(argd):
     plugin = plugins.determine_plugin(argd)
     if not plugin:
         ftype = argd['PLUGIN'] or argd['FILENAME']
-        print('\nNot a valid file type (not supported): {}'.format(ftype))
-        print('\nUse --plugins to list available plugins.\n')
+        errmsg = '\n'.join((
+            'Not a valid file type (not supported): {}',
+            'Use --plugins to list available plugins.\n'
+        )).format(ftype)
+        print_err(errmsg)
         return 1
 
     if argd['--executable'] and 'chmodx' in plugin.ignore_post:
         # Current behaviour says files are made executable unless told
         # otherwise, so to 'force chmodx' simply means to remove it from the
-        # "ignored" list.
+        # 'ignored' list.
         with suppress(AttributeError, KeyError):
             plugin.ignore_post.remove('chmodx')
 
@@ -96,6 +99,7 @@ def main(argd):
     fname = ensure_file_ext(argd['FILENAME'], plugin)
 
     # Make sure the file name doesn't conflict with any plugins.
+    # ...mainly during development and testing.
     if plugins.conflicting_file(plugin, argd['FILENAME'], fname):
         return 1
 
@@ -110,25 +114,25 @@ def main(argd):
             return 1
 
         content = action.content
-        # Print a plain message if set.
+        # Print plugin notification of any major changes (file name changes)
         if action.message:
             print(action.message)
-
-        # Changing the output file name.
+        # Plugin is changing the output file name.
         if action.filename:
             fname = action.filename
     except plugins.SignalExit as excancel:
-        # The plugin wants to stop immediately.
+        # Plugin wants to stop immediately.
         if excancel.code != 0:
             # This was a real error, so print a message.
             reason = excancel.reason or 'No reason was given for the exit.'
             print('\n{}\n'.format(reason))
         return excancel.code
-
     except Exception as ex:
         print_ex(ex, '{} error:'.format(pluginname), with_class=True)
         return 1
+
     # Confirm overwriting existing files, exit on refusal.
+    # Non-existant file names are considered valid, and need no confimation.
     if not valid_filename(fname):
         return 1
 
@@ -165,17 +169,6 @@ def ensure_file_ext(fname, plugin):
     return '{}{}'.format(fname, plugin.extensions[0])
 
 
-def get_ex_class(ex, default=None):
-    """ Returns a string containing the __class__ for an object.
-        The string repr is cleaned up a little bit. If it can't be
-        determined then 'default' is returned.
-    """
-    errclass = str(getattr(ex, '__class__', '')).split()[-1]
-    if errclass:
-        return errclass[1:-2]
-    return default
-
-
 def handle_content(fname, content, plugin, dryrun=False):
     """ Either write the new content to a file,
         or print it if this is a dryrun.
@@ -189,7 +182,7 @@ def handle_content(fname, content, plugin, dryrun=False):
 
     created = write_file(fname, content)
     if not created:
-        print('\nUnable to create: {}'.format(created))
+        print('\nUnable to create: {}'.format(fname))
         return 1
 
     print_status('Created {}'.format(created))
@@ -198,10 +191,10 @@ def handle_content(fname, content, plugin, dryrun=False):
 
 
 def make_dirs(path):
-    """ Use os.mkdirs() to ensure a path exists, and create it if needed.
+    """ Use os.makedirs() to ensure a path exists, and create it if needed.
         Returns the existing path on success.
         Returns None on failure.
-        Errors are printed, except for FileExistsError (it is ignored)
+        Errors are printed, except for FileExistsError (it is ignored).
     """
     try:
         os.makedirs(path)
@@ -230,9 +223,8 @@ def print_ex(ex, msg, with_class=False):
             with_class  : Use the Exception.__class__ in the message.
                           Default: False
     """
-
     if with_class:
-        kls = get_ex_class(ex, '?')
+        kls = getattr(ex.__class__, '__name__', '?')
         print_err('({}) {}\n  {}'.format(kls, msg, ex))
         return None
     print_err('{}\n  {}'.format(msg, ex))
@@ -272,7 +264,7 @@ def write_file(fname, content):
         with open(fname, 'w') as f:
             f.write(content)
     except EnvironmentError as ex:
-        print_ex(ex, 'Failed to write file: {}'.format(fname))
+        print_ex(ex, 'Failed to write file: {}'.format(fname), with_class=True)
         return None
     except Exception as exgen:
         print_ex(exgen, 'Error writing file: {}'.format(fname))
