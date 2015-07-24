@@ -44,25 +44,26 @@ if (( $# == 0 )); then
     exit 1
 fi
 
-# Pattern to recognize unknown flag arguments
-# (stdin marker, -, is not included)
-flagpat="^--?(\\w|\\d)+$"
 declare -a nonflags
 
 for arg
 do
-    if [[ "$arg" =~ ^(-h)|(--help)$ ]]; then
-        print_usage ""
-        exit 0
-    elif [[ "$arg" =~ ^(-v)|(--version)$ ]]; then
-        echo -e "$appname v. $appversion\\n"
-        exit 0
-    elif [[ "$arg" =~ $flagpat ]]; then
-        print_usage "Unknown flag argument: $arg"
-        exit 1
-    else
-        nonflags=("${{nonflags[@]}}" "$arg")
-    fi
+    case "$arg" in
+        "-h"|"--help" )
+            print_usage ""
+            exit 0
+            ;;
+        "-v"|"--version" )
+            echo -e "$appname v. $appversion\\n"
+            exit 0
+            ;;
+        -*)
+            print_usage "Unknown flag argument: $arg"
+            exit 1
+            ;;
+        *)
+            nonflags=("${{nonflags[@]}}" "$arg")
+    esac
 done
 """
 
@@ -74,7 +75,7 @@ class BashPlugin(Plugin):
     def __init__(self):
         self.name = ('bash', 'sh')
         self.extensions = ('.sh', '.bash')
-        self.version = '0.1.2'
+        self.version = '0.2.0'
         self.load_config()
         self.usage = """
     Usage:
