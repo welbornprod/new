@@ -176,7 +176,6 @@ Plugin Base:
 These plugins are responsible for creating content and returning it.
 All attributes and methods are documented.
 
-
 Post Plugins:
 -------------
 
