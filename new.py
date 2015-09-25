@@ -14,7 +14,7 @@ import plugins
 debug = plugins.debug
 
 NAME = 'New'
-VERSION = '0.2.3'
+VERSION = '0.2.4'
 VERSIONSTR = '{} v. {}'.format(NAME, VERSION)
 SCRIPT = os.path.split(os.path.abspath(sys.argv[0]))[1]
 SCRIPTDIR = os.path.abspath(sys.path[0])
@@ -71,14 +71,9 @@ def main(argd):
         return 0 if plugins.config_dump() else 1
 
     # Determine plugin based on file name/file type/explicit name.
-    plugin = plugins.determine_plugin(argd)
+    plugin = get_plugin(argd)
     if not plugin:
-        ftype = argd['PLUGIN'] or argd['FILENAME']
-        errmsg = '\n'.join((
-            'Not a valid file type (not supported): {}',
-            'Use --plugins to list available plugins.\n'
-        )).format(ftype)
-        print_err(errmsg)
+        # Not a valid plugin name, user cancelled text plugin use.
         return 1
 
     if argd['--executable'] and 'chmodx' in plugin.ignore_post:
@@ -144,6 +139,12 @@ def main(argd):
     return handle_content(fname, content, plugin, dryrun=argd['--dryrun'])
 
 
+def confirm(msg):
+    """ Return True if the user answers y[es] to a question, otherwise False.
+    """
+    return input('\n{} (y/N): '.format(msg)).lower().startswith('y')
+
+
 def ensure_file_ext(fname, plugin):
     """ Ensure the file name has a valid extension for it's plugin.
         Returns a str containing a valid file name (fixed or original)
@@ -167,6 +168,30 @@ def ensure_file_ext(fname, plugin):
 
     # Add the extension (first extension in the list wins.)
     return '{}{}'.format(fname, plugin.extensions[0])
+
+
+def get_plugin(argd):
+    """ Get the plugin to use based on the user's args (arg dict from docopt).
+        When an invalid name is used, optionally use the text plugin.
+        Print a message and return None on failure/cancellation.
+    """
+    plugin = plugins.determine_plugin(argd)
+    if plugin:
+        return plugin
+
+    ftype = argd['PLUGIN'] or argd['FILENAME']
+    print('Not a valid file type (not supported): {}'.format(ftype))
+    if not confirm('Continue with a blank file?'):
+        print_err('Use --plugins to list available plugins.\n')
+        return None
+
+    argd['PLUGIN'] = 'text'
+    plugin = plugins.determine_plugin(argd)
+    if plugin:
+        return plugin
+
+    print_err('Unable to load the text plugin, sorry.')
+    return None
 
 
 def handle_content(fname, content, plugin, dryrun=False):

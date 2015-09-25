@@ -12,27 +12,37 @@ TEMPLATE = """#!/usr/bin/env node
     {author}{date}
 */
 
+/* jshint node:true, esnext:true, moz:true */
+
 'use strict';
 var docopt = require('docopt');
 
 var name = '{name}';
 var version = '{version}';
-var version_str = [name, version].join(' v. ');
+var version_str = `${{name}} v. ${{version}}`;
+var scriptname = process.argv[1].split('/').slice(-1)[0];
+var usage_str = `
+    ${{version_str}}
 
-var usage_str = [
-    version_str,
-    '',
-    'Usage:',
-    '    {scriptname} [-h | -v]',
-    '',
-    'Options:',
-    '    -h,--help     : Show this message.',
-    '    -v,--version  : Print version and exit.'
-].join('\\n');
+    Usage:
+        ${{scriptname}} [-h | -v]
 
-var args = docopt.docopt(usage_str, {{'version': version_str}});
+    Options:
+        -h,--help     : Show this message.
+        -v,--version  : Print version and exit.
+`;
 
-console.log('Hello.');
+function main(argd) {{
+    // Main entry point, expects an argument object from docopt.
+    console.log('Hello.');
+    return 0;
+}}
+
+process.exit(
+    main(
+        docopt.docopt(usage_str, {{'version': version_str}})
+    )
+);
 """
 
 
@@ -43,7 +53,7 @@ class JSPlugin(Plugin):
     def __init__(self):
         self.name = ('js', 'node', 'nodejs')
         self.extensions = ('.js',)
-        self.version = '0.0.3-1'
+        self.version = '0.0.5'
         self.load_config()
 
     def create(self, fname):

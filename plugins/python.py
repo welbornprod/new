@@ -45,6 +45,10 @@ templates = {
         'mainif': ('mainret = main(docopt(USAGESTR, version=VERSIONSTR))\n'
                    '    sys.exit(mainret)')
     },
+    'setup': {
+        'base': 'setup',
+        'imports': [],
+    },
     'unittest': {
         'base': 'test',
         'imports': ['sys', 'unittest'],
@@ -94,6 +98,61 @@ if __name__ == '__main__':
     {mainif}
 """
 
+# template for a basic distutils setup.py
+template_setup = """#!{shebangexe}
+# -*- coding: utf-8 -*-
+
+\"\"\"
+{pkgname} Setup
+
+{doc_author}{date}
+\"\"\"
+
+from distutils.core import setup
+defaultdesc = '{desc}'
+try:
+    import pypandoc
+except ImportError:
+    print('Pypandoc not installed, using default description.')
+    longdesc = defaultdesc
+else:
+    # Convert using pypandoc.
+    try:
+        longdesc = pypandoc.convert('README.md', 'rst')
+    except EnvironmentError:
+        # Fallback to README.txt (may be behind on updates.)
+        try:
+            with open('README.txt') as f:
+                longdesc = f.read()
+        except EnvironmentError:
+            print('\\nREADME.md and README.txt failed!')
+            longdesc = defaultdesc
+
+
+setup(
+    name='{pkgname}',
+    version='{version}',
+    author='{author}',
+    author_email='{email}',
+    packages=['{pkgname}'],
+    url='http://pypi.python.org/pypi/{pkgname}/',
+    license='LICENSE.txt',
+    description=open('DESC.txt').read(),
+    long_description=longdesc,
+    keywords=('python module library 2 3 ...'),
+    classifiers=[
+        'Operating System :: Microsoft :: Windows',
+        'Operating System :: POSIX :: Linux',
+        'Programming Language :: Python',
+        'Programming Language :: Python :: 2.7',
+        'Programming Language :: Python :: 3',
+        'Topic :: Software Development :: Libraries',
+        'Topic :: Software Development :: Libraries :: Python Modules'
+    ],
+)
+
+"""
+
 # template for generating a unit test module.
 template_test = """#!{shebangexe}
 # -*- coding: utf-8 -*-
@@ -120,6 +179,7 @@ if __name__ == '__main__':
 template_bases = {
     'blank': template_blank,
     'main': template_main,
+    'setup': template_setup,
     'test': template_test
 }
 # END TEMPLATE CONTENT ------------------------------------------------------
@@ -130,17 +190,23 @@ class PythonPlugin(Plugin):
     def __init__(self):
         self.name = ('python', 'py')
         self.extensions = ('.py',)
-        self.version = '0.0.1-1'
+        self.version = '0.0.2'
         self.load_config()
         self.usage = """
     Usage:
         python [template] [extra_imports...]
         python templates
+        python setup [package_name] [version] [short_desc]
 
     Options:
-        template        : Which template to use. Template ids are listed below.
         extra_imports   : Any extra modules to import. In the form of:
                           module1 module2.childmod1
+        package_name    : A PyPi package name to create a setup.py for.
+        short_desc      : One line description for a new PyPi package setup.py.
+                          This is only used if DESC.txt is not present during
+                          installation of the package.
+        template        : Which template to use. Template ids are listed below.
+        version         : Version number for a new PyPi package setup.py.
 
     Commands:
         t, templates    : List known template names.
@@ -150,6 +216,7 @@ class PythonPlugin(Plugin):
         docopt, doc     : A normal module including docopt boilerplate.
                           This is the default if not set in config.
         normal          : A normal, executable, script module with boilerplate.
+        setup           : Create a setup.py that uses distutils.
         unittest, test  : A unittest module.
     """
 
@@ -157,11 +224,17 @@ class PythonPlugin(Plugin):
         """ Creates a new python source file. Several templates are available.
         """
         if self.has_arg('^t(emplates)?$'):
+            # Viewing template names.
             exitcode = self.print_templates()
             raise SignalExit(code=exitcode)
 
         templateid = (
             self.get_arg(0) or self.config.get('template', 'docopt')).lower()
+
+        # Setup.py is completely different, these really need to be separated.
+        if templateid == 'setup':
+            return self.create_setup(filename, args=self.args[1:])
+
         extra_imports = self.args[1:]
 
         template_args = templates.get(templateid, None)
@@ -181,6 +254,8 @@ class PythonPlugin(Plugin):
         scriptname = os.path.split(filename)[-1]
         shebangexe = self.config.get('shebangexe', '/usr/bin/env python3')
         version = self.config.get('default_version', default_version)
+
+        # Regular template (none, unittest, docopt)...
         template_args.update({
             'author': '-{} '.format(author) if author else author,
             'explanation': self.config.get('explanation', ''),
@@ -216,6 +291,46 @@ class PythonPlugin(Plugin):
 
         # Render a normal template and return the content.
         return template_base.format(**template_args)
+
+    def create_setup(self, filename, args=None):
+        """ Create a basic setup.py. """
+        if args is None:
+            args = []
+        shebangexe = self.config.get('shebangexe', '/usr/bin/env python3')
+        tmpargs = {
+            'author': self.config.get('author', 'Nobody'),
+            'date': date(),
+            'desc': 'My default description.',
+            'email': self.config.get('email', 'nobody@nowhere.com'),
+            'pkgname': 'MyApp',
+            'shebangexe': shebangexe,
+            'version': self.config.get('default_version', default_version)
+        }
+        tmpargs['doc_author'] = '-{} '.format(tmpargs['author'])
+
+        # Use supplied package name and version overrides.
+        if args:
+            tmpargs['pkgname'] = args[0]
+        arglen = len(args)
+        if arglen > 1:
+            tmpargs['version'] = args[1]
+        if arglen > 2:
+            tmpargs['desc'] = args[2]
+
+        # Render the template.
+        content = template_setup.format(**tmpargs)
+
+        # See if a SignalAction is needed.
+        base, _ = os.path.split(filename)
+        setupfile = os.path.join(base, 'setup.py')
+        if filename == setupfile:
+            return content
+
+        raise SignalAction(
+            message='Using required setup.py file name.',
+            filename=setupfile,
+            content=content
+        )
 
     def parse_importitem(self, modulename):
         """ Returns proper import line based on import name.

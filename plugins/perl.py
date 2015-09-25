@@ -4,7 +4,7 @@
 from plugins import Plugin, date
 
 # Not much here right now.
-template = """#!/usr/bin/perl
+template = """#!/usr/bin/env perl
 
 # ...{description}
 # {author}{date}
