@@ -8,7 +8,6 @@
 import os
 import sys
 import docopt
-from contextlib import suppress
 
 import plugins
 debug = plugins.debug
@@ -80,9 +79,10 @@ def main(argd):
         # Current behaviour says files are made executable unless told
         # otherwise, so to 'force chmodx' simply means to remove it from the
         # 'ignored' list.
-        with suppress(AttributeError, KeyError):
+        try:
             plugin.ignore_post.remove('chmodx')
-
+        except (AttributeError, KeyError):
+            pass
     pluginname = plugin.get_name().title()
     debug('Using plugin: {}'.format(pluginname))
     # Do plugin help.
