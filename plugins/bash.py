@@ -4,6 +4,8 @@
 import os.path
 from plugins import Plugin, date, default_version
 
+__version__ = '0.2.1'
+
 template = """#!/bin/bash
 
 # ...{description}
@@ -46,8 +48,7 @@ fi
 
 declare -a nonflags
 
-for arg
-do
+for arg; do
     case "$arg" in
         "-h"|"--help" )
             print_usage ""
@@ -75,7 +76,7 @@ class BashPlugin(Plugin):
     def __init__(self):
         self.name = ('bash', 'sh')
         self.extensions = ('.sh', '.bash')
-        self.version = '0.2.0'
+        self.version = __version__
         self.load_config()
         self.usage = """
     Usage:
