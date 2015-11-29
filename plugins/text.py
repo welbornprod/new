@@ -4,6 +4,8 @@
 
 from plugins import Plugin
 
+__version__ = '0.0.2'
+
 
 class TextPlugin(Plugin):
 
@@ -11,8 +13,8 @@ class TextPlugin(Plugin):
 
     def __init__(self):
         self.name = ('text', 'txt', 'blank')
-        self.extensions = ('.txt',)
-        self.version = '0.0.1'
+        self.extensions = ('.txt', '.md', '.markdown', '.rst')
+        self.version = __version__
         self.allow_blank = True
         # Allow a custom extension (still .txt if no extension is provided)
         self.any_extension = True
