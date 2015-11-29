@@ -5,13 +5,14 @@
 import os.path
 from plugins import Plugin, date, default_version
 
-TEMPLATE = """#!/usr/bin/env node
-
+SHEBANG = '#!/usr/bin/env node'
+HEADER = """
 /*  {name}
     ...
     {author}{date}
 */
-
+"""
+TEMPLATE = """
 /* jshint node:true, esnext:true, moz:true */
 
 'use strict';
@@ -53,8 +54,15 @@ class JSPlugin(Plugin):
     def __init__(self):
         self.name = ('js', 'node', 'nodejs')
         self.extensions = ('.js',)
-        self.version = '0.0.5'
+        self.version = '0.0.6'
         self.load_config()
+        self.usage = """
+    Usage:
+        js [-s]
+
+    Options:
+        -s,--short  : Only use the comment header.
+    """
 
     def create(self, fname):
         """ Creates a blank js/node file. """
@@ -62,13 +70,24 @@ class JSPlugin(Plugin):
         author = self.config.get('author', '')
         basename = os.path.split(fname)[-1]
         name = os.path.splitext(basename)[0]
-
+        use_short = self.has_arg('^((-s)|(--short))$')
         self.debug('Retrieved config..')
-        return TEMPLATE.format(
-            name=name,
-            author='-{} '.format(author) if author else author,
-            date=date(),
-            scriptname=basename,
-            version=self.config.get('default_version', default_version))
+        author = '-{} '.format(author) if author else author
+        if use_short:
+            # Only the comment header.
+            return HEADER.format(
+                name=name,
+                author=author,
+                date=date()).lstrip()
+        # Full template.
+        return ''.join((
+            SHEBANG,
+            HEADER,
+            TEMPLATE)).format(
+                name=name,
+                author=author,
+                date=date(),
+                scriptname=basename,
+                version=self.config.get('default_version', default_version))
 
 exports = (JSPlugin(),)
