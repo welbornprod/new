@@ -14,6 +14,35 @@ from plugins import Plugin, SignalAction, SignalExit, date, default_version
 # Default imports to use if '--noimports' isn't given.
 DEFAULT_IMPORTS = ['os', 'sys']
 
+# if __name__ == '__main__' templates:
+MAIN_DOCOPT = """
+    try:
+        mainret = main(docopt(USAGESTR, version=VERSIONSTR))
+    except (EOFError, KeyboardInterrupt):
+        print('\\nUser cancelled.\\n', file=sys.stderr)
+        mainret = 2
+    except BrokenPipeError:
+        print(
+            '\\nBroken pipe, input/output was interrupted.\\n',
+            file=sys.stderr)
+        mainret = 3
+    sys.exit(mainret)
+"""
+
+MAIN_NORMAL = """
+    try:
+        mainret = main(sys.argv[1:])
+    except (EOFError, KeyboardInterrupt):
+        print('\\nUser cancelled.\\n', file=sys.stderr)
+        mainret = 2
+    except BrokenPipeError:
+        print(
+            '\\nBroken pipe, input/output was interrupted.\\n',
+            file=sys.stderr)
+        mainret = 3
+    sys.exit(mainret)
+"""
+
 # Settings per template by name
 # ..must at least contain {'base': 'template name', 'imports': []}
 templates = {
@@ -27,7 +56,7 @@ templates = {
         'head': '',
         'mainsignature': 'main(args)',
         'maindoc': 'Main entry point, expects args from sys.',
-        'mainif': 'sys.exit(main(sys.argv[1:]))',
+        'mainif': MAIN_NORMAL,
     },
     'docopt': {
         'base': 'main',
@@ -42,8 +71,7 @@ templates = {
                  ),
         'mainsignature': 'main(argd)',
         'maindoc': 'Main entry point, expects doctopt arg dict as argd.',
-        'mainif': ('mainret = main(docopt(USAGESTR, version=VERSIONSTR))\n'
-                   '    sys.exit(mainret)')
+        'mainif': MAIN_DOCOPT
     },
     'setup': {
         'base': 'setup',
@@ -94,8 +122,7 @@ def {mainsignature}:
     \"\"\" {maindoc} \"\"\"
     return 0
 
-if __name__ == '__main__':
-    {mainif}
+if __name__ == '__main__':{mainif}
 """
 
 # template for a basic distutils setup.py
@@ -190,7 +217,7 @@ class PythonPlugin(Plugin):
     def __init__(self):
         self.name = ('python', 'py')
         self.extensions = ('.py',)
-        self.version = '0.0.2'
+        self.version = '0.1.0'
         self.load_config()
         self.usage = """
     Usage:
