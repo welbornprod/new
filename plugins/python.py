@@ -6,6 +6,8 @@ import os
 
 from plugins import Plugin, SignalAction, SignalExit, date, default_version
 
+__version__ = '0.1.2'
+
 # TODO: This plugin was basically just copied and adapted from the original
 #       'newpython' script that inspired this project.
 #       It is in need of some refactoring.
@@ -19,10 +21,10 @@ MAIN_DOCOPT = """
     try:
         mainret = main(docopt(USAGESTR, version=VERSIONSTR))
     except (EOFError, KeyboardInterrupt):
-        print('\\nUser cancelled.\\n', file=sys.stderr)
+        print_err('\\nUser cancelled.\\n', file=sys.stderr)
         mainret = 2
     except BrokenPipeError:
-        print(
+        print_err(
             '\\nBroken pipe, input/output was interrupted.\\n',
             file=sys.stderr)
         mainret = 3
@@ -33,10 +35,10 @@ MAIN_NORMAL = """
     try:
         mainret = main(sys.argv[1:])
     except (EOFError, KeyboardInterrupt):
-        print('\\nUser cancelled.\\n', file=sys.stderr)
+        print_err('\\nUser cancelled.\\n', file=sys.stderr)
         mainret = 2
     except BrokenPipeError:
-        print(
+        print_err(
             '\\nBroken pipe, input/output was interrupted.\\n',
             file=sys.stderr)
         mainret = 3
@@ -121,6 +123,14 @@ SCRIPTDIR = os.path.abspath(sys.path[0])
 def {mainsignature}:
     \"\"\" {maindoc} \"\"\"
     return 0
+
+
+def print_err(*args, **kwargs):
+    \"\"\" A wrapper for print() that uses stderr by default. \"\"\"
+    if kwargs.get('file', None) is None:
+        kwargs['file'] = sys.stderr
+    print(*args, **kwargs)
+
 
 if __name__ == '__main__':{mainif}
 """
@@ -214,12 +224,10 @@ template_bases = {
 
 class PythonPlugin(Plugin):
 
-    def __init__(self):
-        self.name = ('python', 'py')
-        self.extensions = ('.py',)
-        self.version = '0.1.0'
-        self.load_config()
-        self.usage = """
+    name = ('python', 'py')
+    extensions = ('.py',)
+    version = __version__
+    usage = """
     Usage:
         python [template] [extra_imports...]
         python templates
@@ -229,10 +237,12 @@ class PythonPlugin(Plugin):
         extra_imports   : Any extra modules to import. In the form of:
                           module1 module2.childmod1
         package_name    : A PyPi package name to create a setup.py for.
-        short_desc      : One line description for a new PyPi package setup.py.
+        short_desc      : One line description for a new PyPi package
+                          setup.py.
                           This is only used if DESC.txt is not present during
                           installation of the package.
-        template        : Which template to use. Template ids are listed below.
+        template        : Which template to use.
+                          Template ids are listed below.
         version         : Version number for a new PyPi package setup.py.
 
     Commands:
@@ -242,11 +252,15 @@ class PythonPlugin(Plugin):
         blank, none     : Only a shebang and the main doc str.
         docopt, doc     : A normal module including docopt boilerplate.
                           This is the default if not set in config.
-        normal          : A normal, executable, script module with boilerplate.
+        normal          : A normal, executable, script module with
+                          boilerplate.
         setup           : Create a setup.py that uses distutils.
         unittest, test  : A unittest module.
     """
 
+    def __init__(self):
+        self.load_config()
+    
     def create(self, filename):
         """ Creates a new python source file. Several templates are available.
         """
@@ -294,8 +308,9 @@ class PythonPlugin(Plugin):
         })
 
         testaction = None
-        if templateid in ('unittest', 'test'):
-            # unittest is a special case.  It may need to change the file name.
+        if templateid in {'unittest', 'test'}:
+            # unittest is a special case.
+            # It may need to change the file name
             if scriptname.startswith('test_'):
                 testtarget = scriptname[5:]
             else:
@@ -311,7 +326,7 @@ class PythonPlugin(Plugin):
             # Fix the scriptname, add the testtarget args.
             template_args['scriptname'] = scriptname
             template_args['testtarget'] = testtarget
-            # Render the template, action is needed because of the name change.
+            # Render the template, action is needed because of a name change.
             if testaction:
                 testaction.content = template_base.format(**template_args)
                 raise testaction
@@ -369,7 +384,9 @@ class PythonPlugin(Plugin):
             parts = modulename.split('.')
             importfrom = parts[:-1]
             realimport = parts[-1]
-            return 'from {} import {}'.format('.'.join(importfrom), realimport)
+            return 'from {} import {}'.format(
+                '.'.join(importfrom),
+                realimport)
         else:
             return 'import {}'.format(modulename)
 
@@ -395,4 +412,4 @@ class PythonPlugin(Plugin):
         print('\n    {}'.format('\n    '.join(sorted(templates))))
         return 0
 
-exports = (PythonPlugin(),)
+exports = (PythonPlugin,)

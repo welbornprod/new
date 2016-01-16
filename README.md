@@ -27,16 +27,19 @@ Usage:
 Usage:
     new (-c | -h | -v | -p) [-D]
     new PLUGIN (-C | -H) [-D]
-    new FILENAME [-d] [-D]
-    new FILENAME -- ARGS... [-d] [-D]
-    new PLUGIN FILENAME [-d] [-D]
-    new PLUGIN FILENAME -- ARGS... [-d] [-D]
+    new PLUGIN -- ARGS... [-D]
+    new FILENAME [-d] [-D] [-x]
+    new FILENAME -- ARGS... [-d] [-D] [-x]
+    new PLUGIN FILENAME [-d] [-D] [-x]
+    new PLUGIN FILENAME -- ARGS... [-d] [-D] [-x]
 
 Options:
     ARGS               : Plugin-specific args.
                          Use -H for plugin-specific help.
+                         Simply using '--' is enough to run post-plugins
+                         as commands with no args.
     PLUGIN             : Plugin name to use (like bash, python, etc.)
-                         Defaults to: text (unless set in config)
+                         Defaults to: python (unless set in config)
     FILENAME           : File name for the new file.
     -c,--config        : Print global config and exit.
     -C,--pluginconfig  : Print plugin config and exit.
@@ -45,8 +48,10 @@ Options:
     -H,--pluginhelp    : Show plugin help.
     -h,--help          : Show this help message.
     -p,--plugins       : List all available plugins.
+    -x,--executable    : Force the chmodx plugin to run, to make the file
+                         executable. This is for plugin types that
+                         normally ignore the chmodx plugin.
     -v,--version       : Show version.
-
  ```
 
 Example Usage:
@@ -146,14 +151,13 @@ Example plugin module:
 ```python
 from plugins import Plugin
 class HelloPlugin(Plugin):
-    def __init__(self):
-        self.name = ('hello',)
-        self.extensions = ('.tmp',)
+    name = ('hello',)
+    extensions = ('.tmp',)
 
     def create(self, filename):
         return 'Hello World'
 
-exports = (HelloPlugin(),)
+exports = (HelloPlugin, )
 ```
 
 This example plugin can be used in three different ways:

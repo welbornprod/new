@@ -24,19 +24,20 @@ class RustPlugin(Plugin):
 
     """ Creates a blank Rust file. """
 
-    def __init__(self):
-        self.name = ('rust', 'rs')
-        self.extensions = ('.rs',)
-        self.version = '0.0.2'
-        # Rust doesnt need to be made executable.
-        self.ignore_post = {'chmodx'}
-        self.usage = """
+    name = ('rust', 'rs')
+    extensions = ('.rs',)
+    version = '0.0.2'
+    # Rust doesnt need to be made executable.
+    ignore_post = {'chmodx'}
+    usage = """
     Usage:
         rust [imports...]
 
     Options:
         imports  : One or many qualified import names. (like: std::io)
     """
+
+    def __init__(self):
         self.load_config()
 
     def create(self, filename):
@@ -69,4 +70,4 @@ class RustPlugin(Plugin):
         return '{}\n'.format(lines)
 
 
-exports = (RustPlugin(),)
+exports = (RustPlugin,)

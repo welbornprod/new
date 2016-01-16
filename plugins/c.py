@@ -27,25 +27,25 @@ template_lib = """/* {filename}
 
 
 class CPlugin(Plugin):
-
-    def __init__(self):
-        self.name = ('c', 'cpp', 'c++', 'cc')
-        self.extensions = ('.c', '.cpp', '.cc')
-        self.cpp_extensions = ('.cpp', '.cc')
-        self.version = '0.0.3-2'
-        self.ignore_post = {'chmodx'}
-        self.description = '\n'.join((
-            'Creates a basic C or C++ file for small programs.',
-            'If no Makefile exists, it will be created with basic targets.',
-            'The Makefile is provided by the automakefile plugin.'
-        ))
-        self.usage = """
+    name = ('c', 'cpp', 'c++', 'cc')
+    extensions = ('.c', '.cpp', '.cc')
+    cpp_extensions = ('.cpp', '.cc')
+    version = '0.0.3-2'
+    ignore_post = {'chmodx'}
+    description = '\n'.join((
+        'Creates a basic C or C++ file for small programs.',
+        'If no Makefile exists, it will be created with basic targets.',
+        'The Makefile is provided by the automakefile plugin.'
+    ))
+    usage = """
     Usage:
         c [l]
 
     Options:
         l,lib  : Treat as a library file, automakefile will not run.
     """
+
+    def __init__(self):
         self.load_config()
 
     def create(self, filename):
@@ -76,4 +76,4 @@ class CPlugin(Plugin):
             namespace=namespace)
 
 
-exports = (CPlugin(),)
+exports = (CPlugin,)

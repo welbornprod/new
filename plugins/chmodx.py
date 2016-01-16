@@ -14,9 +14,8 @@ from plugins import PostPlugin, SignalExit
 
 class ChmodxPlugin(PostPlugin):
 
-    def __init__(self):
-        self.name = 'chmodx'
-        self.version = '0.0.1-1'
+    name = 'chmodx'
+    version = '0.0.1-1'
 
     def process(self, plugin, fname):
         """ Makes the newly created file executable. """
@@ -31,4 +30,4 @@ class ChmodxPlugin(PostPlugin):
         else:
             self.print_status('Made executable (chmod 774)')
 
-exports = (ChmodxPlugin(),)
+exports = (ChmodxPlugin,)

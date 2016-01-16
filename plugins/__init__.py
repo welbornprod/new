@@ -168,19 +168,19 @@ def determine_plugin(argd):
     """
     globalconfig = config.get('plugins', {}).get('global', {})
     default_file = globalconfig.get('default_filename', 'new_file')
-    use_post = argd['--pluginconfig']
-    namedplugin = get_plugin_byname(argd['FILENAME'])
-    if namedplugin:
+
+    namedplugincls = get_plugin_byname(argd['FILENAME'])
+    if namedplugincls:
         if argd['ARGS']:
             # Hack to allow plugin args with plugin name or file name missing.
             tryfilename = argd['ARGS'][0]
             tryext = os.path.splitext(tryfilename)[-1]
-            if tryext in namedplugin.extensions:
+            if tryext in namedplugincls.extensions:
                 # Explicit file name given by extension, remove from ARGS.
                 argd['FILENAME'] = tryfilename
                 argd['ARGS'] = argd['ARGS'][1:]
                 debug('Plugin loaded by name with args, file name given.')
-                return namedplugin
+                return namedplugincls
             else:
                 # Not a recognized file name, use it as an argument.
                 debug('Plugin loaded by name with args, no known filename.')
@@ -188,18 +188,18 @@ def determine_plugin(argd):
         # Use default file name since no file name was given.
         argd['FILENAME'] = default_file
         debug('Plugin loaded by name, using default file name.')
-        return namedplugin
+        return namedplugincls
 
     if argd['PLUGIN']:
-        plugin = get_plugin_byname(argd['PLUGIN'], use_post=use_post)
+        plugincls = get_plugin_byname(argd['PLUGIN'], use_post=True)
         if not argd['FILENAME']:
             argd['FILENAME'] = default_file
-        if plugin:
+        if plugincls:
             msg = ['Plugin loaded by given name.']
             if argd['FILENAME'] == default_file:
                 msg.append('Default file name used.')
             debug(' '.join(msg))
-            return plugin
+            return plugincls
 
     extplugin = get_plugin_byext(argd['FILENAME'])
     if extplugin:
@@ -211,11 +211,11 @@ def determine_plugin(argd):
     plugin = None
     ftype = argd['PLUGIN'] or globalconfig.get('default_plugin', 'python')
     # Allow loading post-plugins by name when using --pluginconfig.
-    plugin = get_plugin_byname(ftype, use_post=use_post)
-    if plugin:
+    plugincls = get_plugin_byname(ftype, use_post=True)
+    if plugincls:
         debug('Plugin loaded {}.'.format(
             'by given name.' if argd['PLUGIN'] else 'by default'))
-    return plugin
+    return plugincls
 
 
 def do_post_plugins(fname, plugin):
@@ -230,13 +230,13 @@ def do_post_plugins(fname, plugin):
             plugin  : The Plugin that was used to create the file.
     """
     errors = 0
-    for post in plugins['post'].values():
-        if plugin.ignore_post and (post.get_name() in plugin.ignore_post):
+    for postcls in plugins['post'].values():
+        if plugin.ignore_post and (postcls.get_name() in plugin.ignore_post):
             skipmsg = 'Skipping post-plugin {} for {}.'
-            debug(skipmsg.format(post.get_name(), plugin.get_name()))
+            debug(skipmsg.format(postcls.get_name(), plugin.get_name()))
             continue
 
-        pluginret = try_post_plugin(post, plugin, fname)
+        pluginret = try_post_plugin(postcls, plugin, fname)
         if pluginret == PluginReturn.fatal:
             return errors + 1
         errors += pluginret.value
@@ -255,13 +255,13 @@ def do_post_plugins(fname, plugin):
         return errors
 
     # Defferred plugins.
-    for deferred in plugins['deferred'].values():
+    for deferredcls in plugins['deferred'].values():
         if (plugin.ignore_deferred and
-                (deferred.get_name() in plugin.ignore_deferred)):
+                (deferredcls.get_name() in plugin.ignore_deferred)):
             skipmsg = 'Skipping deferred-plugin {} for {}.'
-            debug(skipmsg.format(deferred.get_name(), plugin.get_name()))
+            debug(skipmsg.format(deferredcls.get_name(), plugin.get_name()))
             continue
-        pluginret = try_post_plugin(deferred, plugin, fname)
+        pluginret = try_post_plugin(deferredcls, plugin, fname)
         if pluginret == PluginReturn.fatal:
             return errors + 1
         errors += pluginret.value
@@ -310,9 +310,9 @@ def get_plugin_byext(name):
         return None
 
     for name in sorted(plugins['types']):
-        plugin = plugins['types'][name]
-        if ext in plugin.extensions:
-            return plugin
+        plugincls = plugins['types'][name]
+        if ext in plugincls.extensions:
+            return plugincls
     return None
 
 
@@ -323,18 +323,18 @@ def get_plugin_byname(name, use_post=False):
     if not name:
         return None
     name = name.lower()
-    for plugin in plugins['types'].values():
-        names = (pname.lower() for pname in plugin.name)
+    for plugincls in plugins['types'].values():
+        names = (pname.lower() for pname in plugincls.name)
         if name in names:
-            return plugin
+            return plugincls
 
     # Try post plugins also.
     if use_post:
         postplugins = list(plugins['post'].values())
         postplugins.extend(list(plugins['deferred'].values()))
-        for plugin in postplugins:
-            if name == plugin.name.lower():
-                return plugin
+        for plugincls in postplugins:
+            if name == plugincls.name.lower():
+                return plugincls
     # The plugin wasn't found.
     return None
 
@@ -382,22 +382,22 @@ def is_py_file(path):
         (not path == 'pluginbase.py'))
 
 
-def is_invalid_plugin(plugin):
+def is_invalid_plugin(plugincls):
     """ Determine whether a plugin has all the needed attributes.
         Returns a str (invalid reason) for invalid plugins.
         Returns None if it is a valid plugin.
     """
-    if not hasattr(plugin, 'name'):
+    if not hasattr(plugincls, 'name'):
         return 'missing name attribute'
 
-    if isinstance(plugin, Plugin):
-        if not hasattr(plugin, 'extensions'):
+    if issubclass(plugincls, Plugin):
+        if not hasattr(plugincls, 'extensions'):
             return 'missing extensions attribute'
-        elif not hasattr(plugin, 'create'):
+        elif not hasattr(plugincls, 'create'):
             return 'missing create function'
         return None
-    elif isinstance(plugin, PostPlugin):
-        if not hasattr(plugin, 'process'):
+    elif issubclass(plugincls, PostPlugin):
+        if not hasattr(plugincls, 'process'):
             return 'missing process function'
         return None
 
@@ -530,24 +530,24 @@ def load_module_plugins(module):  # noqa
     tmp_plugins = {'types': {}, 'post': {}, 'deferred': {}}
     modname = getattr(module, '__name__', 'unknown_module_name')
 
-    for plugin in module.exports:
+    for plugincls in module.exports:
         # debug('    checking {}'.format(plugin))
-        invalidreason = is_invalid_plugin(plugin)
+        invalidreason = is_invalid_plugin(plugincls)
         if invalidreason:
             errmsg = 'Not a valid plugin {}: {}'
-            debug(errmsg.format(plugin, invalidreason))
+            debug(errmsg.format(plugincls.__name__, invalidreason))
             continue
         try:
-            name = plugin.get_name()
+            name = plugincls.get_name()
         except (TypeError, ValueError) as exname:
-            debug_load_error('a', modname, plugin, exname)
+            debug_load_error('a', modname, plugincls, exname)
             continue
         else:
             fullname = '{}.{}'.format(modname, name)
 
-        if isinstance(plugin, Plugin):
+        if issubclass(plugincls, Plugin):
             if not name:
-                debug_missing('name', 'file-type', modname, plugin)
+                debug_missing('name', 'file-type', modname, plugincls)
                 continue
             # See if the plugin is disabled.
             if name in disabled_types:
@@ -557,11 +557,11 @@ def load_module_plugins(module):  # noqa
             elif name in tmp_plugins['types']:
                 debug('Conflicting Plugin: {}'.format(name))
                 continue
-            tmp_plugins['types'][name] = plugin
+            tmp_plugins['types'][name] = plugincls
             debug('Loaded: {} (Plugin)'.format(fullname))
-        elif isinstance(plugin, DeferredPostPlugin):
+        elif issubclass(plugincls, DeferredPostPlugin):
             if not name:
-                debug_missing('name', 'deferred', modname, plugin)
+                debug_missing('name', 'deferred', modname, plugincls)
                 continue
             if name in disabled_deferred:
                 skipmsg = 'Skipping disabled deferred-post plugin: {}'
@@ -571,11 +571,11 @@ def load_module_plugins(module):  # noqa
                 errmsg = 'Conflicting DeferredPostPlugin: {}'
                 debug(errmsg.format(name))
                 continue
-            tmp_plugins['deferred'][name] = plugin
+            tmp_plugins['deferred'][name] = plugincls
             debug('Loaded: {} (DeferredPostPlugin)'.format(fullname))
-        elif isinstance(plugin, PostPlugin):
+        elif issubclass(plugincls, PostPlugin):
             if not name:
-                debug_missing('name', 'post', modname, plugin)
+                debug_missing('name', 'post', modname, plugincls)
                 continue
             # See if the plugin is disabled.
             if name in disabled_post:
@@ -585,10 +585,10 @@ def load_module_plugins(module):  # noqa
             elif name in tmp_plugins['post']:
                 debug('Conflicting PostPlugin: {}'.format(name))
                 continue
-            tmp_plugins['post'][name] = plugin
+            tmp_plugins['post'][name] = plugincls
             debug('Loaded: {} (PostPlugin)'.format(fullname))
         else:
-            debug('\nNon-plugin type!: {}'.format(type(plugin)))
+            debug('\nNon-plugin type!: {}'.format(plugincls.__name__))
     return tmp_plugins
 
 
@@ -609,56 +609,20 @@ def load_plugin(modulename, pluginname):
     try:
         plugins = load_module_plugins(module)
     except Exception as ex:
-        debug('Failed to load module plugins: {}\n  {}'.format(modulename, ex))
+        debug('Failed to load module plugins: {}\n  {}'.format(
+            modulename,
+            ex))
         raise ValueError(str(ex))
 
     for ptype, pinfo in plugins.items():
-        for name, pinstance in pinfo.items():
+        for name, plugincls in pinfo.items():
             if name == pluginname:
-                return pinstance
+                return plugincls
 
     raise ValueError(
         'Cannot find the \'{}\' plugin in the \'{}\' module.'.format(
             pluginname,
             modulename))
-
-
-def load_plugin_config(plugin):
-    """ Load config file for a plugin instance.
-        Sets plugin.config to a dict on success.
-        Arguments:
-            plugin  : A Plugin() instance to get config for.
-    """
-    plugin_configfile = getattr(plugin, 'config_file', None)
-    pluginconfig = {}
-    # Load plugin's file if available, otherwise the global file is used.
-    if plugin_configfile:
-        pluginconfig = load_config_file(
-            plugin_configfile,
-            section=plugin.get_name())
-    else:
-        # Use global file for config.
-        # Actual config is in {'<plugin_name>': {}}
-        pluginconfig = config.get(plugin.get_name(), {})
-        logmsg = ', '.join((
-            'No config file for {}',
-            'using global config.' if pluginconfig else 'no global config.'
-        )).format(plugin.get_name())
-        debug(logmsg)
-
-    if pluginconfig:
-        loadmsg = 'Loaded {} config from {}.'
-        debug(loadmsg.format(
-            plugin.get_name(),
-            plugin_configfile or 'global config'
-        ))
-    globalconfig = config.get('plugins', {}).get('global', {})
-    # Merge global config with plugin config.
-    for k, v in globalconfig.items():
-        if v and (not pluginconfig.get(k, None)):
-            pluginconfig[k] = v
-
-    plugin.config = pluginconfig
 
 
 def load_plugins(plugindir):
@@ -691,50 +655,11 @@ def load_plugins(plugindir):
     plugins = tmp_plugins
 
 
-def plugin_config_dump(plugin):
-    """ Dump plugin config to stdout. """
-    pluginname = plugin.get_name().title()
-    if not getattr(plugin, 'config', None):
-        print('\nNo config for: {}\n'.format(pluginname))
-        return False
-
-    configstr = json.dumps(plugin.config, sort_keys=True, indent=4)
-    print('\nConfig for: {}\n'.format(pluginname))
-    print(configstr)
-    return True
-
-
-def plugin_help(plugin):
-    """ Show help for a plugin if available. """
-    name = plugin.get_name()
-    ver = getattr(plugin, 'version', '')
-    if ver:
-        name = '{} v. {}'.format(name, ver)
-
-    usage = getattr(plugin, 'usage', '')
-    if usage:
-        print('\nHelp for {}:'.format(name))
-        print(usage)
-        return True
-
-    # No real usage available, try getting a description instead.
-    desc = plugin.get_desc()
-    print('\nNo help available for {}.\n'.format(name))
-    if desc:
-        print('Description:')
-        print(desc)
-    else:
-        print('(no description available)')
-    return False
-
-
-def plugin_print_status(plugin, msg, padlines=0):
-    """ Print a status msg for a plugin instance.
-        This function provides implementation of 'self.print_status' for
-        Plugins and PostPlugins.
-    """
-    print('{}{}: {}'.format('\n' * padlines, plugin.get_name().ljust(15), msg))
-
+def print_err(*args, **kwargs):
+    """ Wrapper for print() that uses sys.stderr by default. """
+    if kwargs.get('file', None) is None:
+        kwargs['file'] = sys.stderr
+    print(*args, **kwargs)
 
 def print_inplace(s):
     """ Overwrites the last printed line. """
@@ -768,7 +693,7 @@ def save_config(config, section=None):
     return False
 
 
-def try_post_plugin(plugin, typeplugin, filename):
+def try_post_plugin(plugincls, typeplugin, filename):
     """ Try running plugin.process(filename).
         Arguments:
             plugin      : Post or Deferred plugin to try running.
@@ -780,105 +705,62 @@ def try_post_plugin(plugin, typeplugin, filename):
             PluginReturn.fatal (2)
     """
     try:
+        plugin = plugincls()
+    except Exception as ex:
+        print_err('Failed to load post plugin: {}\n{}'.format(
+            plugincls.__name__,
+            getattr(plugincls, 'get_name', lambda: 'unknown name')(),
+            ex
+        ))
+        return PluginReturn.fatal
+
+    try:
         plugin.process(typeplugin, filename)
     except SignalExit as exstop:
         if exstop.reason:
             errmsg = '\nFatal error in post-processing plugin \'{}\':\n{}'
-            print(errmsg.format(plugin.name, exstop.reason))
+            print_err(errmsg.format(plugin.name, exstop.reason))
         else:
             errmsg = '\nFatal error in post-processing plugin: \'{}\''
-            print(errmsg.format(plugin.name))
-        print('\nCancelling all post plugins.')
+            print_err(errmsg.format(plugin.name))
+        print_err('\nCancelling all post plugins.')
         return PluginReturn.fatal
     except Exception as ex:
-        errmsg = '\nError in post-processing plugin \'{}\':\n{}'
-        print(errmsg.format(plugin.name, ex))
+        print_err('\nError in post-processing plugin \'{}\':\n{}'.format(
+            plugin.get_name(),
+            ex))
         return PluginReturn.error
     return PluginReturn.success
 
 
-class Plugin(object):
-
-    """ Base for file-type plugins. """
-    # (tuple)
-    # Names/aliases for this plugin/filetype.
-    # The proper name will be self.name[0].
-    name = None
-
-    # (tuple)
-    # File extensions for this file type.
-    # Default file extension is self.extensions[0].
-    extensions = None
-
+class PluginBase(object):
+    """ Base for all plugins. Used to implement common methods that don't
+        depend on the plugin type.
+    """
     # (str)
     # Description for this plugin.
     # When present, this overrides the default behaviour of using
     # the first line of self.create.__doc__.
     description = None
 
-    # (str)
-    # Version for this plugin.
-    version = '0.0.1'
-
-    # (bool)
-    # Whether this plugin is allowed to create blank content.
-    # Plugins such as the 'text' plugin might use this.
-    # Otherwise, no content means an error occurred and no file is written.
-    allow_blank = False
-
-    # (bool)
-    # Whether a custom extension is allowed with this plugin.
-    # The default extension is used when no user extension is given,
-    # but if the user provides an extension then use it.
-    any_extension = False
-
-    # (set)
-    # Names of deferred plugins that will be skipped when using this plugin.
-    ignore_deferred = set()
-
-    # (set)
-    # Names of post plugins that will be skipped when using this plugin.
-    ignore_post = set()
+    # (tuple) - Plugin
+    #     Plugin: Names/aliases for this plugin/filetype.
+    #             The proper name will be self.name[0].
+    # (str)   - PostPlugin
+    # PostPlugin: The name for this plugin.
+    name = None
 
     # (list/tuple)
     # Usage string for this plugin when `new plugin -H` is used.
     usage = None
 
-    # (function)
-    # Internal use. Function to load config data into self.config.
-    # This may be overridden.
-    load_config = load_plugin_config
+    # (str)
+    # Version for this plugin.
+    version = '0.0.1'
 
-    def __init__(self, name=None, extensions=None):
-        self._name = None
-        self.name = name
-        self.extensions = extensions
-        # A usage string for this plugin.
-        self.usage = None
-
-    def _create(self, filename, args=None):
-        """ This method is called for content creation, and is responsible
-            for calling the plugin's create() method.
-            It sets self.args so they are available in create() and afterwards.
-            If no args were given then get_default_args() is used to grab them
-            from config.
-        """
+    def _setup(self, args=None):
+        """ Perform any plugin setup before using it. """
         self.args = args if args else self.get_default_args()
-        return self.create(filename)
-
-    def create(self, filename):
-        """ (unimplemented plugin description)
-
-            This should return a string that is ready to be written to a file.
-            It may raise an exception to signal that something went wrong.
-
-            Arguments:
-                filename  : The file name that will be written.
-                            Plugins do not write the file, but the file name
-                            may be useful information. The python plugin
-                            uses it to create the main doc str.
-        """
-        raise NotImplementedError('create() must be implemented!')
 
     def debug(self, *args, **kwargs):
         """ Uses the debug() function, but includes the class name. """
@@ -906,49 +788,73 @@ class Plugin(object):
             self.debug('Got default args: {}'.format(args))
         return args
 
-    def get_desc(self):
+    @classmethod
+    def get_desc(cls):
         """ Get the description for this plugin.
             It uses the first line in create.__doc__ if self.description is
             not set. This is not the same as self.usage.
         """
-        if self.description:
-            return self.description
+        if cls.description:
+            return cls.description
 
-        docs = self.create.__doc__
+        mainfunc = getattr(cls, 'create', getattr(cls, 'process', None))
+        if mainfunc is None:
+            cls.description = ''
+            return cls.description
+
+        docs = mainfunc.__doc__
         if docs:
-            self.description = self.create.__doc__.split('\n')[0].strip()
+            cls.description = docs.split('\n')[0].strip()
         else:
-            self.description = ''
-        return self.description
+            cls.description = ''
+        return cls.description
 
-    def get_name(self):
+    @classmethod
+    def get_name(cls):
         """ Get the proper name for this plugin (no aliases). """
-        if not hasattr(self, '_name'):
-            self._name = None
-        if not hasattr(self, 'name'):
+        if issubclass(cls, PostPlugin):
+            return cls.name or ''
+
+        # Grab single name from names/aliases in Plugins.
+        if not hasattr(cls, '_name'):
+            cls._name = None
+        if not hasattr(cls, 'name'):
             raise ValueError('Plugin has an empty name!')
 
-        if self._name:
-            return self._name
+        if cls._name:
+            return cls._name
 
-        if isinstance(self.name, str):
-            self._name = self.name
-            self.name = (self._name,)
-        elif isinstance(self.name, (list, tuple)):
-            if not self.name:
+        if isinstance(cls.name, str):
+            cls._name = cls.name
+            cls.name = (cls._name,)
+        elif isinstance(cls.name, (list, tuple)):
+            if not cls.name:
                 # Empty name list!
                 raise ValueError('Plugin has an empty name!')
-            self._name = self.name[0]
+            cls._name = cls.name[0]
         else:
             raise TypeError('Plugin.name is the wrong type!')
 
-        return self._name
+        return cls._name
 
-    def get_usage(self):
+    @classmethod
+    def get_usage(cls):
         """ Safely retrieve a usage string for the plugin, if any exists.
             Returns self.usage on success, or None on failure.
         """
-        return getattr(self, 'usage', None)
+        return getattr(cls, 'usage', None)
+
+    def config_dump(self):
+        """ Dump plugin config to stdout. """
+        pluginname = self.get_name().title()
+        if not getattr(self, 'config', None):
+            print('\nNo config for: {}\n'.format(pluginname))
+            return False
+
+        configstr = json.dumps(self.config, sort_keys=True, indent=4)
+        print('\nConfig for: {}\n'.format(pluginname))
+        print(configstr)
+        return True
 
     def has_arg(self, pattern, position=None):
         """ Determine if an argument was given using a regex pattern.
@@ -978,65 +884,160 @@ class Plugin(object):
             return False
         return exists
 
-    def print_status(self, msg, padlines=0):
-        """ Print a status message including the plugin name and file name
-            if available.
+    def help(self):
+        """ Show help for a plugin if available. """
+        name = self.get_name()
+        ver = getattr(self, 'version', '')
+        if ver:
+            name = '{} v. {}'.format(name, ver)
+
+        usage = getattr(self, 'usage', '')
+        if usage:
+            print('\nHelp for {}:'.format(name))
+            print(usage)
+            return True
+
+        # No real usage available, try getting a description instead.
+        desc = self.get_desc()
+        print('\nNo help available for {}.\n'.format(name))
+        if desc:
+            print('Description:')
+            print(desc)
+        else:
+            print('(no description available)')
+        return False
+
+    def load_config(self):
+        """ Load config file for a plugin instance.
+            Sets self.config to a dict on success.
         """
-        return plugin_print_status(self, msg, padlines=padlines)
+        plugin_configfile = getattr(self, 'config_file', None)
+        pluginconfig = {}
+        # Load plugin's file if available, otherwise the global file is used.
+        if plugin_configfile:
+            pluginconfig = load_config_file(
+                plugin_configfile,
+                section=self.get_name())
+        else:
+            # Use global file for config.
+            # Actual config is in {'<plugin_name>': {}}
+            pluginconfig = config.get(self.get_name(), {})
+            self.debug(
+                'No config file for {n}, {globstat} global config.'.format(
+                    n=self.get_name(),
+                    globstat='using' if pluginconfig else 'no'
+                )
+            )
+
+        if pluginconfig:
+            self.debug('Loaded config from: {}'.format(
+                plugin_configfile or 'global config'
+            ))
+
+        globalconfig = config.get('plugins', {}).get('global', {})
+        # Merge global config with plugin config.
+        for k, v in globalconfig.items():
+            if v and (not pluginconfig.get(k, None)):
+                pluginconfig[k] = v
+
+        self.config = pluginconfig
+
+    def print_err(self, msg, padlines=0, **kwargs):
+        """ Print an error msg for a plugin instance.
+            This function provides implementation of 'self.print_err' for
+            Plugins and PostPlugins.
+        """
+        print(
+            '{}{} Error: {}'.format(
+                '\n' * padlines,
+                self.get_name().ljust(15),
+                msg
+            ),
+            **kwargs
+        )
+
+    def print_status(self, msg, end='n', padlines=0, **kwargs):
+        """ Print a status msg for a plugin instance.
+            This function provides implementation of 'self.print_status' for
+            Plugins and PostPlugins.
+        """
+        print(
+            '{}{}: {}'.format(
+                '\n' * padlines,
+                self.get_name().ljust(15),
+                msg
+            ),
+            **kwargs
+        )
 
 
-class PostPlugin(object):
+class Plugin(PluginBase):
+
+    """ Base for file-type plugins. """
+    # (tuple)
+    # File extensions for this file type.
+    # Default file extension is self.extensions[0].
+    extensions = None
+
+    # (bool)
+    # Whether this plugin is allowed to create blank content.
+    # Plugins such as the 'text' plugin might use this.
+    # Otherwise, no content means an error occurred and no file is written.
+    allow_blank = False
+
+    # (bool)
+    # Whether a custom extension is allowed with this plugin.
+    # The default extension is used when no user extension is given,
+    # but if the user provides an extension then use it.
+    any_extension = False
+
+    # (set)
+    # Names of deferred plugins that will be skipped when using this plugin.
+    ignore_deferred = set()
+
+    # (set)
+    # Names of post plugins that will be skipped when using this plugin.
+    ignore_post = set()
+
+    def __init__(self, name=None, extensions=None):
+        self._name = None
+        self.name = name
+        self.extensions = extensions
+        # A usage string for this plugin.
+        self.usage = None
+
+    def _create(self, filename, args=None):
+        """ This method is called for content creation, and is responsible
+            for calling the plugin's create() method.
+            It sets self.args so they are available in create() and
+            afterwards.
+            If no args were given then get_default_args() is used to grab them
+            from config.
+        """
+        self._setup(args=args)
+        return self.create(filename)
+
+    def create(self, filename):
+        """ (unimplemented plugin description)
+
+            This should return a string that is ready to be written to a file.
+            It may raise an exception to signal that something went wrong.
+
+            Arguments:
+                filename  : The file name that will be written.
+                            Plugins do not write the file, but the file name
+                            may be useful information. The python plugin
+                            uses it to create the main doc str.
+        """
+        raise NotImplementedError('create() must be implemented!')
+
+
+class PostPlugin(PluginBase):
 
     """ Base for post-processing plugins. """
-    # (str)
-    # A name for this post plugin. Alises are not needed.
-    name = None
-    # (str)
-    # A version string for this post plugin.
-    version = '0.0.1'
-    # (str)
-    # A description for this plugin. This is optional.
-    # When not given, the first line of self.process.__doc__ is used.
-    description = None
-    # (function)
-    # Internal use. This may be overridden to load config for this plugin.
-    load_config = load_plugin_config
 
     def __init__(self, name=None):
         self.name = name
-
-    def debug(self, *args, **kwargs):
-        """ Uses the debug() function, but includes the class name. """
-        kargs = kwargs.copy()
-        kargs.update({'parent': self, 'back': 2})
-        return debug(*args, **kargs)
-
-    def get_desc(self):
-        """ Get the description for this plugin.
-            It uses the first line in process.__doc__ if self.description is
-            not set.
-        """
-        if self.description:
-            return self.description
-
-        docs = self.process.__doc__
-        if docs:
-            self.description = self.process.__doc__.split('\n')[0].strip()
-        else:
-            self.description = ''
-        return self.description
-
-    def get_name(self):
-        """ Get the name for this plugin.
-            Returns a str. (empty str on failure)
-        """
-        return self.name if self.name else ''
-
-    def print_status(self, msg, padlines=0):
-        """ Print a status message including the plugin name and file name
-            if available.
-        """
-        return plugin_print_status(self, msg, padlines=padlines)
 
     def process(self, plugin, filename):
         """ (unimplemented post-plugin description)
@@ -1049,6 +1050,19 @@ class PostPlugin(object):
                 filename  : The requested file name for file creation.
         """
         raise NotImplementedError('process() must be overridden!')
+
+    def _run(self, args=None):
+        """ This function performs any plugin setup, and then calls the actual
+            run() method, so that New takes care of all setup, and plugins
+            only need to implement run().
+        """
+        self._setup(args=args)
+        return self.run()
+
+    def run(self):
+        """ Run this post-processing plugin as a command. """
+        # Implement the run() method to use them as commands!
+        raise NotImplementedError('This plugin is not runnable.')
 
 
 class DeferredPostPlugin(PostPlugin):

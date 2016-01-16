@@ -16,10 +16,11 @@ class LispPlugin(Plugin):
 
     """ Creates a blank text file (no content). """
 
+    name = ('lisp', 'clisp')
+    extensions = ('.lsp', '.lisp', '.cl')
+    version = '0.0.1'
+    
     def __init__(self):
-        self.name = ('lisp', 'clisp')
-        self.extensions = ('.lsp', '.lisp', '.cl')
-        self.version = '0.0.1'
         self.load_config()
 
     def create(self, filename):
@@ -33,4 +34,4 @@ class LispPlugin(Plugin):
         )
 
 
-exports = (LispPlugin(), )
+exports = (LispPlugin, )

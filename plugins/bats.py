@@ -35,12 +35,10 @@ teardown() {
 
 
 class BatsPlugin(Plugin):
-
-    def __init__(self):
-        self.name = ('bats',)
-        self.extensions = ('.bats',)
-        self.version = '0.0.1'
-        self.usage = """
+    name = ('bats',)
+    extensions = ('.bats',)
+    version = '0.0.1'
+    usage = """
     Usage:
         bats [s] [t]
 
@@ -48,6 +46,8 @@ class BatsPlugin(Plugin):
         s,setup     : Include setup() function.
         t,teardown  : Include teardown() function.
     """
+    
+    def __init__(self):
         self.load_config()
 
     def create(self, filename):
@@ -61,4 +61,4 @@ class BatsPlugin(Plugin):
             teardown=template_teardown if self.has_arg('^t(eardown)?') else ''
         )
 
-exports = (BatsPlugin(),)
+exports = (BatsPlugin,)

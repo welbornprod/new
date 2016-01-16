@@ -51,18 +51,19 @@ class JSPlugin(Plugin):
 
     """ Creates a blank node/js file. """
 
-    def __init__(self):
-        self.name = ('js', 'node', 'nodejs')
-        self.extensions = ('.js',)
-        self.version = '0.0.6'
-        self.load_config()
-        self.usage = """
+    name = ('js', 'node', 'nodejs')
+    extensions = ('.js',)
+    version = '0.0.6'
+    usage = """
     Usage:
         js [-s]
 
     Options:
         -s,--short  : Only use the comment header.
     """
+    
+    def __init__(self):
+        self.load_config()
 
     def create(self, fname):
         """ Creates a blank js/node file. """
@@ -90,4 +91,4 @@ class JSPlugin(Plugin):
                 scriptname=basename,
                 version=self.config.get('default_version', default_version))
 
-exports = (JSPlugin(),)
+exports = (JSPlugin,)

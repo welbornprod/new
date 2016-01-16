@@ -17,7 +17,7 @@ from plugins import (
 VERSION = '0.0.4'
 
 # I'm not very good with makefiles. The .replace() is just for my sanity.
-# {targets} is set by compiler type, and *then* the whole template is rendered.
+# {targets} is set by compiler type, and *then* the whole template is rendered
 pre_template = """SHELL=bash
 {{compilervar}}={{compiler}}
 {{cflagsvar}}={{cflags}}
@@ -118,15 +118,12 @@ def template_render(filepath, makefile=None):
 
 
 class MakefilePost(PostPlugin):
-
-    def __init__(self):
-        self.name = 'automakefile'
-        self.version = VERSION
-        self.description = '\n'.join((
-            'Creates a makefile for new C files.',
-            'This will not overwrite existing makefiles.'
-        ))
-        self._plugin = None
+    name = 'automakefile'
+    version = VERSION
+    description = '\n'.join((
+        'Creates a makefile for new C files.',
+        'This will not overwrite existing makefiles.'
+    ))
 
     def process(self, plugin, filename):
         """ When a C file is created, create a basic Makefile to go with it.
@@ -160,16 +157,15 @@ class MakefilePlugin(Plugin):
 
     """ Creates a basic Makefile for a given c file name. """
 
-    def __init__(self):
-        self.name = ('makefile', 'make')
-        self.extensions = tuple()
-        self.version = VERSION
-        self.ignore_post = {'chmodx'}
-        self.description = '\n'.join((
-            'Creates a basic makefile for a given c or rust file name.'
-            'The file created is always called "Makefile".'
-        ))
-        self.usage = """
+    name = ('makefile', 'make')
+    extensions = tuple()
+    version = VERSION
+    ignore_post = {'chmodx'}
+    description = '\n'.join((
+        'Creates a basic makefile for a given c or rust file name.'
+        'The file created is always called "Makefile".'
+    ))
+    usage = """
     Usage:
         makefile [makefile_filename]
 
@@ -177,6 +173,8 @@ class MakefilePlugin(Plugin):
         makefile_filename  : Desired file name for the makefile.
                              Can also be set in config as 'default_filename'.
     """
+
+    def __init__(self):
         self.load_config()
 
     def create(self, filename):
@@ -206,4 +204,4 @@ class MakefilePlugin(Plugin):
             filename=makefile,
             content=content)
 
-exports = (MakefilePost(), MakefilePlugin())
+exports = (MakefilePost, MakefilePlugin)

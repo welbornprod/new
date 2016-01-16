@@ -23,11 +23,12 @@ template = """#!/usr/bin/env php
 
 class PhpPlugin(Plugin):
 
+    name = ('php',)
+    extensions = ('.php',)
+    version = '0.0.1'
+    description = 'Creates an executable php script.'
+    
     def __init__(self):
-        self.name = ('php',)
-        self.extensions = ('.php',)
-        self.version = '0.0.1'
-        self.description = 'Creates an executable php script.'
         self.load_config()
 
     def create(self, filename):
@@ -38,4 +39,4 @@ class PhpPlugin(Plugin):
             author = '-{} '.format(author)
         return template.format(name=basename, author=author, date=date())
 
-exports = (PhpPlugin(),)
+exports = (PhpPlugin,)

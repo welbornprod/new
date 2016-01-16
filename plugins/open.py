@@ -10,9 +10,10 @@ from plugins import DeferredPostPlugin
 
 class OpenPlugin(DeferredPostPlugin):
 
+    name = 'open'
+    version = '0.0.1-1'
+    
     def __init__(self):
-        self.name = 'open'
-        self.version = '0.0.1-1'
         self.load_config()
 
     def open_file(self, editor, filename):
@@ -48,4 +49,4 @@ class OpenPlugin(DeferredPostPlugin):
             return 1
         return 0
 
-exports = (OpenPlugin(),)
+exports = (OpenPlugin,)

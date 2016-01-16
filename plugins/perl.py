@@ -16,10 +16,11 @@ class PerlPlugin(Plugin):
 
     """ A very basic perl template. """
 
+    name = ('perl', 'pl')
+    extensions = ('.pl', '.perl')
+    version = '0.0.1'
+
     def __init__(self):
-        self.name = ('perl', 'pl')
-        self.extensions = ('.pl', '.perl')
-        self.version = '0.0.1'
         self.load_config()
 
     def create(self, filename):
@@ -34,4 +35,4 @@ class PerlPlugin(Plugin):
             description=description)
 
 
-exports = (PerlPlugin(), )
+exports = (PerlPlugin, )

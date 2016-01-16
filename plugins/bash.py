@@ -72,13 +72,10 @@ done
 class BashPlugin(Plugin):
 
     """ A bash template with only the basics. """
-
-    def __init__(self):
-        self.name = ('bash', 'sh')
-        self.extensions = ('.sh', '.bash')
-        self.version = __version__
-        self.load_config()
-        self.usage = """
+    name = ('bash', 'sh')
+    extensions = ('.sh', '.bash')
+    version = __version__
+    usage = """
     Usage:
         bash [f | a] [description]
 
@@ -87,6 +84,9 @@ class BashPlugin(Plugin):
         a,args       : Include basic arg-parsing functions.
         f,func       : Include an empty function.
     """
+
+    def __init__(self):
+        self.load_config()
 
     def create(self, filename):
         """ Creates a basic bash source file. """
@@ -123,4 +123,4 @@ class BashPlugin(Plugin):
             while lst.count(a) > 0:
                 lst.remove(a)
 
-exports = (BashPlugin(), )
+exports = (BashPlugin, )

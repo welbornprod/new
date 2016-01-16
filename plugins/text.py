@@ -11,18 +11,17 @@ class TextPlugin(Plugin):
 
     """ Creates a blank text file (no content). """
 
-    def __init__(self):
-        self.name = ('text', 'txt', 'blank')
-        self.extensions = ('.txt', '.md', '.markdown', '.rst')
-        self.version = __version__
-        self.allow_blank = True
-        # Allow a custom extension (still .txt if no extension is provided)
-        self.any_extension = True
-        # Text files are not executable.
-        self.ignore_post = {'chmodx'}
+    name = ('text', 'txt', 'blank')
+    extensions = ('.txt', '.md', '.markdown', '.rst')
+    version = __version__
+    allow_blank = True
+    # Allow a custom extension (still .txt if no extension is provided)
+    any_extension = True
+    # Text files are not executable.
+    ignore_post = {'chmodx'}
 
     def create(self, filename):
         """ Creates a blank text file (no content). """
         return None
 
-exports = (TextPlugin(), )
+exports = (TextPlugin, )

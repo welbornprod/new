@@ -13,7 +13,7 @@ import plugins
 debug = plugins.debug
 
 NAME = 'New'
-VERSION = '0.2.5'
+VERSION = '0.3.0'
 VERSIONSTR = '{} v. {}'.format(NAME, VERSION)
 SCRIPT = os.path.split(os.path.abspath(sys.argv[0]))[1]
 SCRIPTDIR = os.path.abspath(sys.path[0])
@@ -22,6 +22,7 @@ USAGESTR = """{versionstr}
     Usage:
         {script} (-c | -h | -v | -p) [-D]
         {script} PLUGIN (-C | -H) [-D]
+        {script} PLUGIN -- ARGS... [-D]
         {script} FILENAME [-d] [-D] [-x]
         {script} FILENAME -- ARGS... [-d] [-D] [-x]
         {script} PLUGIN FILENAME [-d] [-D] [-x]
@@ -30,6 +31,8 @@ USAGESTR = """{versionstr}
     Options:
         ARGS               : Plugin-specific args.
                              Use -H for plugin-specific help.
+                             Simply using '--' is enough to run post-plugins
+                             as commands with no args.
         PLUGIN             : Plugin name to use (like bash, python, etc.)
                              Defaults to: python (unless set in config)
         FILENAME           : File name for the new file.
@@ -41,8 +44,8 @@ USAGESTR = """{versionstr}
         -h,--help          : Show this help message.
         -p,--plugins       : List all available plugins.
         -x,--executable    : Force the chmodx plugin to run, to make the file
-                             executable. This is for plugin types that normally
-                             ignore the chmodx plugin.
+                             executable. This is for plugin types that
+                             normally ignore the chmodx plugin.
         -v,--version       : Show version.
 """.format(script=SCRIPT, versionstr=VERSIONSTR)
 
@@ -87,9 +90,21 @@ def main(argd):
     debug('Using plugin: {}'.format(pluginname))
     # Do plugin help.
     if argd['--pluginhelp']:
-        return 0 if plugins.plugin_help(plugin) else 1
+        return 0 if plugin.help() else 1
     elif argd['--pluginconfig']:
-        return 0 if plugins.plugin_config_dump(plugin) else 1
+        return 0 if plugin.config_dump() else 1
+    elif hasattr(plugin, 'run'):
+        # This is a post plugin, it should only be used as a command.
+        debug('Running post-processing plugin as command: {}'.format(
+            pluginname
+        ))
+        try:
+            exitcode = plugin._run(args=argd['ARGS'])
+        except NotImplementedError as ex:
+            print_err(str(ex))
+            return 1
+        return exitcode
+
     # Get valid file name for this file.
     fname = ensure_file_ext(argd['FILENAME'], plugin)
 
@@ -175,9 +190,9 @@ def get_plugin(argd):
         When an invalid name is used, optionally use the text plugin.
         Print a message and return None on failure/cancellation.
     """
-    plugin = plugins.determine_plugin(argd)
-    if plugin:
-        return plugin
+    plugincls = plugins.determine_plugin(argd)
+    if plugincls:
+        return plugincls()
 
     ftype = argd['PLUGIN'] or argd['FILENAME']
     print('Not a valid file type (not supported): {}'.format(ftype))
@@ -186,9 +201,9 @@ def get_plugin(argd):
         return None
 
     argd['PLUGIN'] = 'text'
-    plugin = plugins.determine_plugin(argd)
-    if plugin:
-        return plugin
+    plugincls = plugins.determine_plugin(argd)
+    if plugincls:
+        return plugincls()
 
     print_err('Unable to load the text plugin, sorry.')
     return None
