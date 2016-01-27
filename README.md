@@ -27,11 +27,11 @@ Usage:
 Usage:
     new (-c | -h | -v | -p) [-D]
     new PLUGIN (-C | -H) [-D]
-    new PLUGIN -- ARGS... [-D]
+    new PLUGIN [-D] -- ARGS...
     new FILENAME [-d] [-D] [-x]
-    new FILENAME -- ARGS... [-d] [-D] [-x]
+    new FILENAME [-d] [-D] [-x] -- ARGS...
     new PLUGIN FILENAME [-d] [-D] [-x]
-    new PLUGIN FILENAME -- ARGS... [-d] [-D] [-x]
+    new PLUGIN FILENAME [-d] [-D] [-x] -- ARGS...
 
 Options:
     ARGS               : Plugin-specific args.
@@ -52,7 +52,7 @@ Options:
                          executable. This is for plugin types that
                          normally ignore the chmodx plugin.
     -v,--version       : Show version.
- ```
+```
 
 Example Usage:
 --------------
@@ -79,7 +79,7 @@ new myproject/myfile.html
 Passing arguments to the python plugin to list its templates:
 
 ```
-new myfile.py -- t
+new myfile.py -- -t
 ```
 
 Config:
@@ -143,20 +143,55 @@ Plugin Modules:
 
 The minimum requirements for a plugin module are that it must be located in
 the `./plugins` directory, and must contain a module-level attribute called
-`exports` which is a `tuple` or `list` of Plugin instances.
+`exports` which is a `tuple` or `list` of Plugin subclasses.
 
 Example plugin module:
 ----------------------
 
 ```python
+
 from plugins import Plugin
 class HelloPlugin(Plugin):
-    name = ('hello',)
+    # These are class attributes.
+    # File type plugins can have several names/aliases.
+    # The first one is it's "official" name, but any can be used from
+    # the command line.
+    name = ('hello', 'tmp')
     extensions = ('.tmp',)
+    # These are not required for the plugin to work:
+    version = '0.0.1'
+    description = 'Creates a temporary file.'
+    usage = """
+    Usage:
+        hello [CONTENT]
+
+    Options:
+        CONTENT  : Content for temporary file.
+    """
+
+    def __init__(self):
+        # __init__ is not required, but config can be automatically handled
+        # by calling self.load_config() here.
+        self.load_config()
 
     def create(self, filename):
-        return 'Hello World'
+        """ This will be the description if no self.description is available.
+            Only the first line is used, so that actual doc strings can be
+            used for development.
+        """
+        # self.config and self.args are made available.
 
+        # This will use the first arg if available, but fall back to config
+        # (from new.json), and then finally use 'Hello World' if neither of
+        # those are set.
+        # Also, see self.has_arg(), self.print_err(), and self.print_status()
+        return self.get_arg(
+            0,
+            default=self.config.get('msg', 'Hello World')
+        )
+
+# This is how New knows which plugins to load.
+# The plugin will be initialized once, when it is needed.
 exports = (HelloPlugin, )
 ```
 
@@ -173,18 +208,45 @@ new myfile.tmp
 new hello
 ```
 
-Plugin Base:
+Passing arguments to the plugin itself:
+```
+# Using the argument handling.
+new myfile.tmp -- "My content."
+
+# Printing help for this plugin.
+new hello -- -h
+new hello -H
+# Printing the version for this plugin.
+new hello -- -v
+```
+
+PluginBase:
+-----------
+
+`PluginBase` holds all the common methods used by the various plugin types.
+It allows all plugins to automatically handle arguments, help/version args,
+and sets up attributes and helper methods so writing a new plugin doesn't
+require so much boilerplate.
+
+You shouldn't subclass `PluginBase` unless you are working on New. File type
+and post-processing plugins inherit from `Plugin` or `PostPlugin`.
+
+Plugin:
 ------------
 
 `Plugin` must be subclassed to create a new file type plugin.
 These plugins are responsible for creating content and returning it.
-All attributes and methods are documented.
+A basic plugin would return a string from it's `create` method, but they may
+also raise a `plugins.SignalAction` to change the file name being created.
+All attributes and methods are documented in the source.
 
 Post Plugins:
 -------------
 
-PostPlugins run after the file is created. Normal errors are printed but
-skipped. Normal errors will cause DeferredPlugins to be aborted.
+PostPlugins run after the file is created. They receive the `Plugin` instance
+that was used, and the file name, and can decide whether more processing is
+needed. Normal errors are printed but skipped (they will cause DeferredPlugins
+to be aborted though).
 A plugin can cause the program to abort if it raises a `plugins.SignalExit`.
 The load/run order of PostPlugins may vary.
 
@@ -200,14 +262,16 @@ The load/run order of DeferredPlugins may vary.
 Notes:
 ------
 
-Look in the `./plugins` directory for examples. Most plugins are fairly simple.
+Look in the `./plugins` directory for examples. Most plugins are fairly
+simple.
 
 The Python and Html/JQuery plugins are a little messy because they were
 basically copied and adapted from older 'newpython.py' and 'newhtml.py'
 scripts. They serve as an example of plugins that do more than one thing.
 
 The `MakefilePost` (automakefile) plugin is an example of a `PostPlugin` that
-only acts on certain file types.
+only acts on certain file types (creates a working `makefile` for new C/C++
+files).
 
 Disclaimer:
 -----------
