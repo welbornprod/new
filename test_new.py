@@ -29,8 +29,11 @@ if not all(len(plugins.plugins[k]) > 0 for k in plugins.plugins):
 
 
 class NewTest(unittest.TestCase):
-    """ Tests for New. Ensures that plugins initialize and create content,
-        or raise the proper errors.
+    """ Tests for New.
+        Ensures...
+            plugins are loaded properly, and can be initialized.
+            plugins create content, or raise the proper exceptions.
+            plugins can be loaded by name, file extension, or both.
     """
 
     def setUp(self):
