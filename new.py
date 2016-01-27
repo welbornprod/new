@@ -105,7 +105,9 @@ def main(argd):
             exitcode = plugin._run(args=argd['ARGS'])
         except NotImplementedError as ex:
             print_err(str(ex))
-            return 1
+            exitcode = 1
+        except plugins.SignalExit as excancel:
+            exitcode = handle_signalexit(excancel)
         return exitcode
 
     # Get valid file name for this file.
@@ -135,11 +137,7 @@ def main(argd):
             fname = action.filename
     except plugins.SignalExit as excancel:
         # Plugin wants to stop immediately.
-        if excancel.code != 0:
-            # This was a real error, so print a message.
-            reason = excancel.reason or 'No reason was given for the exit.'
-            print('\n{}\n'.format(reason))
-        return excancel.code
+        return handle_signalexit(excancel)
     except Exception as ex:
         print_ex(ex, '{} error:'.format(pluginname), with_class=True)
         return 1
@@ -232,6 +230,17 @@ def handle_content(fname, content, plugin, dryrun=False):
     print_status('Created {}'.format(created))
     # Do post-processing plugins on the created file.
     return plugins.do_post_plugins(fname, plugin)
+
+
+def handle_signalexit(ex):
+    """ Handle a SignalExit exception's message printing,
+        return the final exit code.
+    """
+    if ex.code != 0:
+        # This was a real error, so print a message.
+        reason = ex.reason or 'No reason was given for the exit.'
+        print('\n{}\n'.format(reason))
+    return ex.code
 
 
 def make_dirs(path):

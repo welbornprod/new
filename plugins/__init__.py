@@ -786,10 +786,18 @@ class PluginBase(object):
 
     # Set by command-line args, or tests.
     dryrun = False
-    
+
     def _setup(self, args=None):
         """ Perform any plugin setup before using it. """
-        self.args = args if args else self.get_default_args()
+        self.args = args or self.get_default_args()
+        if ('-h' in self.args) or ('--help' in self.args):
+            self.help()
+            raise SignalExit(code=0)
+        elif ('-v' in self.args) or ('--version' in self.args):
+            vers = getattr(self, 'version', None)
+            verstr = 'v. {}'.format(vers) if vers else '(no version set)'
+            print(' '.join((self.get_name(), verstr)))
+            raise SignalExit(code=0)
 
     def debug(self, *args, **kwargs):
         """ Uses the debug() function, but includes the class name. """
@@ -922,7 +930,7 @@ class PluginBase(object):
 
         usage = getattr(self, 'usage', '')
         if usage:
-            print('\nHelp for {}:'.format(name))
+            print('\nHelp for New plugin, {}:'.format(name))
             print(usage)
             return True
 
