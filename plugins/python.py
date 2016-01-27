@@ -253,33 +253,33 @@ class PythonPlugin(Plugin):
     version = __version__
     usage = """
     Usage:
-        python [template] [extra_imports...]
-        python templates
-        python setup [package_name] [version] [short_desc]
+        python [TEMPLATE] [IMPORTS...]
+        python --templates
+        python setup [NAME] [VERSION] [DESC]
 
     Options:
-        extra_imports   : Any extra modules to import. In the form of:
-                          module1 module2.childmod1
-        package_name    : A PyPi package name to create a setup.py for.
-        short_desc      : One line description for a new PyPi package
-                          setup.py.
-                          This is only used if DESC.txt is not present during
-                          installation of the package.
-        template        : Which template to use.
-                          Template ids are listed below.
-        version         : Version number for a new PyPi package setup.py.
+        IMPORTS          : Any extra modules to import. In the form of:
+                           module1 module2.childmod1
+        NAME             : A PyPi package name to create a setup.py for.
+        DESC             : One line description for a new PyPi package
+                           setup.py.
+                           This is only used if DESC.txt is not present during
+                           installation of the package.
+        TEMPLATE         : Which template to use.
+                           Template ids are listed below.
+        VERSION          : Version number for a new PyPi package setup.py.
 
     Commands:
-        t, templates    : List known template names.
+        -t, --templates  : List known template names.
 
     Templates:
-        blank, none     : Only a shebang and the main doc str.
-        docopt, doc     : A normal module including docopt boilerplate.
-                          This is the default if not set in config.
-        normal          : A normal, executable, script module with
-                          boilerplate.
-        setup           : Create a setup.py that uses distutils.
-        unittest, test  : A unittest module.
+        blank, none      : Only a shebang and the main doc str.
+        docopt, doc      : A normal module including docopt boilerplate.
+                           This is the default if not set in config.
+        normal           : A normal, executable, script module with
+                           boilerplate.
+        setup            : Create a setup.py that uses distutils.
+        unittest, test   : A unittest module.
     """
 
     def __init__(self):
@@ -288,7 +288,7 @@ class PythonPlugin(Plugin):
     def create(self, filename):
         """ Creates a new python source file. Several templates are available.
         """
-        if self.has_arg('^t(emplates)?$'):
+        if self.has_arg('^((-t)|(--templates))$'):
             # Viewing template names.
             exitcode = self.print_templates()
             raise SignalExit(code=exitcode)
@@ -403,15 +403,11 @@ class PythonPlugin(Plugin):
             'my.module.myclass' returns 'from my.module import myclass'
         """
 
-        if '.' in modulename:
-            parts = modulename.split('.')
-            importfrom = parts[:-1]
-            realimport = parts[-1]
-            return 'from {} import {}'.format(
-                '.'.join(importfrom),
-                realimport)
-        else:
-            return 'import {}'.format(modulename)
+        importfrom, _, realimport = modulename.rpartition('.')
+        if importfrom:
+            return 'from {} import {}'.format(importfrom, realimport)
+
+        return 'import {}'.format(realimport)
 
     def parse_importlist(self, imports):
         """ Parses list of imports, returns finished string with newlines. """
@@ -431,7 +427,7 @@ class PythonPlugin(Plugin):
 
         tmplen = len(templates)
         plural = 'template' if tmplen == 1 else 'templates'
-        print('Found {} {}:'.format(tmplen, plural))
+        print('Found {} python {}:'.format(tmplen, plural))
         print('\n    {}'.format('\n    '.join(sorted(templates))))
         return 0
 
