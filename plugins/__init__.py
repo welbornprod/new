@@ -787,6 +787,12 @@ class PluginBase(object):
     # Set by command-line args, or tests.
     dryrun = False
 
+    # Set by self.load_config()
+    config = {}
+
+    # Set by _setup(), before create() or run() is called.
+    args = tuple()
+    
     def _setup(self, args=None):
         """ Perform any plugin setup before using it. """
         self.args = args or self.get_default_args()
