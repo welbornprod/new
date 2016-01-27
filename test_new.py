@@ -116,6 +116,20 @@ class NewTest(unittest.TestCase):
             )
         )
 
+    def test_get_plugin_byext(self):
+        """ Plugins can be loaded by file extension. """
+        ext = 'test.txt'
+        cls = plugins.get_plugin_byext(ext)
+        self.assertIsNotNone(
+            cls,
+            msg='get_plugin_byext returned None for a known file extension!'
+        )
+        self.assertIsNot(
+            cls,
+            self.default_plugin,
+            msg='Failed to load plugin by file extension: {!r}'.format(cls)
+        )
+
     def test_get_plugin_byname(self):
         """ Plugins can be loaded by name. """
         name = 'text'
