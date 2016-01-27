@@ -22,11 +22,11 @@ USAGESTR = """{versionstr}
     Usage:
         {script} (-c | -h | -v | -p) [-D]
         {script} PLUGIN (-C | -H) [-D]
-        {script} PLUGIN -- ARGS... [-D]
+        {script} PLUGIN [-D] -- ARGS...
         {script} FILENAME [-d] [-D] [-x]
-        {script} FILENAME -- ARGS... [-d] [-D] [-x]
+        {script} FILENAME [-d] [-D] [-x] -- ARGS...
         {script} PLUGIN FILENAME [-d] [-D] [-x]
-        {script} PLUGIN FILENAME -- ARGS... [-d] [-D] [-x]
+        {script} PLUGIN FILENAME [-d] [-D] [-x] -- ARGS...
 
     Options:
         ARGS               : Plugin-specific args.
@@ -77,6 +77,9 @@ def main(argd):
     if not plugin:
         # Not a valid plugin name, user cancelled text plugin use.
         return 1
+
+    # Notify plugin that this might be a dry run.
+    plugin.dryrun = argd['--dryrun']
 
     if argd['--executable'] and 'chmodx' in plugin.ignore_post:
         # Current behaviour says files are made executable unless told
@@ -218,6 +221,7 @@ def handle_content(fname, content, plugin, dryrun=False):
     if dryrun:
         print('\nWould\'ve written: {}'.format(fname))
         print(content or '<No Content>')
+        # No post plugins can run.
         return 0 if content else 1
 
     created = write_file(fname, content)

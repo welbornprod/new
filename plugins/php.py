@@ -3,7 +3,7 @@
     -Christopher Welborn 12-25-14
 """
 import os.path
-from plugins import Plugin, date
+from plugins import Plugin, date, fix_author
 
 # I'm not a php developer, and I wouldn't recommend it to someone wanting
 # to learn about programming.
@@ -25,18 +25,17 @@ class PhpPlugin(Plugin):
 
     name = ('php',)
     extensions = ('.php',)
-    version = '0.0.1'
+    version = '0.0.2'
     description = 'Creates an executable php script.'
-    
+
     def __init__(self):
         self.load_config()
 
     def create(self, filename):
         """ Creates an executable php script. """
-        basename = os.path.split(filename)[-1]
-        author = self.config.get('author', '')
-        if author:
-            author = '-{} '.format(author)
-        return template.format(name=basename, author=author, date=date())
+        return template.format(
+            name=os.path.split(filename)[-1],
+            author=fix_author(self.config.get('author', None)),
+            date=date())
 
 exports = (PhpPlugin,)

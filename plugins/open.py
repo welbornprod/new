@@ -12,7 +12,7 @@ class OpenPlugin(DeferredPostPlugin):
 
     name = 'open'
     version = '0.0.1-1'
-    
+
     def __init__(self):
         self.load_config()
 

@@ -1,7 +1,7 @@
 """ Perl plugin for New.
     -Christopher Welborn 5-21-15
 """
-from plugins import Plugin, date
+from plugins import Plugin, date, fix_author
 
 # Not much here right now.
 template = """#!/usr/bin/env perl
@@ -18,7 +18,7 @@ class PerlPlugin(Plugin):
 
     name = ('perl', 'pl')
     extensions = ('.pl', '.perl')
-    version = '0.0.1'
+    version = '0.0.2'
 
     def __init__(self):
         self.load_config()
@@ -30,7 +30,7 @@ class PerlPlugin(Plugin):
         description = ' '.join(self.args) if self.args else ''
 
         return template.format(
-            author='-{} '.format(author) if author else author,
+            author=fix_author(self.config.get('author', None)),
             date=date(),
             description=description)
 

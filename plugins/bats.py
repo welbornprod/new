@@ -4,7 +4,7 @@
 
 import os.path
 
-from plugins import Plugin, date
+from plugins import Plugin, date, fix_author
 
 template = """#!/usr/bin/env bats
 
@@ -40,25 +40,33 @@ class BatsPlugin(Plugin):
     version = '0.0.1'
     usage = """
     Usage:
-        bats [s] [t]
+        bats [-s] [-t]
 
     Options:
-        s,setup     : Include setup() function.
-        t,teardown  : Include teardown() function.
+        -s,--setup     : Include setup() function.
+        -t,--teardown  : Include teardown() function.
     """
-    
+
     def __init__(self):
         self.load_config()
 
     def create(self, filename):
         """ Creates a Bats test file (bash automated testing). """
-        author = self.config.get('author', None)
+        if self.has_arg('^((-s)|(--setup))$'):
+            setup = template_setup
+        else:
+            setup = ''
+        if self.has_arg('^((-t)|(--teardown))$'):
+            teardown = template_teardown
+        else:
+            teardown = ''
+
         return template.format(
-            author='-{} '.format(author) if author else '',
+            author=fix_author(self.config.get('author', None)),
             date=date(),
             name=os.path.splitext(os.path.split(filename)[-1])[0],
-            setup=template_setup if self.has_arg('^s(etup)?') else '',
-            teardown=template_teardown if self.has_arg('^t(eardown)?') else ''
+            setup=setup,
+            teardown=teardown
         )
 
 exports = (BatsPlugin,)

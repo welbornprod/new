@@ -4,7 +4,7 @@
 
 import os.path
 
-from plugins import Plugin, date
+from plugins import Plugin, date, fix_author
 
 # Not much in this plugin at the moment.
 # Cargo works really well. This is just for little "testruns" and additions.
@@ -26,7 +26,7 @@ class RustPlugin(Plugin):
 
     name = ('rust', 'rs')
     extensions = ('.rs',)
-    version = '0.0.2'
+    version = '0.0.3'
     # Rust doesnt need to be made executable.
     ignore_post = {'chmodx'}
     usage = """
@@ -42,11 +42,9 @@ class RustPlugin(Plugin):
 
     def create(self, filename):
         """ Creates a blank Rust file. """
-        author = self.config.get('author', '')
-
         return template.format(
             name=os.path.splitext(os.path.split(filename)[-1])[0],
-            author='-{} '.format(author) if author else author,
+            author=fix_author(self.config.get('author', None)),
             date=date(),
             imports=self.format_imports())
 

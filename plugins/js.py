@@ -3,7 +3,7 @@
 """
 
 import os.path
-from plugins import Plugin, date, default_version
+from plugins import Plugin, date, default_version, fix_author
 
 SHEBANG = '#!/usr/bin/env node'
 HEADER = """
@@ -53,7 +53,7 @@ class JSPlugin(Plugin):
 
     name = ('js', 'node', 'nodejs')
     extensions = ('.js',)
-    version = '0.0.6'
+    version = '0.0.7'
     usage = """
     Usage:
         js [-s]
@@ -61,24 +61,20 @@ class JSPlugin(Plugin):
     Options:
         -s,--short  : Only use the comment header.
     """
-    
+
     def __init__(self):
         self.load_config()
 
     def create(self, fname):
         """ Creates a blank js/node file. """
         # Using the node shebang, even though this may not be for node.
-        author = self.config.get('author', '')
         basename = os.path.split(fname)[-1]
         name = os.path.splitext(basename)[0]
-        use_short = self.has_arg('^((-s)|(--short))$')
-        self.debug('Retrieved config..')
-        author = '-{} '.format(author) if author else author
-        if use_short:
+        if self.has_arg('^((-s)|(--short))$'):
             # Only the comment header.
             return HEADER.format(
                 name=name,
-                author=author,
+                author=fix_author(self.config.get('author', None)),
                 date=date()).lstrip()
         # Full template.
         return ''.join((
@@ -86,7 +82,7 @@ class JSPlugin(Plugin):
             HEADER,
             TEMPLATE)).format(
                 name=name,
-                author=author,
+                author=fix_author(self.config.get('author', None)),
                 date=date(),
                 scriptname=basename,
                 version=self.config.get('default_version', default_version))

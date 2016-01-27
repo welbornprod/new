@@ -97,7 +97,11 @@ def template_render(filepath, makefile=None):
     objects = '{}.o'.format(binary)
 
     # Get compiler and make options by file extension (default to gcc).
-    compiler = {'.c': 'gcc', '.cpp': 'g++', '.rs': 'rustc'}.get(fileext, 'gcc')
+    compiler = {
+        '.c': 'gcc',
+        '.cpp': 'g++',
+        '.rs': 'rustc'
+    }.get(fileext, 'gcc')
 
     # Create the base template, retrieve compiler-specific settings.
     debug('Rendering makefile template for {}.'.format(compiler))
@@ -179,7 +183,7 @@ class MakefilePlugin(Plugin):
 
     def create(self, filename):
         """ Creates a basic Makefile for a given c file name. """
-        if not os.path.exists(filename):
+        if not (self.dryrun or os.path.exists(filename)):
             msg = '\n'.join((
                 'The target source file doesn\'t exist: {}',
                 'Continue anyway?'

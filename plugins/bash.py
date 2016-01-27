@@ -2,9 +2,9 @@
     -Christopher Welborn 12-25-14
 """
 import os.path
-from plugins import Plugin, date, default_version
+from plugins import Plugin, date, default_version, fix_author
 
-__version__ = '0.2.1'
+__version__ = '0.2.2'
 
 template = """#!/bin/bash
 
@@ -77,12 +77,12 @@ class BashPlugin(Plugin):
     version = __version__
     usage = """
     Usage:
-        bash [f | a] [description]
+        bash [-f | -a] [DESCRIPTION]
 
     Options:
-        description  : Description for the doc str, quoting is optional.
-        a,args       : Include basic arg-parsing functions.
-        f,func       : Include an empty function.
+        DESCRIPTION  : Description for the doc str, quoting is optional.
+        -a,--args    : Include basic arg-parsing functions.
+        -f,--func    : Include an empty function.
     """
 
     def __init__(self):
@@ -92,22 +92,19 @@ class BashPlugin(Plugin):
         """ Creates a basic bash source file. """
 
         sections = [template]
-        if self.has_arg('^a(rgs)?$'):
+        if self.has_arg('^((-a)|(--args))$'):
             self.debug('Using args template...')
-            self.pop_args(self.args, ('a', 'args'))
+            self.pop_args(self.args, ('-a', '--args'))
             sections.append(template_args)
-        if self.has_arg('^f(unc)?$'):
+        if self.has_arg('^((-f)(--func))$'):
             self.debug('Using function template...')
-            self.pop_args(self.args, ('f', 'func'))
+            self.pop_args(self.args, ('-f', '--func'))
             sections.append(template_func)
 
-        author = self.config.get('author', '')
-        description = ' '.join(self.args) if self.args else ''
-
         return '\n'.join(sections).format(
-            author='-{} '.format(author) if author else author,
+            author=fix_author(self.config.get('author', None)),
             date=date(),
-            description=description,
+            description=' '.join(self.args) if self.args else '',
             filename=os.path.splitext(os.path.split(filename)[-1])[0],
             version=self.config.get('default_version', default_version)
         )

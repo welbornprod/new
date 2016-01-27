@@ -189,33 +189,41 @@ def determine_plugin(argd):
         argd['FILENAME'] = default_file
         debug('Plugin loaded by name, using default file name.')
         return namedplugincls
-
+    debug('get_plugin_byname({!r}) failed (FILENAME), trying PLUGIN.'.format(
+        argd['FILENAME']
+    ))
     if argd['PLUGIN']:
         plugincls = get_plugin_byname(argd['PLUGIN'], use_post=True)
-        if not argd['FILENAME']:
-            argd['FILENAME'] = default_file
         if plugincls:
             msg = ['Plugin loaded by given name.']
-            if argd['FILENAME'] == default_file:
+            if not argd['FILENAME']:
+                argd['FILENAME'] = default_file
                 msg.append('Default file name used.')
             debug(' '.join(msg))
             return plugincls
-
+    debug('get_plugin_byname({!r}) failed (PLUGIN), trying extension.'.format(
+        argd['PLUGIN']
+    ))
+    # No known plugin name in either FILENAME or PLUGIN,
+    # Fix args to assume filename was passed.
+    argd['FILENAME'] = argd['PLUGIN'] or argd['FILENAME']
+    argd['PLUGIN'] = None
     extplugin = get_plugin_byext(argd['FILENAME'])
     if extplugin:
         # Determined plugin by file extension.
         debug('Plugin determined by file name/extension.')
         return extplugin
+    debug('get_plugin_byext({!r}) (FILENAME) failed, trying PLUGIN.'.format(
+        argd['FILENAME']
+    ))
 
     # Fall back to default plugin, or user specified.
-    plugin = None
-    ftype = argd['PLUGIN'] or globalconfig.get('default_plugin', 'python')
     # Allow loading post-plugins by name when using --pluginconfig.
-    plugincls = get_plugin_byname(ftype, use_post=True)
+    plugincls = get_plugin_byname(argd['PLUGIN'], use_post=True)
     if plugincls:
-        debug('Plugin loaded {}.'.format(
-            'by given name.' if argd['PLUGIN'] else 'by default'))
-    return plugincls
+        debug('Plugin loaded by given name.')
+        return plugincls
+    return get_plugin_default()
 
 
 def do_post_plugins(fname, plugin):
@@ -299,11 +307,19 @@ def find_config_file():
     return mainfile
 
 
+def fix_author(s):
+    """ Adds a dash before the author name if available, otherwise returns
+        an empty string.
+    """
+    return '-{} '.format(s) if s else ''
+
+
 def get_plugin_byext(name):
     """ Retrieves a plugin by file extension.
         Returns the plugin on success, or None on failure.
     """
     if not name:
+        debug('No name given!')
         return None
     ext = os.path.splitext(name)[-1].lower()
     if not ext:
@@ -321,11 +337,11 @@ def get_plugin_byname(name, use_post=False):
         Returns the plugin on success, or None on failure.
     """
     if not name:
+        debug('No name given!')
         return None
     name = name.lower()
     for plugincls in plugins['types'].values():
-        names = (pname.lower() for pname in plugincls.name)
-        if name in names:
+        if name in {pname.lower() for pname in plugincls.name}:
             return plugincls
 
     # Try post plugins also.
@@ -333,10 +349,19 @@ def get_plugin_byname(name, use_post=False):
         postplugins = list(plugins['post'].values())
         postplugins.extend(list(plugins['deferred'].values()))
         for plugincls in postplugins:
-            if name == plugincls.name.lower():
+            if name == plugincls.get_name().lower():
                 return plugincls
     # The plugin wasn't found.
     return None
+
+
+def get_plugin_default(_name=None):
+    """ Return the default plugin.
+        The `_name` argument is for testing purposes only.
+    """
+    globalconfig = config.get('plugins', {}).get('global', {})
+    name = globalconfig.get('default_plugin', _name or 'python')
+    return get_plugin_byname(name)
 
 
 def get_usage(indent=0):
@@ -344,16 +369,16 @@ def get_usage(indent=0):
         Returns (usage_str, options_str).
     """
     usage, opts = [], []
-    for plugin in plugins['types'].values():
-        pluginusage = getattr(plugin, 'usage', None)
+    for plugincls in plugins['types'].values():
+        pluginusage = getattr(plugincls, 'usage', None)
         if not pluginusage:
             continue
         elif not isinstance(pluginusage, dict):
             errmsg = 'Bad type for {} plugin usage: {}'
-            debug(errmsg.format(plugin.get_name(), type(pluginusage)))
+            debug(errmsg.format(plugincls.get_name(), type(pluginusage)))
             continue
         pluginstrfmt = '{{script}} {} FILENAME [-d] [-D]'
-        pluginstr = pluginstrfmt.format(plugin.get_name())
+        pluginstr = pluginstrfmt.format(plugincls.get_name())
         for usageline in pluginusage.get('usage', []):
             usage.append(' '.join((pluginstr, usageline)))
         opts.extend(pluginusage.get('options', []))
@@ -503,7 +528,7 @@ def load_module(modulename):
         Non-plugin modules raise ImportError.
         Return the module instance, or raises ImportError.
     """
-    module = import_module(modulename)
+    module = import_module('.{}'.format(modulename), package='plugins')
     # Ensure that the module has a list of plugins to work with.
     if not is_plugins_module(module):
         debug('{} ({}) is not a valid plugin!'.format(modulename, module))
@@ -661,6 +686,7 @@ def print_err(*args, **kwargs):
         kwargs['file'] = sys.stderr
     print(*args, **kwargs)
 
+
 def print_inplace(s):
     """ Overwrites the last printed line. """
     print('\033[2A\033[160D')
@@ -758,6 +784,9 @@ class PluginBase(object):
     # Version for this plugin.
     version = '0.0.1'
 
+    # Set by command-line args, or tests.
+    dryrun = False
+    
     def _setup(self, args=None):
         """ Perform any plugin setup before using it. """
         self.args = args if args else self.get_default_args()

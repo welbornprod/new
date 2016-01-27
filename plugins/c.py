@@ -3,7 +3,7 @@
     -Christopher Welborn 2-20-15
 """
 import os.path
-from plugins import Plugin, date
+from plugins import Plugin, date, fix_author
 
 template = """/*  {filename}
     ...
@@ -30,7 +30,7 @@ class CPlugin(Plugin):
     name = ('c', 'cpp', 'c++', 'cc')
     extensions = ('.c', '.cpp', '.cc')
     cpp_extensions = ('.cpp', '.cc')
-    version = '0.0.3-2'
+    version = '0.0.4'
     ignore_post = {'chmodx'}
     description = '\n'.join((
         'Creates a basic C or C++ file for small programs.',
@@ -58,7 +58,6 @@ class CPlugin(Plugin):
             self.ignore_post.add('automakefile')
 
         parentdir, basename = os.path.split(filename)
-        author = self.config.get('author', '')
 
         fileext = os.path.splitext(filename)[-1].lower()
         if fileext in self.cpp_extensions:
@@ -70,7 +69,7 @@ class CPlugin(Plugin):
 
         return (template_lib if library else template).format(
             filename=basename,
-            author='-{} '.format(author) if author else author,
+            author=fix_author(self.config.get('author', None)),
             date=date(),
             include=include,
             namespace=namespace)

@@ -4,9 +4,16 @@
 
 import os
 
-from plugins import Plugin, SignalAction, SignalExit, date, default_version
+from plugins import (
+    Plugin,
+    SignalAction,
+    SignalExit,
+    date,
+    default_version,
+    fix_author
+)
 
-__version__ = '0.1.2'
+__version__ = '0.2.1'
 
 # TODO: This plugin was basically just copied and adapted from the original
 #       'newpython' script that inspired this project.
@@ -20,6 +27,9 @@ DEFAULT_IMPORTS = ['os', 'sys']
 MAIN_DOCOPT = """
     try:
         mainret = main(docopt(USAGESTR, version=VERSIONSTR))
+    except InvalidArg as ex:
+        print_err(ex)
+        mainret = 1
     except (EOFError, KeyboardInterrupt):
         print_err('\\nUser cancelled.\\n', file=sys.stderr)
         mainret = 2
@@ -34,6 +44,9 @@ MAIN_DOCOPT = """
 MAIN_NORMAL = """
     try:
         mainret = main(sys.argv[1:])
+    except InvalidArg as ex:
+        print_err(ex)
+        mainret = 1
     except (EOFError, KeyboardInterrupt):
         print_err('\\nUser cancelled.\\n', file=sys.stderr)
         mainret = 2
@@ -130,6 +143,17 @@ def print_err(*args, **kwargs):
     if kwargs.get('file', None) is None:
         kwargs['file'] = sys.stderr
     print(*args, **kwargs)
+
+
+class InvalidArg(ValueError):
+    \"\"\" Raised when the user has used an invalid argument. \"\"\"
+    def __init__(self, msg=None):
+        self.msg = msg or ''
+
+    def __str__(self):
+        if self.msg:
+            return 'Invalid argument, {{}}'.format(self.msg)
+        return 'Invalid argument!'
 
 
 if __name__ == '__main__':{mainif}
@@ -260,7 +284,7 @@ class PythonPlugin(Plugin):
 
     def __init__(self):
         self.load_config()
-    
+
     def create(self, filename):
         """ Creates a new python source file. Several templates are available.
         """
@@ -290,7 +314,6 @@ class PythonPlugin(Plugin):
             errmsg = 'Misconfigured template base: {}'
             raise ValueError(errmsg.format(templateid))
 
-        author = self.config.get('author', '')
         imports = extra_imports + template_args['imports']
         scriptname = os.path.split(filename)[-1]
         shebangexe = self.config.get('shebangexe', '/usr/bin/env python3')
@@ -298,7 +321,7 @@ class PythonPlugin(Plugin):
 
         # Regular template (none, unittest, docopt)...
         template_args.update({
-            'author': '-{} '.format(author) if author else author,
+            'author': fix_author(self.config.get('author', None)),
             'explanation': self.config.get('explanation', ''),
             'date': date(),
             'default_version': version,
@@ -340,7 +363,7 @@ class PythonPlugin(Plugin):
             args = []
         shebangexe = self.config.get('shebangexe', '/usr/bin/env python3')
         tmpargs = {
-            'author': self.config.get('author', 'Nobody'),
+            'author': fix_author(self.config.get('author', None)),
             'date': date(),
             'desc': 'My default description.',
             'email': self.config.get('email', 'nobody@nowhere.com'),
