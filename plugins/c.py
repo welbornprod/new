@@ -37,12 +37,14 @@ class CPlugin(Plugin):
         'If no Makefile exists, it will be created with basic targets.',
         'The Makefile is provided by the automakefile plugin.'
     ))
+
+    docopt = True
     usage = """
     Usage:
-        c [l]
+        c [-l]
 
     Options:
-        l,lib  : Treat as a library file, automakefile will not run.
+        -l,--lib  : Treat as a library file, automakefile will not run.
     """
 
     def __init__(self):
@@ -52,8 +54,7 @@ class CPlugin(Plugin):
         """ Creates a basic C file.
         """
         # Disable automakefile if asked.
-        library = self.has_arg('l(ib)?')
-        if library:
+        if self.argd['--lib']:
             self.debug('Library file mode, no automakefile.')
             self.ignore_post.add('automakefile')
 
@@ -67,7 +68,7 @@ class CPlugin(Plugin):
             include = 'stdio.h'
             namespace = ''
 
-        return (template_lib if library else template).format(
+        return (template_lib if self.argd['--lib'] else template).format(
             filename=basename,
             author=fix_author(self.config.get('author', None)),
             date=date(),

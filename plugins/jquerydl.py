@@ -21,6 +21,8 @@ class JQueryDownloadPost(PostPlugin):
         'Downloads a requested jquery version for the jquery plugin.',
         'This will not overwrite existing files.'
     ))
+
+    docopt = True
     usage = """
     Usage:
         jquerydl [-l]
@@ -54,7 +56,6 @@ class JQueryDownloadPost(PostPlugin):
             Returns the file name on success, or None on failure.
         """
         url = 'http://code.jquery.com/{}'.format(self.get_jquery_file(ver))
-
         self.print_status('Downloading: {}\n'.format(url))
         try:
             path, httpmsg = request.urlretrieve(
@@ -162,7 +163,7 @@ class JQueryDownloadPost(PostPlugin):
 
     def list_latest(self):
         """ Print the latest version of jquery available. """
-        latestverinfo = self.get_jquery_latest(versioninfo=versioninfo)
+        latestverinfo = self.get_jquery_latest()
         if not latestverinfo:
             self.print_err('Unable to get latest jquery version.')
             return 1
@@ -204,7 +205,7 @@ class JQueryDownloadPost(PostPlugin):
 
     def run(self):
         """ Run this plugin as a command. """
-        if self.has_arg('^-?-l(atest)?$'):
+        if self.argd['--latest']:
             return self.list_latest()
         return self.list_versions()
 

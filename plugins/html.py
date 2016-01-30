@@ -8,8 +8,8 @@ template = """<!DOCTYPE html>
 <html>
     <head>
         <title>{title}</title>
-        {css}
-        {scripts}
+{css}
+{scripts}
     </head>
     <body>
         {body}
@@ -36,8 +36,12 @@ template_scriptblk = """<script type='text/javascript'>
             {}
         </script>
 """
-template_scriptsrc = '<script type=\'text/javascript\' src=\'{}\'></script>'
-template_csssrc = '<link type=\'text/css\' rel=\'stylesheet\' href=\'{}\'/>'
+template_scriptsrc = (
+    '        <script type=\'text/javascript\' src=\'{}\'></script>'
+)
+template_csssrc = (
+    '        <link type=\'text/css\' rel=\'stylesheet\' href=\'{}\'/>'
+)
 
 
 class HtmlPlugin(Plugin):
@@ -48,16 +52,20 @@ class HtmlPlugin(Plugin):
     version = '0.0.1-3'
     # Html files are not executable.
     ignore_post = {'chmodx'}
+
+    docopt = True
     usage = """
     Usage:
-        html [title] [cssfile] [jsfile]
+        html [TITLE] [-c file...] [-j file...]
 
     Options:
-        cssfile  : Relative path to a css file to include.
-                   Default: main.css
-        jsfile   : Relative path to a js file to include.
-                   Default: main.js
-        title    : Title for the new file.
+        TITLE               : Title for the new file.
+        -c file,--css file  : One or more relative paths to a css file to
+                              include.
+                              Default: main.css
+        -j file,--js file   : One or more relative paths to a js file to
+                              include.
+                              Default: main.js
     """
 
     def __init__(self):
@@ -65,13 +73,21 @@ class HtmlPlugin(Plugin):
 
     def create(self, filename):
         """ Creates a simple html file. """
-        title = self.get_arg(0, '...')
-        cssfile = self.get_arg(1, self.config.get('main_css', 'main.css'))
-        jsfile = self.get_arg(2, self.config.get('main_js', 'main.js'))
+        title = self.argd['TITLE'] or '...'
+        cssfiles = set(
+            self.argd['--css'] or self.config.get('main_css', {'main.css'})
+        )
+        jsfiles = set(
+            self.argd['--js'] or self.config.get('main_js', {'main.js'})
+        )
         template_args = {
             'title': title,
-            'css': template_csssrc.format(cssfile),
-            'scripts': template_scriptsrc.format(jsfile),
+            'css': '\n'.join(
+                template_csssrc.format(s) for s in cssfiles
+            ),
+            'scripts': '\n'.join(
+                template_scriptsrc.format(s) for s in jsfiles
+            ),
             'body': '...',
             'bodyend': ''
         }
@@ -88,17 +104,24 @@ class JQueryPlugin(Plugin):
     version = '0.0.2'
     # Html files are not executable.
     ignore_post = {'chmodx'}
+
+    docopt = True
     usage = """
     Usage:
-        jquery [version] [title] [cssfile]
+        jquery [VERSION] [-c file...] [-j file...] [-t title]
 
     Options:
-        cssfile  : Relative path to a css file to include.
-                   Default: main.css
-        title    : Title for the new file.
-        version  : jQuery version to use.
-                   Using 'no' or 'none' will skip the download entirely.
-                   Default: latest
+        VERSION             : jQuery version to use.
+                              Using 'no' or 'none' will skip the download
+                              entirely.
+                              Default: latest
+        -c file,--css file  : One or more relative paths to a css file to
+                              include.
+                              Default: main.css
+        -j file,--js file   : One or more relative paths to a js file to
+                              include.
+                              Default: main.css
+        -t str,--title str  : Title for the new file.
     """
 
     def __init__(self):
@@ -109,18 +132,25 @@ class JQueryPlugin(Plugin):
             This will download jQuery if needed.
         """
 
-        title = self.get_arg(1, '...')
-        cssfile = self.get_arg(2, self.config.get('main_css', 'main.css'))
-        if self.config.get('no_download', False):
+        cssfiles = set(
+            self.argd['--css'] or self.config.get('main_css', ['main.css'])
+        )
+        jsfiles = set(
+            self.argd['--js'] or self.config.get('main_js', set())
+        )
+        skipdl = (
+            (self.argd['VERSION'] or '').lower() in {'no', 'none'} or
+            self.config.get('no_download', False)
+        )
+        if skipdl:
             self.debug('Skipping jquery download.')
             scripts = ''
             self.ignore_deferred.add('jquerydl')
         else:
             # Set an attribute for the jquerydl plugin.
             jquerydl = JQueryDownloadPost()
-            verarg = self.get_arg(0, default=None)
-            if verarg:
-                self.jquery_ver = verarg
+            if self.argd['VERSION']:
+                self.jquery_ver = self.argd['VERSION']
             else:
                 verinfo = jquerydl.get_jquery_latest()
                 if not verinfo:
@@ -128,12 +158,16 @@ class JQueryPlugin(Plugin):
                 self.jquery_ver = list(verinfo.keys())[0]
 
             jqueryfile = jquerydl.get_jquery_file(self.jquery_ver)
-            scripts = template_scriptsrc.format(jqueryfile)
+            jsfiles.add(jqueryfile)
 
         template_args = {
-            'title': title,
-            'css': template_csssrc.format(cssfile),
-            'scripts': scripts,
+            'title': self.argd['--title'] or '...',
+            'css': '\n'.join(
+                template_csssrc.format(s) for s in cssfiles
+            ),
+            'scripts': '\n'.join(
+                template_scriptsrc.format(s) for s in jsfiles
+            ),
             'body': '...',
             'bodyend': template_scriptblk.format(template_ready)
         }

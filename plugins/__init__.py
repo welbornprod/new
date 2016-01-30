@@ -173,8 +173,6 @@ def determine_plugin(argd):
         # Occurs when no args are passed after the seperator: new plugin --
         raise DocoptExit()
 
-    print('{!r}'.format(argd))
-
     namedplugincls = get_plugin_byname(argd['FILENAME'], use_post=True)
     if namedplugincls:
         # Plugin name was mistaken for a file name (ambiguous docopt usage).

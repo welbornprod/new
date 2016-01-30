@@ -4,11 +4,11 @@
 import os.path
 from plugins import Plugin, date, default_version, fix_author
 
-__version__ = '0.2.2'
+__version__ = '0.3.0'
 
 template = """#!/bin/bash
 
-# ...{description}
+# {description}
 # {author}{date}
 appname="{filename}"
 appversion="{version}"
@@ -26,9 +26,26 @@ function XXXX {{
 
 # Basic arg-parsing code.
 template_args = """
+function echo_err {{
+    # Echo to stderr.
+    echo -e "$@" 1>&2
+}}
+
+function fail {{
+    # Print a message to stderr and exit with an error status code.
+    echo_err "$@"
+    exit 1
+}}
+
+function fail_usage {{
+    # Print a usage failure message, and exit with an error status code.
+    print_usage "$@"
+    exit 1
+}}
+
 function print_usage {{
     # Show usage reason if first arg is available.
-    [[ -n "$1" ]] && echo -e "\\n$1\\n"
+    [[ -n "$1" ]] && echo_err "\\n$1\\n"
 
     echo "$appname v. $appversion
 
@@ -37,14 +54,12 @@ function print_usage {{
 
     Options:
         -h,--help     : Show this message.
+        -h,--blah  : HAHAHA
         -v,--version  : Show $appname version and exit.
     "
 }}
 
-if (( $# == 0 )); then
-    print_usage "No arguments!"
-    exit 1
-fi
+(( $# > 0 )) || fail_usage "No arguments!"
 
 declare -a nonflags
 
@@ -59,8 +74,7 @@ for arg; do
             exit 0
             ;;
         -*)
-            print_usage "Unknown flag argument: $arg"
-            exit 1
+            fail_usage "Unknown flag argument: $arg"
             ;;
         *)
             nonflags=("${{nonflags[@]}}" "$arg")
@@ -75,14 +89,19 @@ class BashPlugin(Plugin):
     name = ('bash', 'sh')
     extensions = ('.sh', '.bash')
     version = __version__
+
+    docopt = True
     usage = """
     Usage:
-        bash [-f | -a] [DESCRIPTION]
+        bash [-f | -a] [DESCRIPTION...]
+        bash -s [DESCRIPTION...]
 
     Options:
         DESCRIPTION  : Description for the doc str, quoting is optional.
+                       Multiple args are joined with a space.
         -a,--args    : Include basic arg-parsing functions.
         -f,--func    : Include an empty function.
+        -s,--simple  : Don't use -f or -a, even if set in config.
     """
 
     def __init__(self):
@@ -90,34 +109,24 @@ class BashPlugin(Plugin):
 
     def create(self, filename):
         """ Creates a basic bash source file. """
-
         sections = [template]
-        if self.has_arg('^((-a)|(--args))$'):
-            self.debug('Using args template...')
-            self.pop_args(self.args, ('-a', '--args'))
-            sections.append(template_args)
-        if self.has_arg('^((-f)(--func))$'):
-            self.debug('Using function template...')
-            self.pop_args(self.args, ('-f', '--func'))
-            sections.append(template_func)
+        if self.argd['--simple']:
+            self.debug('Using simple template...')
+        else:
+            if self.argd['--args']:
+                self.debug('Using args template...')
+                sections.append(template_args)
+            if self.argd['--func']:
+                self.debug('Using function template...')
+                sections.append(template_func)
 
         return '\n'.join(sections).format(
             author=fix_author(self.config.get('author', None)),
             date=date(),
-            description=' '.join(self.args) if self.args else '',
+            description=' '.join(self.argd['DESCRIPTION']) or '...',
             filename=os.path.splitext(os.path.split(filename)[-1])[0],
             version=self.config.get('default_version', default_version)
         )
 
-    def pop_args(self, lst, args):
-        """ Removes any occurrence of an argument from a list.
-            Modifies the list that is passed in.
-            Arguments:
-                lst   : List to remove from.
-                args  : List/Tuple of args to remove.
-        """
-        for a in args:
-            while lst.count(a) > 0:
-                lst.remove(a)
 
 exports = (BashPlugin, )

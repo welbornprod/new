@@ -38,6 +38,8 @@ class BatsPlugin(Plugin):
     name = ('bats',)
     extensions = ('.bats',)
     version = '0.0.1'
+
+    docopt = True
     usage = """
     Usage:
         bats [-s] [-t]
@@ -52,11 +54,11 @@ class BatsPlugin(Plugin):
 
     def create(self, filename):
         """ Creates a Bats test file (bash automated testing). """
-        if self.has_arg('^((-s)|(--setup))$'):
+        if self.argd['--setup']:
             setup = template_setup
         else:
             setup = ''
-        if self.has_arg('^((-t)|(--teardown))$'):
+        if self.argd['--teardown']:
             teardown = template_teardown
         else:
             teardown = ''
