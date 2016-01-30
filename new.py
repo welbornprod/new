@@ -13,7 +13,7 @@ import plugins
 debug = plugins.debug
 
 NAME = 'New'
-VERSION = '0.3.1'
+VERSION = '0.3.2'
 VERSIONSTR = '{} v. {}'.format(NAME, VERSION)
 SCRIPT = os.path.split(os.path.abspath(sys.argv[0]))[1]
 SCRIPTDIR = os.path.abspath(sys.path[0])
@@ -21,10 +21,10 @@ SCRIPTDIR = os.path.abspath(sys.path[0])
 USAGESTR = """{versionstr}
     Usage:
         {script} (-c | -h | -v | -p) [-D]
-        {script} PLUGIN (-C | -H) [-D]
-        {script} PLUGIN [-D] -- ARGS...
         {script} FILENAME [-d] [-D] [-x]
         {script} FILENAME [-d] [-D] [-x] -- ARGS...
+        {script} PLUGIN (-C | -H) [-D]
+        {script} PLUGIN [-D] -- ARGS...
         {script} PLUGIN FILENAME [-d] [-D] [-x]
         {script} PLUGIN FILENAME [-d] [-D] [-x] -- ARGS...
 
@@ -261,11 +261,13 @@ def make_dirs(path):
     return path
 
 
-def print_err(msg):
+def print_err(*args, **kwargs):
     """ Print a formatted error msg.
         (color-formatting in the future.)
     """
-    print('\n{}'.format(msg))
+    if kwargs.get('file', None) is None:
+        kwargs['file'] = sys.stderr
+    print(*args, **kwargs)
 
 
 def print_ex(ex, msg, with_class=False):
@@ -317,7 +319,10 @@ def write_file(fname, content):
         with open(fname, 'w') as f:
             f.write(content)
     except EnvironmentError as ex:
-        print_ex(ex, 'Failed to write file: {}'.format(fname), with_class=True)
+        print_ex(
+            ex,
+            'Failed to write file: {}'.format(fname),
+            with_class=True)
         return None
     except Exception as exgen:
         print_ex(exgen, 'Error writing file: {}'.format(fname))
