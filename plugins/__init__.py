@@ -14,6 +14,7 @@ from datetime import datetime
 from enum import Enum
 from importlib import import_module
 
+from docopt import docopt, DocoptExit, DocoptLanguageError
 
 SCRIPTDIR = os.path.abspath(sys.path[0])
 DEBUG = False
@@ -168,23 +169,15 @@ def determine_plugin(argd):
     """
     globalconfig = config.get('plugins', {}).get('global', {})
     default_file = globalconfig.get('default_filename', 'new_file')
+    if argd['FILENAME'] in {'-', '--'}:
+        # Occurs when no args are passed after the seperator: new plugin --
+        raise DocoptExit()
 
-    namedplugincls = get_plugin_byname(argd['FILENAME'])
+    print('{!r}'.format(argd))
+
+    namedplugincls = get_plugin_byname(argd['FILENAME'], use_post=True)
     if namedplugincls:
-        if argd['ARGS']:
-            # Hack to allow plugin args with plugin name or file name missing.
-            tryfilename = argd['ARGS'][0]
-            tryext = os.path.splitext(tryfilename)[-1]
-            if tryext in namedplugincls.extensions:
-                # Explicit file name given by extension, remove from ARGS.
-                argd['FILENAME'] = tryfilename
-                argd['ARGS'] = argd['ARGS'][1:]
-                debug('Plugin loaded by name with args, file name given.')
-                return namedplugincls
-            else:
-                # Not a recognized file name, use it as an argument.
-                debug('Plugin loaded by name with args, no known filename.')
-
+        # Plugin name was mistaken for a file name (ambiguous docopt usage).
         # Use default file name since no file name was given.
         argd['FILENAME'] = default_file
         debug('Plugin loaded by name, using default file name.')
@@ -792,18 +785,48 @@ class PluginBase(object):
 
     # Set by _setup(), before create() or run() is called.
     args = tuple()
-    
+    # Docopt args if self.docopt is True, set in _setup().
+    argd = {}
+
+    docopt = False
+
     def _setup(self, args=None):
         """ Perform any plugin setup before using it. """
-        self.args = args or self.get_default_args()
-        if ('-h' in self.args) or ('--help' in self.args):
+
+        # Handle -h and -v before docopt, for a better new-style plugin msg.
+        if ('-h' in args) or ('--help' in args):
             self.help()
             raise SignalExit(code=0)
-        elif ('-v' in self.args) or ('--version' in self.args):
+        elif ('-v' in args) or ('--version' in args):
             vers = getattr(self, 'version', None)
             verstr = 'v. {}'.format(vers) if vers else '(no version set)'
-            print(' '.join((self.get_name(), verstr)))
+            print(' '.join(('New:', self.get_name(), verstr)))
             raise SignalExit(code=0)
+
+        # Fill in default args from config.
+        self.args = args or self.get_default_args()
+
+        if self.usage and self.docopt:
+            try:
+                self.argd = docopt(
+                    self.usage,
+                    self.args,
+                    version=getattr(self, 'version', None))
+            except DocoptExit as ex:
+                pname = self.get_name()
+                raise SignalExit(
+                    str(ex).replace(pname, 'new {} --'.format(pname)),
+                    code=1)
+            except DocoptLanguageError as ex:
+                raise SignalExit(
+                    'Plugin usage string error in {} plugin: {}'.format(
+                        self.get_name(),
+                        ex),
+                    code=1)
+
+        else:
+            # No docopt, but flag arguments will be marked with True if given.
+            self.argd = {a: True for a in self.args if a.startswith('-')}
 
     def debug(self, *args, **kwargs):
         """ Uses the debug() function, but includes the class name. """
@@ -918,31 +941,56 @@ class PluginBase(object):
                 args))
         if position is None:
             for a in args:
-                if re.search(pattern, a) is not None:
-                    return True
+                try:
+                    if re.search(pattern, a) is not None:
+                        return True
+                except re.error as ex:
+                    raise ValueError('Bad argument pattern: {}\n{}'.format(
+                        a,
+                        ex))
             return False
         try:
             exists = re.search(pattern, args[position]) is not None
         except IndexError:
             return False
+        except re.error as ex:
+            raise ValueError('Bad argument pattern: {}\n{}'.format(
+                a,
+                ex))
+
         return exists
+
+    def has_args(self, *args):
+        """ Convenient function to check for short and long options.
+            Example:
+                if self.has_args('-s', '--short'):
+                    print('s')
+
+            Arguments:
+                args  : One or more arguments to test for.
+        """
+        if not args:
+            return False
+        argpats = '|'.join('({})'.format(s) for s in args)
+        return self.has_arg('^({})$'.format(argpats))
 
     def help(self):
         """ Show help for a plugin if available. """
         name = self.get_name()
         ver = getattr(self, 'version', '')
         if ver:
-            name = '{} v. {}'.format(name, ver)
+            versionstr = '{} v. {}'.format(name, ver)
 
         usage = getattr(self, 'usage', '')
         if usage:
-            print('\nHelp for New plugin, {}:'.format(name))
-            print(usage)
+            print('\nHelp for New plugin, {}:'.format(versionstr))
+            nameindent = '    {}'.format(name)
+            print(usage.replace(nameindent, '    new {} --'.format(name)))
             return True
 
         # No real usage available, try getting a description instead.
         desc = self.get_desc()
-        print('\nNo help available for {}.\n'.format(name))
+        print('\nNo help available for {}.\n'.format(versionstr))
         if desc:
             print('Description:')
             print(desc)
@@ -984,6 +1032,22 @@ class PluginBase(object):
                 pluginconfig[k] = v
 
         self.config = pluginconfig
+
+    def pop_args(self, *args):
+        """ Safely removes any occurrence of an argument from self.args.
+            This will not error on non-existing args, use self.args.pop/remove
+            for that.
+
+            Arguments:
+                args  : One or more arguments to remove.
+        """
+        for a in args:
+            while self.args:
+                try:
+                    self.args.remove(a)
+                except ValueError:
+                    # Arg does not exist anymore (possibly never did).
+                    break
 
     def print_err(self, msg, padlines=0, **kwargs):
         """ Print an error msg for a plugin instance.
