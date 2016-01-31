@@ -110,6 +110,10 @@ def main(argd):
             exitcode = 1
         except plugins.SignalExit as excancel:
             exitcode = handle_signalexit(excancel)
+        except Exception:
+            exitcode = handle_exception(
+                '{} error:'.format(pluginname),
+                *sys.exc_info())
         return exitcode
 
     # Get valid file name for this file.
@@ -140,19 +144,10 @@ def main(argd):
     except plugins.SignalExit as excancel:
         # Plugin wants to stop immediately.
         return handle_signalexit(excancel)
-    except Exception as ex:
-        exargs = {
-            'with_class': True
-        }
-        if DEBUG:
-            extype, exvalue, tb = sys.exc_info()
-            exargs.update({
-                'ex_type': extype,
-                'ex_value': exvalue,
-                'ex_tb': tb
-            })
-        print_ex(ex, '{} error:'.format(pluginname), **exargs)
-        return 1
+    except Exception:
+        return handle_exception(
+            '{} error:'.format(pluginname),
+            *sys.exc_info())
 
     # Confirm overwriting existing files, exit on refusal.
     # Non-existant file names are considered valid, and need no confimation.
@@ -244,6 +239,20 @@ def handle_content(fname, content, plugin, dryrun=False):
     return plugins.do_post_plugins(fname, plugin)
 
 
+def handle_exception(msg, ex_type, ex_value, ex_tb):
+    """ Handle a plugin run() or create() exception (not Signal* exceptions).
+        If DEBUG is True, the traceback will be printed, otherwise a simple
+        message is printed.
+        Returns an error exit status.
+    """
+    if DEBUG:
+        exargs = {'ex_type': ex_type, 'ex_value': ex_value, 'ex_tb': ex_tb}
+    else:
+        exargs = {}
+    print_ex(ex_value, msg, **exargs)
+    return 1
+
+
 def handle_signalexit(ex):
     """ Handle a SignalExit exception's message printing,
         return the final exit code.
@@ -282,15 +291,12 @@ def print_err(*args, **kwargs):
     print(*args, **kwargs)
 
 
-def print_ex(
-        ex, msg, with_class=False,
-        ex_type=None, ex_value=None, ex_tb=None):
+def print_ex(ex, msg, ex_type=None, ex_value=None, ex_tb=None):
     """ Print an error msg, formatted with str(Exception).
         Arguments:
             msg         : User message to print.
             ex          : Exception to print.
-            with_class  : Use the Exception.__class__ in the message.
-                          Default: False
+
         Arguments for debug mode:
             ex_type     : Type of exception obtained from sys.exc_info()
             ex_value    : Value of exception obtained from sys.exc_info()
@@ -301,11 +307,10 @@ def print_ex(
             msg,
             ''.join(traceback.format_exception(ex_type, ex_value, ex_tb))
         ))
-    elif with_class:
-        kls = getattr(ex.__class__, '__name__', '?')
-        print_err('({}) {}\n  {}'.format(kls, msg, ex))
-    else:
-        print_err('{}\n  {}'.format(msg, ex))
+        return 1
+    # No traceback.
+    print_err('({}) {}\n  {}'.format(type(ex).__name__, msg, ex))
+    return 1
 
 
 def print_status(msg):
@@ -346,8 +351,7 @@ def write_file(fname, content):
     except EnvironmentError as ex:
         print_ex(
             ex,
-            'Failed to write file: {}'.format(fname),
-            with_class=True)
+            'Failed to write file: {}'.format(fname))
         return None
     except Exception as exgen:
         print_ex(exgen, 'Error writing file: {}'.format(fname))

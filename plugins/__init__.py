@@ -782,7 +782,7 @@ class PluginBase(object):
     config = {}
 
     # Set by _setup(), before create() or run() is called.
-    args = tuple()
+    argv = tuple()
     # Docopt args if self.docopt is True, set in _setup().
     argd = {}
 
@@ -802,13 +802,13 @@ class PluginBase(object):
             raise SignalExit(code=0)
 
         # Fill in default args from config.
-        self.args = args or self.get_default_args()
+        self.argv = args or self.get_default_args()
 
         if self.usage and self.docopt:
             try:
                 self.argd = docopt(
                     self.usage,
-                    self.args,
+                    self.argv,
                     version=getattr(self, 'version', None))
             except DocoptExit as ex:
                 pname = self.get_name()
@@ -824,9 +824,9 @@ class PluginBase(object):
 
         else:
             # No docopt, but flag arguments will be marked with True if given.
-            self.argd = {a: True for a in self.args if a.startswith('-')}
+            self.argd = {a: True for a in self.argv if a.startswith('-')}
 
-        self.debug('args: {!r}'.format(', '.join(self.args)))
+        self.debug('argv: {!r}'.format(', '.join(self.argv)))
         self.debug('argd: {!r}'.format(
             ', '.join(
                 '{}: {}'.format(k, v) for k, v in self.argd.items()
@@ -843,9 +843,8 @@ class PluginBase(object):
         """ Safely retrieve an argument by index.
             On failure (index error), return 'default'.
         """
-        args = getattr(self, 'args', tuple())
         try:
-            val = args[index]
+            val = self.argv[index]
         except IndexError:
             return default
         return val
@@ -934,8 +933,7 @@ class PluginBase(object):
             If position is None then all args are searched.
             Returns True if any match, otherwise False.
         """
-        args = getattr(self, 'args', tuple())
-        if not args:
+        if not self.argv:
             self.debug('No args to check.')
             return False
 
@@ -943,9 +941,9 @@ class PluginBase(object):
             'Checking for arg: (pattern {}) (position: {}) in {!r}'.format(
                 pattern,
                 position,
-                args))
+                self.argv))
         if position is None:
-            for a in args:
+            for a in self.argv:
                 try:
                     if re.search(pattern, a) is not None:
                         return True
@@ -955,7 +953,7 @@ class PluginBase(object):
                         ex))
             return False
         try:
-            exists = re.search(pattern, args[position]) is not None
+            exists = re.search(pattern, self.argv[position]) is not None
         except IndexError:
             return False
         except re.error as ex:
@@ -1039,17 +1037,17 @@ class PluginBase(object):
         self.config = pluginconfig
 
     def pop_args(self, *args):
-        """ Safely removes any occurrence of an argument from self.args.
-            This will not error on non-existing args, use self.args.pop/remove
+        """ Safely removes any occurrence of an argument from self.argv.
+            This will not error on non-existing args, use self.argv.pop/remove
             for that.
 
             Arguments:
                 args  : One or more arguments to remove.
         """
         for a in args:
-            while self.args:
+            while self.argv:
                 try:
-                    self.args.remove(a)
+                    self.argv.remove(a)
                 except ValueError:
                     # Arg does not exist anymore (possibly never did).
                     break
@@ -1121,7 +1119,7 @@ class Plugin(PluginBase):
     def _create(self, filename, args=None):
         """ This method is called for content creation, and is responsible
             for calling the plugin's create() method.
-            It sets self.args so they are available in create() and
+            It sets self.argv so they are available in create() and
             afterwards.
             If no args were given then get_default_args() is used to grab them
             from config.

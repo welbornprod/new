@@ -161,6 +161,9 @@ class HelloPlugin(Plugin):
     # These are not required for the plugin to work:
     version = '0.0.1'
     description = 'Creates a temporary file.'
+
+    # Parse arguments with Docopt
+    docopt = True
     usage = """
     Usage:
         hello [CONTENT]
@@ -170,8 +173,8 @@ class HelloPlugin(Plugin):
     """
 
     def __init__(self):
-        # __init__ is not required, but config can be automatically handled
-        # by calling self.load_config() here.
+        # __init__ is not required, but plugin config can be automatically
+        # loaded from new.json by calling self.load_config() here.
         self.load_config()
 
     def create(self, filename):
@@ -179,16 +182,12 @@ class HelloPlugin(Plugin):
             Only the first line is used, so that actual doc strings can be
             used for development.
         """
-        # self.config and self.args are made available.
+        # self.config, self.argv, and self.argd are made available.
 
         # This will use the first arg if available, but fall back to config
         # (from new.json), and then finally use 'Hello World' if neither of
         # those are set.
-        # Also, see self.has_arg(), self.print_err(), and self.print_status()
-        return self.get_arg(
-            0,
-            default=self.config.get('msg', 'Hello World')
-        )
+        return self.argd['CONTENT'] or self.config.get('msg', 'Hello World')
 
 # This is how New knows which plugins to load.
 # The plugin will be initialized once, when it is needed.

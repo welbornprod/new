@@ -25,14 +25,10 @@ class PerlPlugin(Plugin):
 
     def create(self, filename):
         """ Creates a basic perl source file. """
-
-        author = self.config.get('author', '')
-        description = ' '.join(self.args) if self.args else ''
-
         return template.format(
             author=fix_author(self.config.get('author', None)),
             date=date(),
-            description=description)
+            description=' '.join(self.argv))
 
 
 exports = (PerlPlugin, )

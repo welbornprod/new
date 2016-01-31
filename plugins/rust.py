@@ -51,7 +51,7 @@ class RustPlugin(Plugin):
             imports=self.format_imports())
 
     def format_imports(self):
-        """ Retrieve imports from self.args and format them into a string. """
+        """ Retrieve imports from self.argd and format them into a string. """
         # TODO: Imports still don't fully support external crates.
         # TODO: Add 'extern crate {}' lines where needed.
         if not self.argd['IMPORT']:
