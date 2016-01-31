@@ -14,7 +14,7 @@ from plugins import (
 )
 
 # Version number for both plugins (if one changes, usually the other changes)
-VERSION = '0.0.4'
+VERSION = '0.0.5'
 
 # I'm not very good with makefiles. The .replace() is just for my sanity.
 # {targets} is set by compiler type, and *then* the whole template is rendered
@@ -169,13 +169,15 @@ class MakefilePlugin(Plugin):
         'Creates a basic makefile for a given c or rust file name.'
         'The file created is always called "Makefile".'
     ))
+
+    docopt = True
     usage = """
     Usage:
-        makefile [makefile_filename]
+        makefile [MAKEFILENAME]
 
     Options:
-        makefile_filename  : Desired file name for the makefile.
-                             Can also be set in config as 'default_filename'.
+        MAKEFILENAME  : Desired file name for the makefile.
+                        Can also be set in config as 'default_filename'.
     """
 
     def __init__(self):
@@ -192,7 +194,9 @@ class MakefilePlugin(Plugin):
                 raise SignalExit('User cancelled.')
 
         defaultfile = (
-            self.get_arg(0, self.config.get('default_filename', 'makefile')))
+            self.argd['MAKEFILENAME'] or
+            self.config.get('default_filename', 'makefile')
+        )
 
         makefile, content = template_render(
             filename,

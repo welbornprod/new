@@ -54,7 +54,6 @@ function print_usage {{
 
     Options:
         -h,--help     : Show this message.
-        -h,--blah  : HAHAHA
         -v,--version  : Show $appname version and exit.
     "
 }}

@@ -26,15 +26,17 @@ class RustPlugin(Plugin):
 
     name = ('rust', 'rs')
     extensions = ('.rs',)
-    version = '0.0.3'
+    version = '0.0.4'
     # Rust doesnt need to be made executable.
     ignore_post = {'chmodx'}
+
+    docopt = True
     usage = """
     Usage:
-        rust [imports...]
+        rust [IMPORT...]
 
     Options:
-        imports  : One or many qualified import names. (like: std::io)
+        IMPORT  : One or many qualified import names. (like: std::io)
     """
 
     def __init__(self):
@@ -52,7 +54,7 @@ class RustPlugin(Plugin):
         """ Retrieve imports from self.args and format them into a string. """
         # TODO: Imports still don't fully support external crates.
         # TODO: Add 'extern crate {}' lines where needed.
-        if not self.args:
+        if not self.argd['IMPORT']:
             return ''
 
         def fmtname(n):
@@ -64,7 +66,7 @@ class RustPlugin(Plugin):
                 return line
             return ''.join((line, ';'))
 
-        lines = '\n'.join(sorted(fmtname(i) for i in self.args))
+        lines = '\n'.join(sorted(fmtname(i) for i in self.argd['IMPORT']))
         return '{}\n'.format(lines)
 
 

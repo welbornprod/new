@@ -13,7 +13,7 @@ from plugins import (
     fix_author
 )
 
-__version__ = '0.2.1'
+__version__ = '0.2.2'
 
 # TODO: This plugin was basically just copied and adapted from the original
 #       'newpython' script that inspired this project.
@@ -251,6 +251,8 @@ class PythonPlugin(Plugin):
     name = ('python', 'py')
     extensions = ('.py',)
     version = __version__
+
+    docopt = True
     usage = """
     Usage:
         python [TEMPLATE] [IMPORTS...]
@@ -271,6 +273,8 @@ class PythonPlugin(Plugin):
 
     Commands:
         -t, --templates  : List known template names.
+        setup            : Create a setup.py that uses distutils, with a
+                           custom app name, version, and description.
 
     Templates:
         blank, none      : Only a shebang and the main doc str.
@@ -288,25 +292,26 @@ class PythonPlugin(Plugin):
     def create(self, filename):
         """ Creates a new python source file. Several templates are available.
         """
-        if self.has_arg('^((-t)|(--templates))$'):
+        if self.argd['--templates']:
             # Viewing template names.
             exitcode = self.print_templates()
             raise SignalExit(code=exitcode)
 
         templateid = (
-            self.get_arg(0) or self.config.get('template', 'docopt')).lower()
+            self.argd['TEMPLATE'] or
+            self.config.get('template', 'docopt')
+        ).lower()
 
         # Setup.py is completely different, these really need to be separated.
-        if templateid == 'setup':
-            return self.create_setup(filename, args=self.args[1:])
-
-        extra_imports = self.args[1:]
+        if self.argd['TEMPLATE'] == 'setup':
+            # Hack for ambiguos docopt usage string, use imports as args.
+            return self.create_setup(filename, *self.argd['IMPORTS'])
 
         template_args = templates.get(templateid, None)
         if not template_args:
             msg = '\n'.join((
                 'No template by that name: {}'.format(templateid),
-                'Use \'t\' or \'templates\' to list known templates.'
+                'Use \'-t\' or \'--templates\' to list known templates.'
             ))
             raise ValueError(msg)
         template_base = template_bases.get(template_args['base'], None)
@@ -314,7 +319,7 @@ class PythonPlugin(Plugin):
             errmsg = 'Misconfigured template base: {}'
             raise ValueError(errmsg.format(templateid))
 
-        imports = extra_imports + template_args['imports']
+        imports = self.argd['IMPORTS'] + template_args['imports']
         scriptname = os.path.split(filename)[-1]
         shebangexe = self.config.get('shebangexe', '/usr/bin/env python3')
         version = self.config.get('default_version', default_version)
@@ -357,30 +362,24 @@ class PythonPlugin(Plugin):
         # Render a normal template and return the content.
         return template_base.format(**template_args)
 
-    def create_setup(self, filename, args=None):
+    def create_setup(self, filename, *args):
         """ Create a basic setup.py. """
-        if args is None:
-            args = []
+
+        name, ver, desc = self.parse_setup_args(*args)
         shebangexe = self.config.get('shebangexe', '/usr/bin/env python3')
         tmpargs = {
-            'author': fix_author(self.config.get('author', None)),
+            'author': self.config.get('author', os.environ.get('USER', '?')),
             'date': date(),
-            'desc': 'My default description.',
+            'desc': desc or 'My default description.',
             'email': self.config.get('email', 'nobody@nowhere.com'),
-            'pkgname': 'MyApp',
+            'pkgname': name or 'MyApp',
             'shebangexe': shebangexe,
-            'version': self.config.get('default_version', default_version)
+            'version': (
+                ver or
+                self.config.get('default_version', default_version)
+            )
         }
-        tmpargs['doc_author'] = '-{} '.format(tmpargs['author'])
-
-        # Use supplied package name and version overrides.
-        if args:
-            tmpargs['pkgname'] = args[0]
-        arglen = len(args)
-        if arglen > 1:
-            tmpargs['version'] = args[1]
-        if arglen > 2:
-            tmpargs['desc'] = args[2]
+        tmpargs['doc_author'] = fix_author(tmpargs['author'])
 
         # Render the template.
         content = template_setup.format(**tmpargs)
@@ -418,6 +417,24 @@ class PythonPlugin(Plugin):
         lines = [self.parse_importitem(imp) for imp in imports]
         # Remove any duplicates and sort the lines.
         return '\n'.join(sorted(set(lines)))
+
+    def parse_setup_args(self, *args):
+        """ Parse IMPORTS as NAME, VERSION, DESC arguments. """
+        # Hack around ambiguous docopt usage string.
+        arglen = len(args)
+        if arglen > 3:
+            raise SignalExit(
+                'Incorrect arguments, expecting [NAME] [VERSION] [DESC].',
+                code=1)
+        name = ver = desc = None
+        if arglen == 3:
+            name, ver, desc = args
+        elif arglen == 2:
+            name, ver = args
+        elif arglen == 1:
+            name = args[0]
+
+        return name, ver, desc
 
     def print_templates(self):
         """ Print known tempalte names. """

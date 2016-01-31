@@ -53,7 +53,9 @@ class JSPlugin(Plugin):
 
     name = ('js', 'node', 'nodejs')
     extensions = ('.js',)
-    version = '0.0.7'
+    version = '0.0.8'
+
+    docopt = True
     usage = """
     Usage:
         js [-s]
@@ -70,7 +72,7 @@ class JSPlugin(Plugin):
         # Using the node shebang, even though this may not be for node.
         basename = os.path.split(fname)[-1]
         name = os.path.splitext(basename)[0]
-        if self.has_arg('^((-s)|(--short))$'):
+        if self.argd['--short']:
             # Only the comment header.
             return HEADER.format(
                 name=name,
