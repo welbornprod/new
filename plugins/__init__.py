@@ -826,6 +826,13 @@ class PluginBase(object):
             # No docopt, but flag arguments will be marked with True if given.
             self.argd = {a: True for a in self.args if a.startswith('-')}
 
+        self.debug('args: {!r}'.format(', '.join(self.args)))
+        self.debug('argd: {!r}'.format(
+            ', '.join(
+                '{}: {}'.format(k, v) for k, v in self.argd.items()
+            )
+        ))
+
     def debug(self, *args, **kwargs):
         """ Uses the debug() function, but includes the class name. """
         kargs = kwargs.copy()

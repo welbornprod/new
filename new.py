@@ -7,6 +7,8 @@
 """
 import os
 import sys
+import traceback
+
 import docopt
 
 import plugins
@@ -139,12 +141,22 @@ def main(argd):
         # Plugin wants to stop immediately.
         return handle_signalexit(excancel)
     except Exception as ex:
-        print_ex(ex, '{} error:'.format(pluginname), with_class=True)
+        exargs = {
+            'with_class': True
+        }
+        if DEBUG:
+            extype, exvalue, tb = sys.exc_info()
+            exargs.update({
+                'ex_type': extype,
+                'ex_value': exvalue,
+                'ex_tb': tb
+            })
+        print_ex(ex, '{} error:'.format(pluginname), **exargs)
         return 1
 
     # Confirm overwriting existing files, exit on refusal.
     # Non-existant file names are considered valid, and need no confimation.
-    if not valid_filename(fname):
+    if not valid_filename(fname, dryrun=argd['--dryrun']):
         return 1
 
     if not (plugin.allow_blank or content):
@@ -217,7 +229,7 @@ def handle_content(fname, content, plugin, dryrun=False):
         Returns exit code status.
     """
     if dryrun:
-        print('\nWould\'ve written: {}'.format(fname))
+        print('\nDry run, would\'ve written: {}\n'.format(fname))
         print(content or '<No Content>')
         # No post plugins can run.
         return 0 if content else 1
@@ -270,19 +282,30 @@ def print_err(*args, **kwargs):
     print(*args, **kwargs)
 
 
-def print_ex(ex, msg, with_class=False):
+def print_ex(
+        ex, msg, with_class=False,
+        ex_type=None, ex_value=None, ex_tb=None):
     """ Print an error msg, formatted with str(Exception).
         Arguments:
             msg         : User message to print.
             ex          : Exception to print.
             with_class  : Use the Exception.__class__ in the message.
                           Default: False
+        Arguments for debug mode:
+            ex_type     : Type of exception obtained from sys.exc_info()
+            ex_value    : Value of exception obtained from sys.exc_info()
+            ex_tb       : Traceback for exception obtained from sys.exc_info()
     """
-    if with_class:
+    if all((ex_type, ex_value, ex_tb)):
+        print_err('{} (debug mode traceback)\n{}\n'.format(
+            msg,
+            ''.join(traceback.format_exception(ex_type, ex_value, ex_tb))
+        ))
+    elif with_class:
         kls = getattr(ex.__class__, '__name__', '?')
         print_err('({}) {}\n  {}'.format(kls, msg, ex))
-        return None
-    print_err('{}\n  {}'.format(msg, ex))
+    else:
+        print_err('{}\n  {}'.format(msg, ex))
 
 
 def print_status(msg):
@@ -292,15 +315,17 @@ def print_status(msg):
     print('{}: {}'.format('new'.ljust(15), msg))
 
 
-def valid_filename(fname):
+def valid_filename(fname, dryrun=False):
     """ Make sure a file doesn't exist already.
         If it does exist, confirm that the user wants to overwrite it.
         Returns True if it is safe to write the file, otherwise False.
+
+        For dryruns, existing files are ignored.
     """
     if not os.path.exists(fname):
         return True
 
-    return plugins.confirm_overwrite(fname)
+    return dryrun or plugins.confirm_overwrite(fname)
 
 
 def write_file(fname, content):
