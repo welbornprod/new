@@ -166,7 +166,7 @@ class MakefilePlugin(Plugin):
     version = VERSION
     ignore_post = {'chmodx'}
     description = '\n'.join((
-        'Creates a basic makefile for a given c or rust file name.'
+        'Creates a basic makefile for a given c or rust file name.',
         'The file created is always called "Makefile".'
     ))
 
