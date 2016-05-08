@@ -22,7 +22,7 @@ plugins = {'types': {}, 'post': {}, 'deferred': {}}
 # Config is loaded in load_plugins()
 config = {}
 
-# Default version made available to all plugins when no config is set.
+# Default plugin version made available to all plugins when no config is set.
 default_version = '0.0.1'
 
 
@@ -101,6 +101,116 @@ def conflicting_file(plugin, filearg, filename):
         return True
 
     return False
+
+
+def create_custom_plugin(names, info):
+    """ Creates a CustomPlugin from user config.
+        Returns an uninstantiated CustomPlugin class.
+
+        Arguments:
+            name  : Plugin name from config, a key in custom config.
+            info  : Plugin info
+    """
+    if not names:
+        raise ValueError('Custom plugin is missing a name.')
+    name = names[0].lower()
+    if not name:
+        raise ValueError('Custom plugin is missing a name.')
+
+    if not info:
+        raise ValueError('No info for custom plugin: {}'.format(name))
+    filename = info.get('filename', None)
+    if not filename:
+        raise ValueError(
+            '\n'.join((
+                'Custom plugin is not configured correctly: {}',
+                'No \'filename\' set.'
+            )).format(name)
+        )
+
+    # Create a CustomPlugin class that is local to this function,
+    # so that each custom plugin class is 'unique'.
+    class CustomPlugin(Plugin):
+        # Extensions are not searched for custom plugins.
+        extensions = None
+        # Any extension is allowed to be used.
+        any_extension = True
+
+        # Attributes set by config.
+        name = names
+        input_file = filename
+        description = info.get('description', None)
+        formatted = info.get('formatted', False)
+        ignored_post = info.get('ignored_post', None)
+        ignored_deferred = info.get('ignored_deferred', None)
+        private = info.get('private', False)
+
+        def create(self, filename):
+            """ Creates a file based on user configuration. """
+            try:
+                with open(self.input_file, 'r') as f:
+                    content = f.read()
+            except EnvironmentError as ex:
+                raise SignalExit(
+                    'Failed to read custom file: {}\n{}'.format(
+                        self.input_file,
+                        ex
+                    ),
+                    code=1
+                )
+            if not self.formatted:
+                # Simple file-copy, no formatting needed.
+                return content
+
+            # Find format tags, ignoring escaped tags.
+            formattags = [
+                tag[1:-1] for tag in re.findall(r'{{?\w+}}?', content)
+                if not tag.startswith('{{')
+            ]
+            if not formattags:
+                # No formatting needed anyway.
+                return content
+            # Load all known/usable tag info.
+            pluginconfig = config.get('plugins', {}).get('global', {})
+            knowntags = {
+                'author': pluginconfig.get('author', '(no author set)'),
+                'email': pluginconfig.get('email', '(no email set)'),
+                'date': date(),
+                'version': pluginconfig.get(
+                    'default_version',
+                    default_version
+                ),
+            }
+            # Build actual format args to be used.
+            formatargs = {}
+            for tagname in formattags:
+                tagval = knowntags.get(
+                    tagname,
+                    pluginconfig.get(tagname, None)
+                )
+                if tagval is None:
+                    raise self.make_tag_exception(tagname)
+                formatargs[tagname] = tagval
+
+            # We should've caught unknown format tags, but just in case:
+            try:
+                content = content.format(**formatargs)
+            except KeyError as ex:
+                raise self.make_tag_exception(str(ex))
+            return content
+
+        def make_tag_exception(self, tagname):
+            """ Create a SignalExit to be used when a bad format tag is found
+                in the content.
+            """
+            return SignalExit(
+                '\n'.join((
+                    'Unknown format tag in {filename}: {{{tagname}}}',
+                    'You can create this tag in plugins.global.'
+                )).format(filename=self.input_file, tagname=tagname),
+                code=1
+            )
+    return CustomPlugin
 
 
 def date():
@@ -331,6 +441,12 @@ def get_plugin_byname(name, use_post=False):
         debug('No name given!')
         return None
     name = name.lower()
+    # Check for custom file-based plugins in config.
+    for plugincls in plugins['custom'].values():
+        if name in {pname.lower() for pname in plugincls.name}:
+            return plugincls
+
+    # Try file type plugins.
     for plugincls in plugins['types'].values():
         if name in {pname.lower() for pname in plugincls.name}:
             return plugincls
@@ -433,22 +549,47 @@ def iter_py_files(path):
 
 def list_plugins():
     """ Lists all plugins for the terminal. """
+    filetypes = (
+        ('custom', 'custom file-based'),
+        ('types', 'file-type')
+    )
     # Normal Plugins (file-type)
-    if plugins['types']:
-        indent = 20
-        aliaslbl = 'aliases'.rjust(indent)
-        extlbl = 'extensions'.rjust(indent)
-        print('\nFound {} file-type plugins:'.format(len(plugins['types'])))
-        for pname in sorted(plugins['types']):
-            plugin = plugins['types'][pname]
-            print('    {}:'.format(pname))
-            if len(plugin.name) > 1:
-                print('{}: {}'.format(aliaslbl, ', '.join(plugin.name)))
-            if plugin.extensions:
-                extlist = ', '.join(plugin.extensions)
-            else:
-                extlist = 'None'
-            print('{}: {}'.format(extlbl, extlist))
+    indent = 20
+    aliaslbl = 'aliases'.rjust(indent)
+    extlbl = 'extensions'.rjust(indent)
+    desclbl = 'description'.rjust(indent)
+    # Plus 2 to leave room for ': ' in the description.
+    descindent = ''.join(('\n', ' ' * (len(desclbl) + 2)))
+
+    def format_desc(s):
+        return s.replace('\n', descindent)
+
+    for ptype, pname in filetypes:
+        if plugins[ptype]:
+            publicplugins = sorted(
+                s for s in plugins[ptype] if not plugins[ptype][s].private
+            )
+            pluginlen = len(publicplugins)
+            print('\nFound {} {} {}:'.format(
+                pluginlen,
+                pname,
+                'plugin' if pluginlen == 1 else 'plugins'
+            ))
+            for pluginname in publicplugins:
+                plugin = plugins[ptype][pluginname]
+                if plugin.private:
+                    continue
+                print('    {}:'.format(pluginname))
+                if len(plugin.name) > 1:
+                    print('{}: {}'.format(aliaslbl, ', '.join(plugin.name)))
+                if plugin.extensions:
+                    extlist = ', '.join(plugin.extensions)
+                else:
+                    extlist = 'None'
+                print('{}: {}'.format(extlbl, extlist))
+                desc = format_desc(plugin.get_desc())
+                if desc:
+                    print('{}: {}'.format(desclbl, desc))
 
     # Do PostPlugin and DeferredPostPlugin
     posttypes = (
@@ -457,11 +598,16 @@ def list_plugins():
     )
     for ptype, pname in posttypes:
         if plugins[ptype]:
-            postlen = len(plugins[ptype])
+            publicposts = sorted(
+                s for s in plugins[ptype] if not plugins[ptype][s].private
+            )
+            postlen = len(publicposts)
             plural = 'plugin' if postlen == 1 else 'plugins'
             print('\nFound {} {} {}:'.format(postlen, pname, plural))
-            for pname in sorted(plugins[ptype]):
+            for pname in publicposts:
                 plugin = plugins[ptype][pname]
+                if plugin.private:
+                    continue
                 desc = plugin.get_desc().replace('\n', '\n        ')
                 print('    {}:'.format(pname))
                 print('        {}'.format(desc))
@@ -512,6 +658,26 @@ def load_config_file(filename, section=None):
     if section:
         return conf.get(section, {})
     return conf
+
+
+def load_custom_plugins():
+    """ Load all custom config-based plugins.
+        Returns a dict of {name: CustomPlugin class}
+    """
+    tmp_plugins = {}
+    customplugins = config.get('custom', {})
+    for customname in config.get('custom', {}):
+        custominfo = customplugins[customname]
+        customaliases = custominfo.get('aliases', tuple())
+        customnames = [customname]
+        customnames.extend(customaliases)
+        customcls = create_custom_plugin(
+            customnames,
+            custominfo
+        )
+        tmp_plugins[customname] = customcls
+        debug('Loaded: {} ({})'.format(customname, customcls.__name__))
+    return tmp_plugins
 
 
 def load_module(modulename):
@@ -651,8 +817,11 @@ def load_plugins(plugindir):
     config = load_config()
 
     debug('Loading plugins from: {}'.format(plugindir))
-    tmp_plugins = {'types': {}, 'post': {}, 'deferred': {}}
+    tmp_plugins = {'custom': {}, 'types': {}, 'post': {}, 'deferred': {}}
+    # Load custom config/file-based plugins.
+    tmp_plugins['custom'] = load_custom_plugins()
 
+    # Load actual plugins.
     for modname in (os.path.splitext(p)[0] for p in iter_py_files(plugindir)):
         try:
             module = load_module(modname)
@@ -787,6 +956,9 @@ class PluginBase(object):
     argd = {}
 
     docopt = False
+
+    # Whether this plugin should be hidden from --plugins listing.
+    private = False
 
     def _setup(self, args=None):
         """ Perform any plugin setup before using it. """
@@ -1249,5 +1421,5 @@ class SignalExit(Exception):
     """
 
     def __init__(self, *args, code=None):
-        self.reason = args[0] if args else None
+        self.reason = ' '.join(str(x) for x in args) if args else None
         self.code = 1 if code is None else code

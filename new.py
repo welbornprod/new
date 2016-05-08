@@ -15,7 +15,7 @@ import plugins
 debug = plugins.debug
 
 NAME = 'New'
-VERSION = '0.3.3'
+VERSION = '0.3.4'
 VERSIONSTR = '{} v. {}'.format(NAME, VERSION)
 SCRIPT = os.path.split(os.path.abspath(sys.argv[0]))[1]
 SCRIPTDIR = os.path.abspath(sys.path[0])
@@ -359,8 +359,10 @@ def write_file(fname, content):
     return fname
 
 if __name__ == '__main__':
-    # Parse args with docopt.
-    argd = docopt.docopt(USAGESTR, version=VERSIONSTR)
     # Okay, run.
-    mainret = main(argd)
+    try:
+        mainret = main(docopt.docopt(USAGESTR, version=VERSIONSTR))
+    except ValueError as ex:
+        print_err('Error: {}'.format(ex))
+        mainret = 1
     sys.exit(mainret)
