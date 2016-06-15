@@ -4,7 +4,7 @@
 import os.path
 from plugins import Plugin, date, default_version, fix_author
 
-__version__ = '0.3.0'
+__version__ = '0.3.1'
 
 template = """#!/bin/bash
 
@@ -76,7 +76,7 @@ for arg; do
             fail_usage "Unknown flag argument: $arg"
             ;;
         *)
-            nonflags=("${{nonflags[@]}}" "$arg")
+            nonflags+=("$arg")
     esac
 done
 """
