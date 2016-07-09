@@ -14,7 +14,7 @@ from plugins import (
 )
 
 # Version number for both plugins (if one changes, usually the other changes)
-VERSION = '0.0.5'
+VERSION = '0.0.6'
 
 # I'm not very good with makefiles. The .replace() is just for my sanity.
 # {targets} is set by compiler type, and *then* the whole template is rendered
@@ -68,13 +68,13 @@ coptions = {
     'gcc': {
         'compilervar': 'CC',
         'cflagsvar': 'CFLAGS',
-        'cflags': '-std=c11 -Wall',
+        'cflags': '-std=c11 -Wall -Wextra',
         'targets': ctargets
     },
     'g++': {
         'compilervar': 'CXX',
         'cflagsvar': 'CXXFLAGS',
-        'cflags': '-std=c++11 -Wall',
+        'cflags': '-std=c++11 -Wall -Wextra',
         'targets': ctargets,
     },
     'rustc': {
