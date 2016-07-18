@@ -4,6 +4,7 @@
 """
 
 import os.path
+import re
 from plugins import (
     confirm,
     debug,
@@ -14,10 +15,26 @@ from plugins import (
 )
 
 # Version number for both plugins (if one changes, usually the other changes)
-VERSION = '0.0.6'
+VERSION = '0.1.0'
 
-# I'm not very good with makefiles. The .replace() is just for my sanity.
-# {targets} is set by compiler type, and *then* the whole template is rendered
+# Default filename for the resulting makefile.
+DEFAULT_MAKEFILE = 'makefile'
+
+
+def fix_indent(s):
+    """ Replace leading spaces with tabs. """
+    final = []
+    for line in s.split('\n'):
+        cnt = 0
+        while line.startswith('    '):
+            cnt += 1
+            line = line[4:]
+        final.append(''.join(('\t' * cnt, line)))
+    return '\n'.join(final)
+
+# I'm not very good with makefiles.
+# {targets} and {cleantarget} are set by compiler type,
+# and *then* the whole template is rendered.
 pre_template = """SHELL=bash
 {{compilervar}}={{compiler}}
 {{cflagsvar}}={{cflags}}
@@ -26,8 +43,38 @@ source={{filename}}
 
 {targets}
 
-.PHONY: clean
+.PHONY: clean, targets
 clean:
+{cleantarget}
+
+targets:
+    -@echo -e "Make targets available:\\n\\
+    all     : Build the executable with no optimization or debug symbols.\\n\\
+    clean   : Delete previous build files.\\n\\
+    debug   : Build the executable with debug symbols.\\n\\
+    release : Build the executable with optimizations.\\n\\
+    ";
+"""
+# This is just for my sanity when dealing with tabs vs. spaces.
+pre_template = fix_indent(pre_template)
+
+# Make targets for c/c++.
+ctargets = """
+all: {objects}
+    $({compilervar}) -o $(binary) $({cflagsvar}) *.o
+
+debug: {cflagsvar}+=-g3
+debug: all
+
+release: {cflagsvar}+=-O3
+release: all
+
+{objects}: $(source)
+    $({compilervar}) -c $(source) $({cflagsvar})
+""".replace('    ', '\t').strip()
+
+# Clean target for C/C++.
+ccleantarget = """
     -@if [[ -e $(binary) ]]; then\\
         if rm -f $(binary); then\\
             echo "Binaries cleaned.";\\
@@ -43,25 +90,30 @@ clean:
     else\\
         echo "Objects already clean.";\\
     fi;
-""".replace('    ', '\t')
-
-# Make targets for c/c++.
-ctargets = """
-all: {objects}
-    $({compilervar}) -o $(binary) $({cflagsvar}) -O3 *.o
-
-{objects}: $(source)
-    $({compilervar}) -c $(source) $({cflagsvar})
-
-debug: {objects}
-    $({compilervar}) -o $(binary) $({cflagsvar}) -Og *.o
-""".replace('    ', '\t')
+""".replace('    ', '\t').lstrip('\n')
 
 # Make targets for rustc (until I find a better way)
 rusttargets = """
 all: $(source)
-    $({compilervar}) -o $(binary) $({cflagsvar}) $(source)
-""".replace('    ', '\t')
+    $({compilervar}) $({cflagsvar}) -o $(binary) $(source)
+
+debug: {cflagsvar}+=-g
+debug: all
+
+release: {cflagsvar}+=-O
+release: all
+""".replace('    ', '\t').strip()
+
+# Clean target for Rust/Cargo.
+rustcleantarget = """
+    -@if [[ -e $(binary) ]]; then\\
+        if rm -f $(binary); then\\
+            echo "Binaries cleaned.";\\
+        fi;\\
+    else\\
+        echo "Binaries already clean.";\\
+    fi;
+""".replace('    ', '\t').lstrip('\n')
 
 # Template options based on compiler name.
 coptions = {
@@ -69,19 +121,22 @@ coptions = {
         'compilervar': 'CC',
         'cflagsvar': 'CFLAGS',
         'cflags': '-std=c11 -Wall -Wextra',
-        'targets': ctargets
+        'targets': ctargets,
+        'cleantarget': ccleantarget,
     },
     'g++': {
         'compilervar': 'CXX',
         'cflagsvar': 'CXXFLAGS',
         'cflags': '-std=c++11 -Wall -Wextra',
         'targets': ctargets,
+        'cleantarget': ccleantarget,
     },
     'rustc': {
         'compilervar': 'RUSTC',
         'cflagsvar': 'RUSTFLAGS',
         'cflags': '',
-        'targets': rusttargets
+        'targets': rusttargets,
+        'cleantarget': rustcleantarget,
     }
 }
 
@@ -90,9 +145,7 @@ def template_render(filepath, makefile=None):
     """ Render the makefile template for a given c source file name. """
     parentdir, filename = os.path.split(filepath)
     fileext = os.path.splitext(filename)[-1]
-    makefile = os.path.join(
-        parentdir,
-        makefile if makefile else 'makefile')
+    makefile = os.path.join(parentdir, makefile or DEFAULT_MAKEFILE)
     binary = os.path.splitext(filename)[0]
     objects = '{}.o'.format(binary)
 
@@ -106,7 +159,10 @@ def template_render(filepath, makefile=None):
     # Create the base template, retrieve compiler-specific settings.
     debug('Rendering makefile template for {}.'.format(compiler))
     compileropts = coptions[compiler]
-    template = pre_template.format(targets=compileropts.pop('targets'))
+    template = pre_template.format(
+        targets=compileropts.pop('targets'),
+        cleantarget=compileropts.pop('cleantarget')
+    )
 
     # Create template args, update with compiler-based options.
     templateargs = {
@@ -149,7 +205,7 @@ class MakefilePost(PostPlugin):
         config = MakefilePlugin().config
         makefile, content = template_render(
             filepath,
-            makefile=config.get('default_filename', 'makefile'))
+            makefile=config.get('default_filename', DEFAULT_MAKEFILE))
 
         with open(makefile, 'w') as f:
             f.write(content)
@@ -165,10 +221,7 @@ class MakefilePlugin(Plugin):
     extensions = tuple()
     version = VERSION
     ignore_post = {'chmodx'}
-    description = '\n'.join((
-        'Creates a basic makefile for a given c or rust file name.',
-        'The file created is always called "Makefile".'
-    ))
+    description = 'Creates a basic makefile for a given c or rust file name.'
 
     docopt = True
     usage = """
@@ -195,7 +248,7 @@ class MakefilePlugin(Plugin):
 
         defaultfile = (
             self.argd['MAKEFILENAME'] or
-            self.config.get('default_filename', 'makefile')
+            self.config.get('default_filename', DEFAULT_MAKEFILE)
         )
 
         makefile, content = template_render(
