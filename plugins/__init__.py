@@ -942,6 +942,225 @@ def try_post_plugin(plugincls, typeplugin, filename):
     return PluginReturn.success
 
 
+class FormatBlock(object):
+
+    """ Class to format text into a block, with or without indention.
+        Able to break on characters or words, and preserve newlines when
+        wanted.
+        This used to be purely procedural, but I decided it would be easier
+        to 'contain' this functionality and copy/paste this class where
+        needed.
+    """
+    __slots__ = ('text',)
+
+    def __init__(self, text=None):
+        self.text = text or ''
+
+    def fill_line(self, line, width=60):
+        """ Insert spaces between words so that this line's length is `width`.
+        """
+        words = line.split(' ')
+        space = width - len(''.join(words))
+        wordspace = space // len(words)
+        if wordspace % 2 == 1:
+            wordspace += 1
+        padding = ' ' * wordspace
+        result = padding.join(words)
+        while len(result) > width:
+            # Remove space from the last word.
+            head, _, tail = result.rpartition(' ')
+            result = ''.join((head, tail))
+        while len(result) < width:
+            # Add space to the last word.
+            head, sep, tail = result.rpartition(' ')
+            result = ''.join((sep, ' ')).join((head, tail))
+        return result
+
+    def format(
+            self, text=None,
+            width=60, chars=False, fill=False, newlines=False,
+            prepend=None, append=None, strip_first=False, strip_last=False,
+            lstrip=False):
+        """ Format a long string into a block of newline seperated text.
+            Arguments:
+                See iter_format_block().
+        """
+        # Basic usage of iter_format_block(), for convenience.
+        return '\n'.join(
+            self.iter_format_block(
+                text or self.text,
+                prepend=prepend,
+                append=append,
+                strip_first=strip_first,
+                strip_last=strip_last,
+                width=width,
+                chars=chars,
+                fill=fill,
+                newlines=newlines,
+                lstrip=lstrip
+            )
+        )
+
+    def iter_add_text(self, lines, prepend=None, append=None):
+        """ Prepend or append text to lines. Yields each line. """
+        if (prepend is None) and (append is None):
+            yield from lines
+        else:
+            # Build up a format string, with optional {prepend}/{append}
+            fmtpcs = ['{prepend}'] if prepend else []
+            fmtpcs.append('{line}')
+            if append:
+                fmtpcs.append('{append}')
+            fmtstr = ''.join(fmtpcs)
+            yield from (
+                fmtstr.format(prepend=prepend, line=line, append=append)
+                for line in lines
+            )
+
+    def iter_block(
+            self, text=None,
+            width=60, chars=False, newlines=False, lstrip=False):
+        """ Iterator that turns a long string into lines no greater than
+            'width' in length.
+            It can wrap on spaces or characters. It only does basic blocks.
+            For prepending see `iter_format_block()`.
+
+            Arguments:
+                text     : String to format.
+                width    : Maximum width for each line.
+                           Default: 60
+                chars    : Wrap on characters if true, otherwise on spaces.
+                           Default: False
+                newlines : Preserve newlines when True.
+                           Default: False
+                lstrip   : Whether to remove leading spaces from each line.
+                           Default: False
+        """
+        text = text or self.text
+        if lstrip:
+            # Remove leading spaces from each line.
+            fmtline = str.lstrip
+        else:
+            # Yield the line as-is.
+            fmtline = str
+
+        if chars and (not newlines):
+            # Simple block by chars, newlines are treated as a space.
+            text = ' '.join(text.split('\n'))
+            yield from (
+                fmtline(text[i:i + width])
+                for i in range(0, len(text), width)
+            )
+        elif newlines:
+            # Preserve newlines
+            for line in text.split('\n'):
+                yield from self.iter_block(
+                    line,
+                    width=width,
+                    chars=chars,
+                    lstrip=lstrip)
+        else:
+            # Wrap on spaces (ignores newlines)..
+            curline = ''
+            for word in text.split():
+                possibleline = ' '.join((curline, word)) if curline else word
+
+                if len(possibleline) > width:
+                    # This word would exceed the limit, start a new line with
+                    # it.
+                    yield fmtline(curline)
+                    curline = word
+                else:
+                    curline = possibleline
+            if curline:
+                yield fmtline(curline)
+
+    def iter_format_block(
+            self, text=None,
+            width=60, chars=False, fill=False, newlines=False,
+            append=None, prepend=None, strip_first=False, strip_last=False,
+            lstrip=False):
+        """ Iterate over lines in a formatted block of text.
+            This iterator allows you to prepend to each line.
+            For basic blocks see iter_block().
+
+
+            Arguments:
+                text        : String to format.
+
+                width       : Maximum width for each line. The prepend string
+                              is not included in this calculation.
+                              Default: 60
+
+                chars       : Whether to wrap on characters instead of spaces.
+                              Default: False
+                fill        : Insert spaces between words so that each line is
+                              the same width. This overrides `chars`.
+                              Default: False
+
+                newlines    : Whether to preserve newlines in the original
+                              string.
+                              Default: False
+
+                append      : String to append after each line.
+
+                prepend     : String to prepend before each line.
+
+                strip_first : Whether to omit the prepend string for the first
+                              line.
+                              Default: False
+
+                              Example (when using prepend='$'):
+                               Without strip_first -> '$this', '$that'
+                               With strip_first -> 'this', '$that'
+
+                strip_last  : Whether to omit the append string for the last
+                              line (like strip_first does for prepend).
+                              Default: False
+
+                lstrip      : Whether to remove leading spaces from each line.
+                              This doesn't include any spaces in `prepend`.
+                              Default: False
+        """
+        if fill:
+            chars = False
+        iterlines = self.iter_block(
+            text or self.text,
+            width=width,
+            chars=chars,
+            newlines=newlines,
+            lstrip=lstrip,
+        )
+        if (append is None) and (prepend is None):
+            # Shortcut some of the logic below when not prepending/appending.
+            yield from (
+                self.fill_lines(iterlines, width=width) if fill else iterlines
+            )
+        else:
+            # Prepend, append, or both prepend/append to each line.
+            prependlen = len(prepend) if prepend else 0
+            if append:
+                # Unfortunately appending mean exhausting the generator.
+                # I don't know where the last line is if I don't.
+                lines = list(iterlines)
+                lasti = len(lines) - 1
+                iterlines = (l for l in lines)
+                appendlen = len(append)
+            else:
+                # No append.
+                appendlen = 0
+                lasti = -1
+            for i, l in enumerate(self.iter_add_text(
+                    iterlines,
+                    prepend=prepend,
+                    append=append)):
+                if prependlen and (i == 0) and strip_first:
+                    l = l[prependlen:]
+                elif appendlen and (i == lasti) and strip_last:
+                    l = l[:appendlen * -1]
+                yield self.fill_line(l, width=width) if fill else l
+
+
 class PluginBase(object):
     """ Base for all plugins. Used to implement common methods that don't
         depend on the plugin type.

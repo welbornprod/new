@@ -9,6 +9,7 @@ from plugins import (
     confirm,
     debug,
     fix_indent_tabs,
+    FormatBlock,
     Plugin,
     PostPlugin,
     SignalAction,
@@ -21,6 +22,22 @@ VERSION = '0.1.1'
 # Default filename for the resulting makefile.
 DEFAULT_MAKEFILE = 'makefile'
 
+
+def format_cflags(flagstr):
+    """ Insert \ line breaks so that the maximum line width is 80 chars. """
+    # make doesn't mind spaces for continuation lines.
+    indent = ' ' * len('CFLAGS=')
+    # Add line breaks when splitting lines.
+    append = ' \\'
+    # Max line width is 80, but allow room for 'CFLAGS=' and ' \'.
+    linewidth = 80 - len(indent) - len(append)
+    return FormatBlock(flagstr).format(
+        prepend=indent,
+        strip_first=True,
+        append=append,
+        strip_last=True,
+        width=linewidth,
+    )
 
 # I'm not very good with makefiles.
 # {targets} and {cleantarget} are set by compiler type,
@@ -109,22 +126,24 @@ rustcleantarget = fix_indent_tabs("""
 cwarnflags = ' '.join((
     '-Wall',
     '-Wextra',
+    '-Wpedantic',
     '-Wshadow',
     '-Wstrict-prototypes',
+    '-Wunused-macros',
 ))
 # Template options based on compiler name.
 coptions = {
     'gcc': {
         'compilervar': 'CC',
         'cflagsvar': 'CFLAGS',
-        'cflags': '-std=c11 {}'.format(cwarnflags),
+        'cflags': format_cflags('-std=c11 {}'.format(cwarnflags)),
         'targets': ctargets,
         'cleantarget': ccleantarget,
     },
     'g++': {
         'compilervar': 'CXX',
         'cflagsvar': 'CXXFLAGS',
-        'cflags': '-std=c++11 {}'.format(cwarnflags),
+        'cflags': format_cflags('-std=c++11 {}'.format(cwarnflags)),
         'targets': ctargets,
         'cleantarget': ccleantarget,
     },
