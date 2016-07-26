@@ -8,6 +8,7 @@ import re
 from plugins import (
     confirm,
     debug,
+    fix_indent_tabs,
     Plugin,
     PostPlugin,
     SignalAction,
@@ -15,27 +16,17 @@ from plugins import (
 )
 
 # Version number for both plugins (if one changes, usually the other changes)
-VERSION = '0.1.0'
+VERSION = '0.1.1'
 
 # Default filename for the resulting makefile.
 DEFAULT_MAKEFILE = 'makefile'
 
 
-def fix_indent(s):
-    """ Replace leading spaces with tabs. """
-    final = []
-    for line in s.split('\n'):
-        cnt = 0
-        while line.startswith('    '):
-            cnt += 1
-            line = line[4:]
-        final.append(''.join(('\t' * cnt, line)))
-    return '\n'.join(final)
-
 # I'm not very good with makefiles.
 # {targets} and {cleantarget} are set by compiler type,
 # and *then* the whole template is rendered.
-pre_template = """SHELL=bash
+# The fix_indent_tabs() is just for my sanity when dealing with tabs/spaces.
+pre_template = fix_indent_tabs("""SHELL=bash
 {{compilervar}}={{compiler}}
 {{cflagsvar}}={{cflags}}
 binary={{binary}}
@@ -54,12 +45,11 @@ targets:
     debug   : Build the executable with debug symbols.\\n\\
     release : Build the executable with optimizations.\\n\\
     ";
-"""
-# This is just for my sanity when dealing with tabs vs. spaces.
-pre_template = fix_indent(pre_template)
+""")
+
 
 # Make targets for c/c++.
-ctargets = """
+ctargets = fix_indent_tabs("""
 all: {objects}
     $({compilervar}) -o $(binary) $({cflagsvar}) *.o
 
@@ -71,10 +61,10 @@ release: all
 
 {objects}: $(source)
     $({compilervar}) -c $(source) $({cflagsvar})
-""".replace('    ', '\t').strip()
+""").strip()
 
 # Clean target for C/C++.
-ccleantarget = """
+ccleantarget = fix_indent_tabs("""
     -@if [[ -e $(binary) ]]; then\\
         if rm -f $(binary); then\\
             echo "Binaries cleaned.";\\
@@ -90,10 +80,10 @@ ccleantarget = """
     else\\
         echo "Objects already clean.";\\
     fi;
-""".replace('    ', '\t').lstrip('\n')
+""").lstrip('\n')
 
 # Make targets for rustc (until I find a better way)
-rusttargets = """
+rusttargets = fix_indent_tabs("""
 all: $(source)
     $({compilervar}) $({cflagsvar}) -o $(binary) $(source)
 
@@ -102,10 +92,10 @@ debug: all
 
 release: {cflagsvar}+=-O
 release: all
-""".replace('    ', '\t').strip()
+""").strip()
 
 # Clean target for Rust/Cargo.
-rustcleantarget = """
+rustcleantarget = fix_indent_tabs("""
     -@if [[ -e $(binary) ]]; then\\
         if rm -f $(binary); then\\
             echo "Binaries cleaned.";\\
@@ -113,21 +103,28 @@ rustcleantarget = """
     else\\
         echo "Binaries already clean.";\\
     fi;
-""".replace('    ', '\t').lstrip('\n')
+""").lstrip('\n')
 
+# Flags shared between C and C++.
+cwarnflags = ' '.join((
+    '-Wall',
+    '-Wextra',
+    '-Wshadow',
+    '-Wstrict-prototypes',
+))
 # Template options based on compiler name.
 coptions = {
     'gcc': {
         'compilervar': 'CC',
         'cflagsvar': 'CFLAGS',
-        'cflags': '-std=c11 -Wall -Wextra',
+        'cflags': '-std=c11 {}'.format(cwarnflags),
         'targets': ctargets,
         'cleantarget': ccleantarget,
     },
     'g++': {
         'compilervar': 'CXX',
         'cflagsvar': 'CXXFLAGS',
-        'cflags': '-std=c++11 -Wall -Wextra',
+        'cflags': '-std=c++11 {}'.format(cwarnflags),
         'targets': ctargets,
         'cleantarget': ccleantarget,
     },
