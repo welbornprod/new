@@ -415,6 +415,29 @@ def fix_author(s):
     return '-{} '.format(s) if s else ''
 
 
+def fix_indent(s, replace='    ', replacement='\t'):
+    """ Replace leading spaces with tabs. """
+    final = []
+    replacelen = len(replace)
+    for line in s.split('\n'):
+        cnt = 0
+        while line.startswith(replace):
+            cnt += 1
+            line = line[replacelen:]
+        final.append(''.join((replacement * cnt, line)))
+    return '\n'.join(final)
+
+
+def fix_indent_spaces(s):
+    """ Shortcut to fix_indent(s, '\t', '    ') """
+    return fix_indent(s, replace='\t', replacement='    ')
+
+
+def fix_indent_tabs(s):
+    """ Shortcut to fix_indent(s, '    ', '\t'). """
+    return fix_indent(s, replace='    ', replacement='\t')
+
+
 def get_plugin_byext(name):
     """ Retrieves a plugin by file extension.
         Returns the plugin on success, or None on failure.
