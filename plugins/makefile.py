@@ -64,6 +64,18 @@ targets:
     ";
 """)
 
+# Flags shared between C and C++.
+cwarnflags = ' '.join((
+    '-Wall',
+    '-Wextra',
+    '-Wfloat-equal',
+    '-Winline',
+    '-Wmissing-include-dirs',
+    '-Wpedantic',
+    '-Wshadow',
+    '-Wstrict-prototypes',
+    '-Wunused-macros',
+))
 
 # Make targets for c/c++.
 ctargets = fix_indent_tabs("""
@@ -122,15 +134,6 @@ rustcleantarget = fix_indent_tabs("""
     fi;
 """).lstrip('\n')
 
-# Flags shared between C and C++.
-cwarnflags = ' '.join((
-    '-Wall',
-    '-Wextra',
-    '-Wpedantic',
-    '-Wshadow',
-    '-Wstrict-prototypes',
-    '-Wunused-macros',
-))
 # Template options based on compiler name.
 coptions = {
     'gcc': {
