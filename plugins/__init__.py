@@ -956,25 +956,60 @@ class FormatBlock(object):
     def __init__(self, text=None):
         self.text = text or ''
 
-    def fill_line(self, line, width=60):
-        """ Insert spaces between words so that this line's length is `width`.
+    def expand_words(self, line, width=60):
+        """ Insert spaces between words until it is wide enough for `width`.
         """
-        words = line.split(' ')
-        space = width - len(''.join(words))
-        wordspace = space // len(words)
-        if wordspace % 2 == 1:
-            wordspace += 1
-        padding = ' ' * wordspace
-        result = padding.join(words)
-        while len(result) > width:
-            # Remove space from the last word.
-            head, _, tail = result.rpartition(' ')
-            result = ''.join((head, tail))
-        while len(result) < width:
-            # Add space to the last word.
-            head, sep, tail = result.rpartition(' ')
-            result = ''.join((sep, ' ')).join((head, tail))
-        return result
+        if not line.strip():
+            return line
+        # Word index, which word to insert on (cycles between 1->len(words))
+        wordi = 1
+        while len(line) < width:
+            wordendi = self.find_word_end(line, wordi)
+            if wordendi < 0:
+                # Reached the end?, try starting at the front again.
+                wordi = 1
+                wordendi = self.find_word_end(line, wordi)
+            if wordendi < 0:
+                # There are no spaces to expand, just prepend one.
+                line = ''.join((' ', line))
+            else:
+                line = ' '.join((line[:wordendi], line[wordendi:]))
+                wordi += 1
+
+        return line
+
+    @staticmethod
+    def find_word_end(text, count=1):
+        """ This is a helper method for self.expand_words().
+            Finds the index of word endings (default is first word).
+            The last word doesn't count.
+            If there are no words, or there are no spaces in the word, it
+            returns -1.
+            Example:
+                s = 'this is a test'
+                i = find_word_end(s, count=1)
+                print('-'.join((s[:i], s[i:])))
+                # 'this- is a test'
+                i = find_word_end(s, count=2)
+                print('-'.join((s[:i], s[i:])))
+                # 'this is- a test'
+        """
+        count = count or 1
+        found = 0
+        foundindex = -1
+        inword = False
+        for i, c in enumerate(text):
+            if inword and c.isspace():
+                # Found space.
+                inword = False
+                foundindex = i
+                found += 1
+                if found == count:
+                    return foundindex
+            elif not c.isspace():
+                inword = True
+        # We ended in a word, or there were no words.
+        return -1 if inword else foundindex
 
     def format(
             self, text=None,
@@ -1037,6 +1072,7 @@ class FormatBlock(object):
                            Default: False
         """
         text = text or self.text
+
         if lstrip:
             # Remove leading spaces from each line.
             fmtline = str.lstrip
@@ -1131,34 +1167,63 @@ class FormatBlock(object):
             newlines=newlines,
             lstrip=lstrip,
         )
-        if (append is None) and (prepend is None):
+
+        if not (prepend or append):
             # Shortcut some of the logic below when not prepending/appending.
-            yield from (
-                self.fill_lines(iterlines, width=width) if fill else iterlines
-            )
+            if fill:
+                yield from (
+                    self.expand_words(l, width=width) for l in iterlines
+                )
+            else:
+                yield from iterlines
         else:
             # Prepend, append, or both prepend/append to each line.
-            prependlen = len(prepend) if prepend else 0
+            if prepend:
+                prependlen = len(prepend)
+            else:
+                # No prepend, stripping not necessary and shouldn't be tried.
+                strip_first = False
+                prependlen = 0
             if append:
-                # Unfortunately appending mean exhausting the generator.
+                # Unfortunately appending means resetting the generator.
                 # I don't know where the last line is if I don't.
                 lines = list(iterlines)
                 lasti = len(lines) - 1
                 iterlines = (l for l in lines)
                 appendlen = len(append)
             else:
-                # No append.
+                # No append, stripping not necessary and shouldn't be tried.
+                strip_last = False
                 appendlen = 0
                 lasti = -1
             for i, l in enumerate(self.iter_add_text(
                     iterlines,
                     prepend=prepend,
                     append=append)):
-                if prependlen and (i == 0) and strip_first:
+                if strip_first and (i == 0):
+                    # Strip the prepend that iter_add_text() added.
                     l = l[prependlen:]
-                elif appendlen and (i == lasti) and strip_last:
-                    l = l[:appendlen * -1]
-                yield self.fill_line(l, width=width) if fill else l
+                elif strip_last and (i == lasti):
+                    # Strip the append that iter_add_text() added.
+                    l = l[:-appendlen]
+                if fill:
+                    yield self.expand_words(l, width=width)
+                else:
+                    yield l
+
+    @staticmethod
+    def squeeze_words(line, width=60):
+        """ Remove spaces in between words until it is small enough for
+            `width`.
+            This will always leave at least one space between words,
+            so it may not be able to get below `width` characters.
+        """
+        # Start removing spaces to "squeeze" the text, leaving at least one.
+        while ('  ' in line) and (len(line) > width):
+            # Remove two spaces from the end, replace with one.
+            head, _, tail = line.rpartition('  ')
+            line = ' '.join((head, tail))
+        return line
 
 
 class PluginBase(object):
