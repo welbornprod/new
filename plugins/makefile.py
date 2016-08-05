@@ -82,10 +82,10 @@ ctargets = fix_indent_tabs("""
 all: {objects}
     $({compilervar}) -o $(binary) $({cflagsvar}) *.o
 
-debug: {cflagsvar}+=-g3
+debug: {cflagsvar}+=-g3 -DDEBUG
 debug: all
 
-release: {cflagsvar}+=-O3
+release: {cflagsvar}+=-O3 -DNDEBUG
 release: all
 
 {objects}: $(source)
