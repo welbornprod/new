@@ -4,6 +4,22 @@
 """ new.py
     ...Creates new files based on templates (plugin-based templates)
     -Christopher Welborn 12-25-2014
+
+    Copyright (C) 2014-2016 Christopher Welborn
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 """
 import os
 import sys
@@ -15,7 +31,7 @@ import plugins
 debug = plugins.debug
 
 NAME = 'New'
-VERSION = '0.3.5'
+VERSION = '0.4.0'
 VERSIONSTR = '{} v. {}'.format(NAME, VERSION)
 SCRIPT = os.path.split(os.path.abspath(sys.argv[0]))[1]
 SCRIPTDIR = os.path.abspath(sys.path[0])
@@ -55,8 +71,14 @@ USAGESTR = """{versionstr}
 PLUGINDIR = os.path.join(SCRIPTDIR, 'plugins')
 sys.path.insert(1, PLUGINDIR)
 
-# Global debug flag.
+# Passing this as a file name will write to stdout.
+STDOUT_FILENAME = '-'
+
+# Global debug flag, set with --debug.
 DEBUG = False
+# Print extra info about plugins (the chosen plugin's attributes).
+# This has to be set manually for now.
+DEBUG_PLUGIN = False
 
 
 def main(argd):
@@ -64,8 +86,12 @@ def main(argd):
     global DEBUG
     plugins.DEBUG = DEBUG = argd['--debug']
 
-    # Load all available plugins.
-    plugins.load_plugins(PLUGINDIR)
+    try:
+        # Load all available plugins.
+        plugins.load_plugins(PLUGINDIR)
+    except plugins.InvalidConfig as ex:
+        print_err(ex)
+        return 1
 
     # Do any procedures that don't require a file name/type.
     if argd['--plugins']:
@@ -79,6 +105,9 @@ def main(argd):
     if not plugin:
         # Not a valid plugin name, user cancelled text plugin use.
         return 1
+
+    if DEBUG_PLUGIN:
+        plugins.print_json(plugin.attributes(), sort_keys=True)
 
     # Notify plugin that this might be a dry run.
     plugin.dryrun = argd['--dryrun']
@@ -172,6 +201,9 @@ def ensure_file_ext(fname, plugin):
     """ Ensure the file name has a valid extension for it's plugin.
         Returns a str containing a valid file name (fixed or original)
     """
+    if fname == STDOUT_FILENAME:
+        return fname
+
     if not plugin.extensions:
         # Some files don't have an extension (like makefiles)
         return fname
@@ -223,7 +255,7 @@ def handle_content(fname, content, plugin, dryrun=False):
         Run post-processing plugins if a file was written.
         Returns exit code status.
     """
-    if dryrun:
+    if dryrun and fname != STDOUT_FILENAME:
         print('\nDry run, would\'ve written: {}\n'.format(fname))
         print(content or '<No Content>')
         # No post plugins can run.
@@ -234,9 +266,11 @@ def handle_content(fname, content, plugin, dryrun=False):
         print('\nUnable to create: {}'.format(fname))
         return 1
 
-    print_status('Created {}'.format(created))
-    # Do post-processing plugins on the created file.
-    return plugins.do_post_plugins(fname, plugin)
+    if fname != STDOUT_FILENAME:
+        print_status('Created {}'.format(created))
+        # Do post-processing plugins on the created file.
+        return plugins.do_post_plugins(fname, plugin)
+    return 0
 
 
 def handle_exception(msg, ex_type, ex_value, ex_tb):
@@ -339,6 +373,10 @@ def write_file(fname, content):
     """
     if content is None:
         content = ''
+    if fname == STDOUT_FILENAME:
+        print(content)
+        return STDOUT_FILENAME
+
     # Create directories if needed.
     dirs = os.path.split(fname)[0]
     if ('/' in fname) and (not make_dirs(dirs)):

@@ -141,8 +141,8 @@ def create_custom_plugin(names, info):
         input_file = filename
         description = info.get('description', None)
         formatted = info.get('formatted', False)
-        ignored_post = info.get('ignored_post', None)
-        ignored_deferred = info.get('ignored_deferred', None)
+        ignore_post = info.get('ignore_post', None)
+        ignore_deferred = info.get('ignore_deferred', None)
         private = info.get('private', False)
 
         def create(self, filename):
@@ -172,10 +172,12 @@ def create_custom_plugin(names, info):
                 return content
             # Load all known/usable tag info.
             pluginconfig = config.get('plugins', {}).get('global', {})
+            today = datetime.today()
             knowntags = {
                 'author': pluginconfig.get('author', '(no author set)'),
                 'email': pluginconfig.get('email', '(no email set)'),
-                'date': date(),
+                'date': date(today),
+                'year': today.year,
                 'version': pluginconfig.get(
                     'default_version',
                     default_version
@@ -213,9 +215,9 @@ def create_custom_plugin(names, info):
     return CustomPlugin
 
 
-def date():
+def date(dateobj=None):
     """ Returns a string formatted date for today. """
-    return datetime.strftime(datetime.today(), '%m-%d-%Y')
+    return datetime.strftime(dateobj or datetime.today(), '%m-%d-%Y')
 
 
 def debug(*args, **kwargs):
@@ -279,8 +281,9 @@ def determine_plugin(argd):
     """
     globalconfig = config.get('plugins', {}).get('global', {})
     default_file = globalconfig.get('default_filename', 'new_file')
-    if argd['FILENAME'] in {'-', '--'}:
+    if argd['FILENAME'] == '--':
         # Occurs when no args are passed after the seperator: new plugin --
+        debug('No args after --, filename is: {}'.format(argd['FILENAME']))
         raise DocoptExit()
 
     namedplugincls = get_plugin_byname(argd['FILENAME'], use_post=True)
@@ -646,6 +649,7 @@ def load_config(section=None):
 
     configfile = find_config_file()
     conf = load_config_file(configfile)
+
     if section:
         sectionconfig = conf.get(section, {})
         if not sectionconfig:
@@ -672,12 +676,12 @@ def load_config_file(filename, section=None):
     except EnvironmentError as exread:
         debug('Unable to read config file: {}\n{}'.format(filename, exread))
     except ValueError as exjson:
-        # When loading the main config, JSON errors warrant a message.
-        reporter = print if not section else debug
-        reporter('Invalid JSON config: {}\n{}'.format(filename, exjson))
+        # JSON errors stop the show.
+        msg = 'Invalid JSON config: {}\n{}'.format(filename, exjson)
+        raise InvalidConfig(msg=msg, filename=filename)
     except Exception as ex:
-        debug('Error loading config: {}\n{}'.format(filename, ex))
-
+        msg = 'General error loading config: {}\n{}'.format(filename, ex)
+        raise InvalidConfig(msg=msg, filename=filename)
     if section:
         return conf.get(section, {})
     return conf
@@ -874,6 +878,11 @@ def print_inplace(s):
     """ Overwrites the last printed line. """
     print('\033[2A\033[160D')
     print(s)
+
+
+def print_json(o, indent=4, sort_keys=False):
+    """ Shortcut to print(json.dumps(o)). """
+    print(json.dumps(o, indent=indent, sort_keys=sort_keys))
 
 
 def save_config(config, section=None):
@@ -1226,6 +1235,20 @@ class FormatBlock(object):
         return line
 
 
+class InvalidConfig(ValueError):
+    def __init__(self, msg=None, filename=None):
+        self.filename = filename
+        if msg:
+            self.msg = str(msg)
+        elif self.filename:
+            self.msg = 'Error reading config from: {}'.format(self.filename)
+        else:
+            self.msg = 'Error reading config file!'
+
+    def __str__(self):
+        return self.msg
+
+
 class PluginBase(object):
     """ Base for all plugins. Used to implement common methods that don't
         depend on the plugin type.
@@ -1311,6 +1334,20 @@ class PluginBase(object):
                 '{}: {}'.format(k, v) for k, v in self.argd.items()
             )
         ))
+
+    def attributes(self):
+        """ Return a dict of {self.attribute: value} for public attributes.
+        """
+        attrs = {}
+        for name in dir(self):
+            if name.startswith('_'):
+                continue
+            try:
+                val = getattr(self, name)
+            except Exception:
+                continue
+            attrs[name] = str(val)
+        return attrs
 
     def debug(self, *args, **kwargs):
         """ Uses the debug() function, but includes the class name. """
