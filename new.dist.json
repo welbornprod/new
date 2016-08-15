@@ -1,0 +1,44 @@
+{
+    "bash": {
+        "default_args": ["args"]
+    },
+    "custom": {
+        "hello": {
+            "content": [
+                "Hello there {author}.",
+                "It is {date}."
+            ],
+            "description": "A hello-world config-based 'content' plugin.",
+            "formatted": true,
+            "ignore_post": ["chmodx"],
+            "allow_bad_tags": true
+        },
+        "hello-file": {
+            "aliases": ["hello-world-file"],
+            "filename": "~/.profile",
+            "description": "A hello-world config-based file plugin (uses ~/.profile).",
+            "formatted": false,
+            "ignore_post": ["chmodx"]
+        }
+    },
+    "jquery": {
+        "no_download": false
+    },
+    "open": {
+        "editor": ""
+    },
+    "plugins" : {
+        "global": {
+            "author": "Your Name (set in config)",
+            "default_version": "0.0.1"
+        },
+        "default_filename": "new_file",
+        "default_plugin": "text",
+        "disabled_deferred": [],
+        "disabled_post": [],
+        "disabled_types": []
+    },
+    "python": {
+        "template": "docopt"
+    }
+}

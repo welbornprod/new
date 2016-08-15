@@ -120,13 +120,34 @@ def create_custom_plugin(names, info):
     if not info:
         raise ValueError('No info for custom plugin: {}'.format(name))
     filename = info.get('filename', None)
-    if not filename:
+    content_raw = info.get('content', None)
+    if not (filename or content_raw):
+        # No file name or content.
         raise ValueError(
             '\n'.join((
                 'Custom plugin is not configured correctly: {}',
-                'No \'filename\' set.'
+                'No \'filename\' or \'content\' set.'
             )).format(name)
         )
+    elif (filename and content_raw):
+        # Both file name and content.
+        raise ValueError(
+            '\n'.join((
+                'Custom plugin is not configured correctly: {}',
+                'Either \'filename\' or \'content\' can be set, not both.'
+            )).format(name)
+        )
+    # Allow for multiline content, using arrays/lists.
+    if isinstance(content_raw, list):
+        content_str = '\n'.join(content_raw)
+    elif content_raw:
+        content_str = str(content_raw)
+    else:
+        content_str = None
+
+    # Allow for expanded user paths.
+    if filename and not os.path.exists(filename):
+        filename = os.path.expanduser(filename)
 
     # Create a CustomPlugin class that is local to this function,
     # so that each custom plugin class is 'unique'.
@@ -139,37 +160,132 @@ def create_custom_plugin(names, info):
         # Attributes set by config.
         name = names
         input_file = filename
+        input_content = content_str
+        # Config values that don't matter as much.
         description = info.get('description', None)
         formatted = info.get('formatted', False)
+        allow_bad_tags = info.get('allow_bad_tags', False)
         ignore_post = info.get('ignore_post', None)
         ignore_deferred = info.get('ignore_deferred', None)
         private = info.get('private', False)
 
         def create(self, filename):
             """ Creates a file based on user configuration. """
-            try:
-                with open(self.input_file, 'r') as f:
-                    content = f.read()
-            except EnvironmentError as ex:
-                raise SignalExit(
-                    'Failed to read custom file: {}\n{}'.format(
-                        self.input_file,
-                        ex
-                    ),
-                    code=1
-                )
-            if not self.formatted:
-                # Simple file-copy, no formatting needed.
-                return content
+            if self.input_content:
+                # Content based.
+                content = self.input_content
+                self.debug('Custom content used: {}'.format(
+                    self.format_content_preview()
+                ))
+            elif self.input_file:
+                # File-based.
+                try:
+                    with open(self.input_file, 'r') as f:
+                        content = f.read()
+                except EnvironmentError as ex:
+                    raise SignalExit(
+                        'Failed to read custom file: {}\n{}'.format(
+                            self.input_file,
+                            ex
+                        ),
+                        code=1
+                    )
+                else:
+                    self.debug('Custom content loaded: {}'.format(
+                        self.input_file
+                    ))
+            else:
+                msg = 'No file name or content to work with.'
+                self.debug(msg)
+                raise SignalExit(msg)
 
-            # Find format tags, ignoring escaped tags.
-            formattags = [
-                tag[1:-1] for tag in re.findall(r'{{?\w+}}?', content)
-                if not tag.startswith('{{')
-            ]
+            if self.formatted:
+                return self.format_content(content)
+            # Simple file/content-copy, no formatting needed.
+            return content
+
+        @staticmethod
+        def find_tag_position(text, tag):
+            """ Find the line number and column for the first occurrence
+                of a tag. This is for reporting bad tags.
+                Returns None, None if the tag cannot be found.
+            """
+            linenum = linepos = 0
+            for i, line in enumerate(text.split('\n')):
+                try:
+                    pos = line.index(tag)
+                except ValueError:
+                    continue
+                else:
+                    linenum = i + 1
+                    linepos = pos
+                    break
+            else:
+                return None, None
+            return linenum, linepos
+
+        def fix_bad_tag(self, content, tagname):
+            """ Replace {tagname} with {{tagname}} in content, to suppress
+                keyerrors.
+            """
+            self.debug('Fixing bad tag: {}'.format(tagname))
+            repl = tagname.join(('{', '}'))
+            replwith = tagname.join(('{{', '}}'))
+            try:
+                replpat = re.compile(
+                    ''.join(('(?!<{)(', repl, ')(?!})'))
+                )
+            except re.error as ex:
+                self.debug(
+                    'Bad regex pattern for tag fixing: {}'.format(ex)
+                )
+                return content.replace(repl, replwith)
+
+            return replpat.sub(replwith, content)
+
+        def format_content(self, content):
+            """ Return the formatted content from this plugin's file/config.
+            """
+            formatargs = self.get_format_args(content)
+
+            # We should've caught unknown format tags, but just in case:
+            try:
+                # formatargs may be empty, but that's okay.
+                contentfmt = content.format(**formatargs)
+            except KeyError as ex:
+                badtagname = ex.args[0]
+                if self.allow_bad_tags:
+                    try:
+                        # Surround with { and }, then try again.
+                        return self.format_content(
+                            self.fix_bad_tag(content, badtagname)
+                        )
+                    except RecursionError:
+                        pass
+                raise self.make_tag_exception(content, badtagname)
+            return contentfmt
+
+        def format_content_preview(self, max_length=40):
+            """ Get a preview of self.input_content, if it exists.
+                Otherwise returns an empty string.
+            """
+            if not self.input_content:
+                return ''
+            if len(self.input_content) < max_length:
+                return repr(self.input_content)
+            return repr('{}...'.format(self.input_content[:max_length]))
+
+        def get_format_args(self, content):
+            """ Return a dict of str.format args to be used on the content.
+                Arguments:
+                    content : Content to grab possible tags from, to build
+                              format args.
+            """
+            formattags = self.get_format_tags(content)
             if not formattags:
-                # No formatting needed anyway.
-                return content
+                # No format tags to use, so none of this is needed.
+                return {}
+
             # Load all known/usable tag info.
             pluginconfig = config.get('plugins', {}).get('global', {})
             today = datetime.today()
@@ -191,25 +307,82 @@ def create_custom_plugin(names, info):
                     pluginconfig.get(tagname, None)
                 )
                 if tagval is None:
-                    raise self.make_tag_exception(tagname)
+                    self.debug('Unknown format tag: {}'.format(tagname))
+                    if self.allow_bad_tags:
+                        try:
+                            return self.get_format_args(
+                                self.fix_bad_tag(content, tagname)
+                            )
+                        except RecursionError:
+                            pass
+                    raise self.make_tag_exception(content, tagname)
                 formatargs[tagname] = tagval
+            self.debug('Format args: {!r}'.format(formatargs))
+            return formatargs
 
-            # We should've caught unknown format tags, but just in case:
-            try:
-                content = content.format(**formatargs)
-            except KeyError as ex:
-                raise self.make_tag_exception(str(ex))
-            return content
+        def get_format_tags(self, content):
+            """ Return a list of all format tags found in the content,
+                whether they are valid tags or not.
+            """
+            # Finds basic str.format style tags {like} {this}, but ignores
+            # the escaped tags {{like}} {{this}}.
+            tags = set(
+                tag[1:-1] for tag in re.findall(r'{{?\w+}}?', content)
+                if not tag.startswith('{{')
+            )
+            self.debug('Format tags: {}'.format(
+                ', '.join(tags) or '<no tags>'
+            ))
+            return tags
 
-        def make_tag_exception(self, tagname):
+        def make_tag_exception(self, content, tagname):
             """ Create a SignalExit to be used when a bad format tag is found
                 in the content.
             """
+            # Build some info about the bad tag/content.
+            max_length = 40
+            linenum, linepos = self.find_tag_position(
+                content,
+                tagname
+            )
+            if self.input_file:
+                # Use file name, not content.
+                pluginid = 'file, {}'.format(self.input_file)
+            elif self.input_content:
+                # Use content preview.
+                pluginid = 'content'
+            else:
+                msg = 'No file name or content to work with.'
+                self.debug(msg)
+                raise ValueError(msg)
+            msg = '\n'.join((
+                'Unknown format tag in {pluginname}\'s {pluginid}:',
+                '    {content}',
+                '    Position: line {linenum}, column {linepos}',
+                '         Tag: {{{tagname}}}'
+            )).format(
+                pluginname=self.get_name(),
+                pluginid=pluginid,
+                content=self.format_content_preview(),
+                linenum=linenum or '?',
+                linepos=linepos or '?',
+                tagname=tagname
+            )
+            if self.allow_bad_tags:
+                warnmsg = '\n'.join((
+                    '\nThis tag could not be fixed with \'allow_bad_tags\',',
+                    'most likely because there are multiple instances with',
+                    'varying amounts of { and } characters.',
+                    ''
+                ))
+            else:
+                warnmsg = ''
             return SignalExit(
                 '\n'.join((
-                    'Unknown format tag in {filename}: {{{tagname}}}',
+                    msg,
+                    warnmsg,
                     'You can create this tag in plugins.global.'
-                )).format(filename=self.input_file, tagname=tagname),
+                )),
                 code=1
             )
     return CustomPlugin
@@ -390,7 +563,7 @@ def find_config_file():
     if os.path.exists(mainfile):
         return mainfile
 
-    distfile = '{}.dist'.format(mainfile)
+    distfile = mainfile.replace('new.', 'new.dist.')
     if not os.path.exists(distfile):
         # No main file or dist, load_config will handle this error.
         debug('No distribution config file exists!')
@@ -669,8 +842,15 @@ def load_config_file(filename, section=None):
     """
     conf = {}
     try:
+        conflines = []
         with open(filename, 'r') as f:
-            conf = json.load(f)
+            for line in f:
+                stripped = line.strip()
+                if stripped and not stripped.startswith('//'):
+                    conflines.append(line)
+        if not conflines:
+            raise ValueError('Config file was empty.')
+        conf = json.loads(''.join(conflines))
     except FileNotFoundError:
         debug('No config file: {}'.format(filename))
     except EnvironmentError as exread:
