@@ -17,7 +17,7 @@ from plugins import (
 )
 
 # Version number for both plugins (if one changes, usually the other changes)
-VERSION = '0.1.1'
+VERSION = '0.1.2'
 
 # Default filename for the resulting makefile.
 DEFAULT_MAKEFILE = 'makefile'
@@ -65,7 +65,7 @@ targets:
 """)
 
 # Flags shared between C and C++.
-cwarnflags = ' '.join((
+csharedflags = [
     '-Wall',
     '-Wextra',
     '-Wfloat-equal',
@@ -73,9 +73,16 @@ cwarnflags = ' '.join((
     '-Wmissing-include-dirs',
     '-Wpedantic',
     '-Wshadow',
-    '-Wstrict-prototypes',
     '-Wunused-macros',
-))
+]
+# Flags for C only.
+conlyflags = [
+    '-Wstrict-prototypes',
+]
+# Actual string used in the Makefile template for compiler flags.
+cflagstr = ' '.join(sorted(csharedflags + conlyflags))
+# Flags for CPP.
+cppflagstr = ' '.join(sorted(csharedflags))
 
 # Make targets for c/c++.
 ctargets = fix_indent_tabs("""
@@ -139,14 +146,14 @@ coptions = {
     'gcc': {
         'compilervar': 'CC',
         'cflagsvar': 'CFLAGS',
-        'cflags': format_cflags('-std=c11 {}'.format(cwarnflags)),
+        'cflags': format_cflags('-std=c11 {}'.format(cflagstr)),
         'targets': ctargets,
         'cleantarget': ccleantarget,
     },
     'g++': {
         'compilervar': 'CXX',
         'cflagsvar': 'CXXFLAGS',
-        'cflags': format_cflags('-std=c++11 {}'.format(cwarnflags)),
+        'cflags': format_cflags('-std=c++11 {}'.format(cppflagstr)),
         'targets': ctargets,
         'cleantarget': ccleantarget,
     },
