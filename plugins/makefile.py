@@ -23,15 +23,17 @@ VERSION = '0.1.2'
 DEFAULT_MAKEFILE = 'makefile'
 
 
-def format_cflags(flagstr):
-    """ Insert \ line breaks so that the maximum line width is 80 chars. """
+def format_cflags(flaglist):
+    """ Format a list of C flags as a str.
+        Insert \ line breaks so that the maximum line width is 80 chars.
+    """
     # make doesn't mind spaces for continuation lines.
     indent = ' ' * len('CFLAGS=')
     # Add line breaks when splitting lines.
     append = ' \\'
     # Max line width is 80, but allow room for 'CFLAGS=' and ' \'.
     linewidth = 80 - len(indent) - len(append)
-    return FormatBlock(flagstr).format(
+    return FormatBlock(' '.join(sorted(flaglist))).format(
         prepend=indent,
         strip_first=True,
         append=append,
@@ -77,12 +79,13 @@ csharedflags = [
 ]
 # Flags for C only.
 conlyflags = [
+    '-std=c11',
     '-Wstrict-prototypes',
 ]
-# Actual string used in the Makefile template for compiler flags.
-cflagstr = ' '.join(sorted(csharedflags + conlyflags))
 # Flags for CPP.
-cppflagstr = ' '.join(sorted(csharedflags))
+cpponlyflags = [
+    '-std=c++14',
+]
 
 # Make targets for c/c++.
 ctargets = fix_indent_tabs("""
@@ -146,14 +149,14 @@ coptions = {
     'gcc': {
         'compilervar': 'CC',
         'cflagsvar': 'CFLAGS',
-        'cflags': format_cflags('-std=c11 {}'.format(cflagstr)),
+        'cflags': format_cflags(csharedflags + conlyflags),
         'targets': ctargets,
         'cleantarget': ccleantarget,
     },
     'g++': {
         'compilervar': 'CXX',
         'cflagsvar': 'CXXFLAGS',
-        'cflags': format_cflags('-std=c++11 {}'.format(cppflagstr)),
+        'cflags': format_cflags(csharedflags + cpponlyflags),
         'targets': ctargets,
         'cleantarget': ccleantarget,
     },
