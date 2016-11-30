@@ -31,12 +31,10 @@ MAIN_DOCOPT = """
         print_err(ex)
         mainret = 1
     except (EOFError, KeyboardInterrupt):
-        print_err('\\nUser cancelled.\\n', file=sys.stderr)
+        print_err('\\nUser cancelled.\\n')
         mainret = 2
     except BrokenPipeError:
-        print_err(
-            '\\nBroken pipe, input/output was interrupted.\\n',
-            file=sys.stderr)
+        print_err('\\nBroken pipe, input/output was interrupted.\\n')
         mainret = 3
     sys.exit(mainret)
 """
@@ -48,12 +46,10 @@ MAIN_NORMAL = """
         print_err(ex)
         mainret = 1
     except (EOFError, KeyboardInterrupt):
-        print_err('\\nUser cancelled.\\n', file=sys.stderr)
+        print_err('\\nUser cancelled.\\n')
         mainret = 2
     except BrokenPipeError:
-        print_err(
-            '\\nBroken pipe, input/output was interrupted.\\n',
-            file=sys.stderr)
+        print_err('\\nBroken pipe, input/output was interrupted.\\n')
         mainret = 3
     sys.exit(mainret)
 """
