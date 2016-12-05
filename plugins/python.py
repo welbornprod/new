@@ -13,7 +13,7 @@ from plugins import (
     fix_author
 )
 
-__version__ = '0.2.2'
+__version__ = '0.3.0'
 
 # TODO: This plugin was basically just copied and adapted from the original
 #       'newpython' script that inspired this project.
@@ -170,6 +170,14 @@ try:
 except ImportError:
     from distutils.core import setup
 
+# Try using the latest DESC.txt.
+shortdesc = '{desc}'
+try:
+    with open('DESC.txt', 'r') as f:
+        shortdesc = f.read()
+except FileNotFoundError:
+    pass
+
 # Default README files to use for the longdesc, if pypandoc fails.
 readmefiles = ('docs/README.txt', 'README.txt', 'docs/README.rst')
 for readmefile in readmefiles:
@@ -182,13 +190,12 @@ for readmefile in readmefiles:
         pass
 else:
     # No readme file found.
-    defaultdesc = '{desc}'
     # If a README.md exists, and pypandoc is installed, generate a new readme.
     try:
         import pypandoc
     except ImportError:
         print('Pypandoc not installed, using default description.')
-        longdesc = defaultdesc
+        longdesc = shortdesc
     else:
         # Convert using pypandoc.
         try:
@@ -196,14 +203,7 @@ else:
         except EnvironmentError:
             # No readme file, no fresh conversion.
             print('Pypandoc readme conversion failed, using default desc.')
-            longdesc = defaultdesc
-
-shortdesc = 'Time python operations or enforce a time limit for calls.'
-try:
-    with open('DESC.txt', 'r') as f:
-        shortdesc = f.read()
-except FileNotFoundError:
-    pass
+            longdesc = shortdesc
 
 setup(
     name='{pkgname}',
