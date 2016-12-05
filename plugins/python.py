@@ -165,26 +165,45 @@ template_setup = """#!{shebangexe}
 {doc_author}{date}
 \"\"\"
 
-from distutils.core import setup
-defaultdesc = '{desc}'
 try:
-    import pypandoc
+    from setuptools import setup
 except ImportError:
-    print('Pypandoc not installed, using default description.')
-    longdesc = defaultdesc
-else:
-    # Convert using pypandoc.
+    from distutils.core import setup
+
+# Default README files to use for the longdesc, if pypandoc fails.
+readmefiles = ('docs/README.txt', 'README.txt', 'docs/README.rst')
+for readmefile in readmefiles:
     try:
-        longdesc = pypandoc.convert('README.md', 'rst')
+        with open(readmefile, 'r') as f:
+            longdesc = f.read()
+        break
     except EnvironmentError:
-        # Fallback to README.txt (may be behind on updates.)
+        # File not found or failed to read.
+        pass
+else:
+    # No readme file found.
+    defaultdesc = '{desc}'
+    # If a README.md exists, and pypandoc is installed, generate a new readme.
+    try:
+        import pypandoc
+    except ImportError:
+        print('Pypandoc not installed, using default description.')
+        longdesc = defaultdesc
+    else:
+        # Convert using pypandoc.
         try:
-            with open('README.txt') as f:
-                longdesc = f.read()
+            longdesc = pypandoc.convert('README.md', 'rst')
         except EnvironmentError:
-            print('\\nREADME.md and README.txt failed!')
+            # No readme file, no fresh conversion.
+            print('Pypandoc readme conversion failed, using default desc.')
             longdesc = defaultdesc
 
+shortdesc = 'Time python operations or enforce a time limit for calls.'
+try:
+    with open('DESC.txt', 'r') as f:
+        shortdesc = f.read()
+except FileNotFoundError:
+    pass
 
 setup(
     name='{pkgname}',
@@ -193,19 +212,23 @@ setup(
     author_email='{email}',
     packages=['{pkgname}'],
     url='http://pypi.python.org/pypi/{pkgname}/',
-    license='LICENSE.txt',
-    description=open('DESC.txt').read(),
+    description=shortdesc,
     long_description=longdesc,
     keywords=('python module library 2 3 ...'),
     classifiers=[
+        # TODO: Review these classifiers, delete as needed!
+        'License :: OSI Approved :: MIT License',
+        # Or: GNU General Public License v3 or later (GPLv3+)
         'Operating System :: Microsoft :: Windows',
         'Operating System :: POSIX :: Linux',
         'Programming Language :: Python',
         'Programming Language :: Python :: 2.7',
-        'Programming Language :: Python :: 3',
+        'Programming Language :: Python :: 3', # ' :: Only'
         'Topic :: Software Development :: Libraries',
         'Topic :: Software Development :: Libraries :: Python Modules'
     ],
+    # TODO: List requirements, or delete these comments.
+    # install_requires=[..],
 )
 
 """
@@ -278,7 +301,7 @@ class PythonPlugin(Plugin):
                            This is the default if not set in config.
         normal           : A normal, executable, script module with
                            boilerplate.
-        setup            : Create a setup.py that uses distutils.
+        setup            : Create a setup.py that uses setuptools/distutils.
         unittest, test   : A unittest module.
     """
 
