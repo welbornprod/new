@@ -31,7 +31,7 @@ import plugins
 debug = plugins.debug
 
 NAME = 'New'
-VERSION = '0.4.2'
+VERSION = '0.4.3'
 VERSIONSTR = '{} v. {}'.format(NAME, VERSION)
 SCRIPT = os.path.split(os.path.abspath(sys.argv[0]))[1]
 SCRIPTDIR = os.path.abspath(sys.path[0])
@@ -170,6 +170,10 @@ def main(argd):
         # Plugin is changing the output file name.
         if action.filename:
             fname = action.filename
+        # Plugin is adding ignore_post plugins.
+        if action.ignore_post:
+            debug('Adding ignore_post: {!r}'.format(action.ignore_post))
+            plugin.ignore_post.update(action.ignore_post)
     except plugins.SignalExit as excancel:
         # Plugin wants to stop immediately.
         return handle_signalexit(excancel)

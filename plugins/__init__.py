@@ -1902,26 +1902,34 @@ class SignalAction(Exception):
     """ An  exception to raise when the plugin.create() function is a success,
         but changes need to be made to the filename.
         Arguments:
-            message   : A message about the action. Printed with no formatting
-                        when 'content' is set.
-                        Defaults to: 'No message provided.' when 'content' is
-                        not set.
-            filename  : The new file name to use.
-            content   : Content for the new file. If this is not set an error
-                        message is printed along with 'message', and the
-                        program exits.
-
+            message     : A message about the action. Printed with no
+                          formatting when 'content' is set.
+                          Defaults to: 'No message provided.' when 'content'
+                          is not set.
+            filename    : The new file name to use.
+            content     : Content for the new file. If this is not set an
+                          error message is printed along with 'message', and
+                          the program exits.
+            ignore_post : Any post-plugins to ignore after the action.
         If you raise a SignalAction like a normal Exception:
             raise SignalAction(mystring)
         ...then SignalAction.message is set to mystring.
 
     """
 
-    def __init__(self, *args, message=None, filename=None, content=None):
+    def __init__(
+            self, *args, message=None, filename=None, content=None,
+            ignore_post=None):
         Exception.__init__(self, *args)
         self.message = message
         self.filename = filename
         self.content = content
+        self.ignore_post = None
+        if isinstance(ignore_post, str):
+            self.ignore_post = {ignore_post}
+        elif ignore_post is not None:
+            self.ignore_post = set(ignore_post)
+
         arglen = len(args)
         if args:
             arglen = len(args)

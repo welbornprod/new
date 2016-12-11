@@ -3,7 +3,7 @@
     -Christopher Welborn 2-20-15
 """
 import os.path
-from plugins import Plugin, date, fix_author
+from plugins import Plugin, date, fix_author, SignalAction
 
 template = """/*  {filename}
     ...
@@ -55,10 +55,26 @@ class CPlugin(Plugin):
     def create(self, filename):
         """ Creates a basic C file.
         """
-        if self.argd['--lib']:
+        basename, ext = os.path.splitext(filename)
+        if self.argd['--lib'] or (ext in CHeader.extensions):
             # Just do the CHeader thing.
-            self.debug('Library file mode, no automakefile.')
-            return CHeaderPlugin().create(filename)
+            self.debug('Library file mode, no automakefile: {}'.format(
+                filename
+            ))
+            # Remove .c,.cpp extensions.
+            filename = basename
+            while not filename.endswith(CHeaderPlugin.extensions):
+                filename, ext = os.path.splitext(filename)
+                if not ext:
+                    # Add any missing CHeader extensions.
+                    filename = '{}.h'.format(filename)
+                    break
+            self.debug('Switching to CHeader mode: {}'.format(filename))
+            raise SignalAction(
+                filename=filename,
+                content=CHeaderPlugin().create(filename),
+                ignore_post={'automakefile', 'chmodx'},
+            )
 
         parentdir, basename = os.path.split(filename)
 
