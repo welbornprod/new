@@ -1681,14 +1681,21 @@ class PluginBase(object):
             versionstr = '{} v. {}'.format(name, ver)
 
         usage = getattr(self, 'usage', '')
+        desc = self.get_desc()
         if usage:
             print('\nHelp for New plugin, {}:'.format(versionstr))
+            if desc:
+                print('\n{}'.format(desc))
             nameindent = '    {}'.format(name)
-            print(usage.replace(nameindent, '    new {} --'.format(name)))
+            if usage.rstrip().endswith(name):
+                # No options/args for this plugin.
+                print(usage.replace(nameindent, '    new {}'.format(name)))
+            else:
+                # This plugin has options/arguments.
+                print(usage.replace(nameindent, '    new {} --'.format(name)))
             return True
 
         # No real usage available, try getting a description instead.
-        desc = self.get_desc()
         print('\nNo help available for {}.\n'.format(versionstr))
         if desc:
             print('Description:')

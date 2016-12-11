@@ -25,12 +25,14 @@ template_lib = """/* {filename}
 
 """
 
+__version__ = '0.0.5'
+
 
 class CPlugin(Plugin):
     name = ('c', 'cpp', 'c++', 'cc')
     extensions = ('.c', '.cpp', '.cc')
     cpp_extensions = ('.cpp', '.cc')
-    version = '0.0.4'
+    version = __version__
     ignore_post = {'chmodx'}
     description = '\n'.join((
         'Creates a basic C or C++ file for small programs.',
@@ -53,10 +55,10 @@ class CPlugin(Plugin):
     def create(self, filename):
         """ Creates a basic C file.
         """
-        # Disable automakefile if asked.
         if self.argd['--lib']:
+            # Just do the CHeader thing.
             self.debug('Library file mode, no automakefile.')
-            self.ignore_post.add('automakefile')
+            return CHeaderPlugin().create(filename)
 
         parentdir, basename = os.path.split(filename)
 
@@ -68,12 +70,38 @@ class CPlugin(Plugin):
             include = 'stdio.h'
             namespace = ''
 
-        return (template_lib if self.argd['--lib'] else template).format(
+        return template.format(
             filename=basename,
             author=fix_author(self.config.get('author', None)),
             date=date(),
             include=include,
-            namespace=namespace)
+            namespace=namespace
+        )
 
 
-exports = (CPlugin,)
+class CHeaderPlugin(Plugin):
+    name = ('header', 'cheader', 'cppheader', 'c++header')
+    extensions = ('.h', '.hpp', '.h++')
+    version = __version__
+    ignore_post = {'chmodx', 'automakefile'}
+    description = 'Creates a basic C or C++ header file.'
+    usage = """
+    Usage:
+        header
+    """
+
+    def __init__(self):
+        self.load_config()
+
+    def create(self, filename):
+        """ Creates a basic C/C++ header file. """
+        parentdir, basename = os.path.split(filename)
+
+        return template_lib.format(
+            filename=basename,
+            author=fix_author(self.config.get('author', None)),
+            date=date(),
+        )
+
+
+exports = (CPlugin, CHeaderPlugin)
