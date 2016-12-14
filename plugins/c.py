@@ -5,20 +5,6 @@
 import os.path
 from plugins import Plugin, date, fix_author, SignalAction
 
-template = """/*  {filename}
-    ...
-    {author}{date}
-*/
-
-{includes}
-{defines}
-{namespace}
-int main(int argc, char *argv[]) {{
-
-    return 0;
-}}
-"""
-
 template_define = """
 #ifndef {define}
     #define {define}
@@ -35,6 +21,19 @@ template_lib = """/* {filename}
 */
 
 """
+
+template_body = """
+{includes}
+{defines}
+{namespace}
+int main(int argc, char *argv[]) {{
+
+    return 0;
+}}
+""".strip()
+
+# Headers and source files should use the same comment header.
+template = ''.join((template_lib, template_body))
 
 c_defines = (
     '_GNU_SOURCE',
