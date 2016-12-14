@@ -10,7 +10,8 @@ template = """/*  {filename}
     {author}{date}
 */
 
-#include <{include}>
+{includes}
+{defines}
 {namespace}
 int main(int argc, char *argv[]) {{
 
@@ -18,12 +19,34 @@ int main(int argc, char *argv[]) {{
 }}
 """
 
+template_define = """
+#ifndef {define}
+    #define {define}
+#endif
+""".strip()
+
+template_include = """
+#include {include}
+""".strip()
+
 template_lib = """/* {filename}
     ...
     {author}{date}
 */
 
 """
+
+c_defines = (
+    '_GNU_SOURCE',
+)
+
+c_headers = (
+    'stdio.h',
+)
+
+cpp_headers = (
+    'iostream',
+)
 
 __version__ = '0.0.5'
 
@@ -44,9 +67,19 @@ class CPlugin(Plugin):
     usage = """
     Usage:
         c [-l]
+        c [-i include...] [-d define...]
 
     Options:
-        -l,--lib  : Treat as a library file, automakefile will not run.
+        -d def,--define def     : Include a definition for the preprocessor.
+                                  The format will be:
+                                      #ifndef def
+                                          #define def
+                                      #endif
+        -i name,--include name  : Include a header.
+                                  The format will be:
+                                      #include <name>.
+        -l,--lib                : Treat as a library file, automakefile will
+                                  not run.
     """
 
     def __init__(self):
@@ -56,7 +89,7 @@ class CPlugin(Plugin):
         """ Creates a basic C file.
         """
         basename, ext = os.path.splitext(filename)
-        if self.argd['--lib'] or (ext in CHeader.extensions):
+        if self.argd['--lib'] or (ext in CHeaderPlugin.extensions):
             # Just do the CHeader thing.
             self.debug('Library file mode, no automakefile: {}'.format(
                 filename
@@ -80,19 +113,51 @@ class CPlugin(Plugin):
 
         fileext = os.path.splitext(filename)[-1].lower()
         if fileext in self.cpp_extensions:
-            include = 'iostream'
+            includes = self.make_includes(
+                self.argd['--include'],
+                defaults=cpp_headers,
+            )
             namespace = '\nusing std::cout;\nusing std::endl;\n'
         else:
-            include = 'stdio.h'
+            includes = self.make_includes(
+                self.argd['--include'],
+                defaults=c_headers,
+            )
             namespace = ''
 
         return template.format(
             filename=basename,
             author=fix_author(self.config.get('author', None)),
             date=date(),
-            include=include,
+            defines=self.make_defines(self.argd['--define']),
+            includes=includes,
             namespace=namespace
+        ).replace('\n\n\n', '\n\n')
+
+    def make_defines(self, definelst, defaults=None):
+        """ Create #define lines, given a list of variables. """
+        defstr = '\n'.join(
+            template_define.format(define=s)
+            for s in sorted(set((defaults or []) + definelst))
         )
+        if defstr:
+            return '\n{}'.format(defstr)
+        return defstr
+
+    def make_includes(self, includelst, defaults=None):
+        """ Create #include lines, given a list of header names. """
+        defaults = list(defaults) if defaults else []
+        includes = sorted(set(defaults + includelst))
+        lines = []
+        for include in includes:
+            if os.path.exists(include):
+                fmt = '"{}"'
+            else:
+                fmt = '<{}>'
+            lines.append(
+                template_include.format(include=fmt.format(include))
+            )
+        return '\n'.join(lines)
 
 
 class CHeaderPlugin(Plugin):
