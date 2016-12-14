@@ -17,7 +17,7 @@ from plugins import (
 )
 
 # Version number for both plugins (if one changes, usually the other changes)
-VERSION = '0.1.2'
+VERSION = '0.1.3'
 
 # Default filename for the resulting makefile.
 DEFAULT_MAKEFILE = 'makefile'
@@ -53,16 +53,21 @@ source={{filename}}
 
 {targets}
 
-.PHONY: clean, targets
+.PHONY: clean, cleanmake, makeclean, targets
 clean:
 {cleantarget}
 
+cleanmake makeclean:
+    @make --no-print-directory clean && make --no-print-directory;
+
 targets:
     -@echo -e "Make targets available:\\n\\
-    all     : Build the executable with no optimization or debug symbols.\\n\\
-    clean   : Delete previous build files.\\n\\
-    debug   : Build the executable with debug symbols.\\n\\
-    release : Build the executable with optimizations.\\n\\
+    all       : Build with no optimization or debug symbols.\\n\\
+    clean     : Delete previous build files.\\n\\
+    cleanmake : Run \\`make clean && make\\`\\n\\
+    makeclean : Alias for \\`cleanmake\\`\\n\\
+    debug     : Build the executable with debug symbols.\\n\\
+    release   : Build the executable with optimizations.\\n\\
     ";
 """)
 
