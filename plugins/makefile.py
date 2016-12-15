@@ -17,7 +17,7 @@ from plugins import (
 )
 
 # Version number for both plugins (if one changes, usually the other changes)
-VERSION = '0.1.3'
+VERSION = '0.2.3'
 
 # Default filename for the resulting makefile.
 DEFAULT_MAKEFILE = 'makefile'
