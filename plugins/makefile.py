@@ -61,7 +61,7 @@ cleanmake makeclean:
     @make --no-print-directory clean && make --no-print-directory;
 
 targets:
-    -@echo -e "Make targets available:\\n\\
+    -@printf "Make targets available:\\n\\
     all       : Build with no optimization or debug symbols.\\n\\
     clean     : Delete previous build files.\\n\\
     cleanmake : Run \\`make clean && make\\`\\n\\
@@ -102,6 +102,11 @@ debug: all
 
 release: {cflagsvar}+=-O3 -DNDEBUG
 release: all
+    @if strip $(binary); then\\
+        printf "\\n%s was stripped.\\n" "$(binary)";\\
+    else\\
+        printf "\\nError stripping executable: %s\\n" "$(binary)" 1>&2;\\
+    fi;
 
 {objects}: $(source)
     $({compilervar}) -c $(source) $({cflagsvar})
@@ -111,18 +116,18 @@ release: all
 ccleantarget = fix_indent_tabs("""
     -@if [[ -e $(binary) ]]; then\\
         if rm -f $(binary); then\\
-            echo "Binaries cleaned.";\\
+            printf "Binaries cleaned.\\n";\\
         fi;\\
     else\\
-        echo "Binaries already clean.";\\
+        printf "Binaries already clean.\\n";\\
     fi;
 
     -@if ls *.o &>/dev/null; then\\
         if rm *.o; then\\
-            echo "Objects cleaned.";\\
+            printf "Objects cleaned.\\n";\\
         fi;\\
     else\\
-        echo "Objects already clean.";\\
+        printf "Objects already clean.\\n";\\
     fi;
 """).lstrip('\n')
 
@@ -142,10 +147,10 @@ release: all
 rustcleantarget = fix_indent_tabs("""
     -@if [[ -e $(binary) ]]; then\\
         if rm -f $(binary); then\\
-            echo "Binaries cleaned.";\\
+            printf "Binaries cleaned.\\n";\\
         fi;\\
     else\\
-        echo "Binaries already clean.";\\
+        printf "Binaries already clean.\\n";\\
     fi;
 """).lstrip('\n')
 
