@@ -17,7 +17,7 @@ from plugins import (
 )
 
 # Version number for both plugins (if one changes, usually the other changes)
-VERSION = '0.2.3'
+VERSION = '0.2.4'
 
 # Default filename for the resulting makefile.
 DEFAULT_MAKEFILE = 'makefile'
@@ -67,7 +67,7 @@ targets:
     cleanmake : Run \\`make clean && make\\`\\n\\
     makeclean : Alias for \\`cleanmake\\`\\n\\
     debug     : Build the executable with debug symbols.\\n\\
-    release   : Build the executable with optimizations.\\n\\
+    release   : Build the executable with optimization, and strip it.\\n\\
     ";
 """)
 
