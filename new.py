@@ -31,7 +31,7 @@ import plugins
 debug = plugins.debug
 
 NAME = 'New'
-VERSION = '0.4.3'
+VERSION = '0.5.0'
 VERSIONSTR = '{} v. {}'.format(NAME, VERSION)
 SCRIPT = os.path.split(os.path.abspath(sys.argv[0]))[1]
 SCRIPTDIR = os.path.abspath(sys.path[0])
@@ -39,12 +39,12 @@ SCRIPTDIR = os.path.abspath(sys.path[0])
 USAGESTR = """{versionstr}
     Usage:
         {script} (-c | -h | -v | -p) [-D]
-        {script} FILENAME [-d] [-D] [-x]
-        {script} FILENAME [-d] [-D] [-x] -- ARGS...
+        {script} FILENAME [-d] [-D] [-o] [-x]
+        {script} FILENAME [-d] [-D] [-o] [-x] -- ARGS...
         {script} PLUGIN (-C | -H) [-D]
         {script} PLUGIN [-D] -- ARGS...
-        {script} PLUGIN FILENAME [-d] [-D] [-x]
-        {script} PLUGIN FILENAME [-d] [-D] [-x] -- ARGS...
+        {script} PLUGIN FILENAME [-d] [-D] [-o] [-x]
+        {script} PLUGIN FILENAME [-d] [-D] [-o] [-x] -- ARGS...
 
     Options:
         ARGS               : Plugin-specific args.
@@ -60,6 +60,7 @@ USAGESTR = """{versionstr}
         -D,--debug         : Show more debugging info.
         -H,--pluginhelp    : Show plugin help.
         -h,--help          : Show this help message.
+        -o,--noopen        : Don't open the file after creating it.
         -p,--plugins       : List all available plugins.
         -x,--executable    : Force the chmodx plugin to run, to make the file
                              executable. This is for plugin types that
@@ -191,6 +192,11 @@ def main(argd):
         debug('{} is not allowed to create a blank file.'.format(pluginname))
         print('\nFailed to create file: {}'.format(fname))
         return 1
+
+    if argd['--noopen']:
+        # Don't open the file.
+        debug('Cancelling open plugin for {}'.format(plugin.get_name()))
+        plugin.ignore_deferred.add('open')
 
     return handle_content(fname, content, plugin, dryrun=argd['--dryrun'])
 
