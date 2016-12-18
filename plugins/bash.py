@@ -4,7 +4,7 @@
 import os.path
 from plugins import Plugin, date, default_version, fix_author
 
-__version__ = '0.3.1'
+__version__ = '0.3.2'
 
 template = """#!/bin/bash
 
@@ -64,11 +64,11 @@ declare -a nonflags
 
 for arg; do
     case "$arg" in
-        "-h"|"--help" )
+        "-h" | "--help")
             print_usage ""
             exit 0
             ;;
-        "-v"|"--version" )
+        "-v" | "--version")
             echo -e "$appname v. $appversion\\n"
             exit 0
             ;;
