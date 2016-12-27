@@ -175,13 +175,12 @@ def create_custom_plugin(names, info):
         ignore_post = info.get('ignore_post', None)
         ignore_deferred = info.get('ignore_deferred', None)
         private = info.get('private', False)
-        _raw_config = info
 
-        def config_dump(self):
+        def config_dump(self, _raw_config=info):
             """ Overloaded config_dump for custom plugins. """
             # Custom plugins have a file name, or content, and a description.
             # There is not much 'config' to them.
-            conf = {self.get_name(): self._raw_config}
+            conf = {self.get_name(): _raw_config}
             try:
                 configstr = json.dumps(conf, sort_keys=True, indent=4)
             except TypeError as ex:
