@@ -85,8 +85,9 @@ DEBUG_PLUGIN = False
 def main(argd):
     """ Main entry point, expects doctopt arg dict as argd """
     global DEBUG
-    plugins.DEBUG = DEBUG = argd['--debug']
-
+    DEBUG = argd['--debug']
+    if not DEBUG:
+        plugins.debugprinter.disable()
     try:
         # Load all available plugins.
         plugins.load_plugins(PLUGINDIR)
@@ -405,6 +406,7 @@ def write_file(fname, content):
         print_ex(exgen, 'Error writing file: {}'.format(fname))
         return None
     return fname
+
 
 if __name__ == '__main__':
     # Okay, run.
