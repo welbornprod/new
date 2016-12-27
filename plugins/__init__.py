@@ -180,6 +180,12 @@ def create_custom_plugin(names, info):
             """ Overloaded config_dump for custom plugins. """
             # Custom plugins have a file name, or content, and a description.
             # There is not much 'config' to them.
+            if not _raw_config:
+                # This only happens if a user calls config_dump() incorrectly.
+                print_err('_raw_config should already be set by default!')
+                print('No config for: {}'.format(self.get_name().title()))
+                return False
+
             conf = {self.get_name(): _raw_config}
             try:
                 configstr = json.dumps(conf, sort_keys=True, indent=4)
