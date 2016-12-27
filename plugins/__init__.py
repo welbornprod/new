@@ -361,6 +361,26 @@ def create_custom_plugin(names, info):
             ))
             return tags
 
+        def help(self):
+            """ Overloaded help() for custom plugins. """
+            name = self.get_name()
+            print('\nHelp for custom New plugin, {}:\n'.format(name))
+            desc = self.get_desc()
+            if desc:
+                print('Description:\n{}'.format(desc))
+            else:
+                print('(no description available)')
+            filename = getattr(self, 'input_file', None)
+            content = getattr(self, 'input_content', None)
+            if filename:
+                print('\nBased on: {}'.format(filename))
+                if not os.path.exists(filename):
+                    print('          This path does not exist!')
+            elif content:
+                print('\nBased on content:\n  {}'.format(
+                    self.format_content_preview(max_length=77)
+                ))
+
         def make_tag_exception(self, content, tagname):
             """ Create a SignalExit to be used when a bad format tag is found
                 in the content.
@@ -1386,6 +1406,7 @@ class PluginBase(object):
         """ Show help for a plugin if available. """
         name = self.get_name()
         ver = getattr(self, 'version', '')
+        versionstr = name
         if ver:
             versionstr = '{} v. {}'.format(name, ver)
 
@@ -1407,20 +1428,7 @@ class PluginBase(object):
         # No real usage available, try getting a description instead.
         print('\nNo help available for {}.\n'.format(versionstr))
         if desc:
-            print('Description:')
-            print(desc)
-            if getattr(self, 'is_custom', False):
-                filename = getattr(self, 'input_file', None)
-                content = getattr(self, 'input_content', None)
-                if filename:
-                    print('\nBased on: {}'.format(filename))
-                    if not os.path.exists(filename):
-                        print('          This path does not exist!')
-                elif content:
-                    max_content_len = 75
-                    if len(content) > max_content_len:
-                        content = '{}...'.format(content[:max_content_len])
-                    print('\nBased on content:\n  {}'.format(content))
+            print('Description:\n{}'.format(desc))
         else:
             print('(no description available)')
         return False
