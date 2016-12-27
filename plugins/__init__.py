@@ -175,6 +175,20 @@ def create_custom_plugin(names, info):
         ignore_post = info.get('ignore_post', None)
         ignore_deferred = info.get('ignore_deferred', None)
         private = info.get('private', False)
+        raw_config = info
+
+        def config_dump(self):
+            """ Overloaded config_dump for custom plugins. """
+            # Custom plugins have a file name, or content, and a description.
+            # There is not much 'config' to them.
+            conf = {self.get_name(): self.raw_config}
+            try:
+                configstr = json.dumps(conf, sort_keys=True, indent=4)
+            except TypeError as ex:
+                print_err('Config has non-str keys!\n  {}'.format(ex))
+                configstr = json.dumps(conf, indent=4)
+            print(configstr)
+            return True
 
         def create(self, filename):
             """ Creates a file based on user configuration. """
