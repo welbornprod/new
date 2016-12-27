@@ -38,6 +38,7 @@ SCRIPTDIR = os.path.abspath(sys.path[0])
 
 USAGESTR = """{versionstr}
     Usage:
+        {script} --customhelp [-D]
         {script} (-c | -h | -v | -p) [-D]
         {script} FILENAME [-d] [-D] [-o] [-x]
         {script} FILENAME [-d] [-D] [-o] [-x] -- ARGS...
@@ -54,11 +55,16 @@ USAGESTR = """{versionstr}
         PLUGIN             : Plugin name to use (like bash, python, etc.)
                              Defaults to: python (unless set in config)
         FILENAME           : File name for the new file.
+        --customhelp       : Show help for creating a custom plugin.
         -c,--config        : Print global config and exit.
         -C,--pluginconfig  : Print plugin config and exit.
+                             If a file path is given, the default plugin for
+                             that file type will be used.
         -d,--dryrun        : Don't write anything. Print to stdout instead.
         -D,--debug         : Show more debugging info.
         -H,--pluginhelp    : Show plugin help.
+                             If a file path is given, the default plugin for
+                             that file type will be used.
         -h,--help          : Show this help message.
         -o,--noopen        : Don't open the file after creating it.
         -p,--plugins       : List all available plugins.
@@ -88,6 +94,9 @@ def main(argd):
     DEBUG = argd['--debug']
     if not DEBUG:
         plugins.debugprinter.disable()
+    if argd['--customhelp']:
+        return 0 if plugins.custom_plugin_help() else 1
+
     try:
         # Load all available plugins.
         plugins.load_plugins(PLUGINDIR)
@@ -103,7 +112,8 @@ def main(argd):
         return 0 if plugins.config_dump() else 1
 
     # Determine plugin based on file name/file type/explicit name.
-    plugin = get_plugin(argd)
+    use_default_plugin = not (argd['--pluginhelp'] or argd['--pluginconfig'])
+    plugin = get_plugin(argd, use_default=use_default_plugin)
     if not plugin:
         # Not a valid plugin name, user cancelled text plugin use.
         return 1
@@ -236,18 +246,25 @@ def ensure_file_ext(fname, plugin):
     return '{}{}'.format(fname, plugin.extensions[0])
 
 
-def get_plugin(argd):
+def get_plugin(argd, use_default=True):
     """ Get the plugin to use based on the user's args (arg dict from docopt).
         When an invalid name is used, optionally use the text plugin.
         Print a message and return None on failure/cancellation.
+        Arguments:
+            argd         : Command line argument dict from docopt.
+            use_default  : Whether determine_plugin() should use the default
+                           plugin on bad names/types.
+                           Default: True
     """
-    plugincls = plugins.determine_plugin(argd)
+    plugincls = plugins.determine_plugin(argd, use_default=use_default)
     if plugincls:
         return plugincls()
 
     ftype = argd['PLUGIN'] or argd['FILENAME']
     print('Not a valid file type (not supported): {}'.format(ftype))
-    if not confirm('Continue with a blank file?'):
+    if not use_default:
+        return None
+    elif not confirm('Continue with a blank file?'):
         print_err('Use --plugins to list available plugins.\n')
         return None
 

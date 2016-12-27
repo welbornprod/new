@@ -433,6 +433,90 @@ def create_custom_plugin(names, info):
     return CustomPlugin
 
 
+def custom_plugin_help():
+    """ Print a message with instructions for creating a custom plugin. """
+    try:
+        from outputcatcher import ProcessOutput
+    except ImportError:
+        ProcessOutput = None
+    configstr = """
+{
+    // Custom plugins live under the 'custom' key in new.json.
+    "custom": {
+        // Main name for this custom plugin.
+        "mit": {
+            // Other names for this custom plugin.
+            "aliases": ["license.mit"],
+
+            // File name to read, copy, format, from when creating the file.
+            "filename": "~/Documents/licenses/mit.template.txt",
+
+            // Short description for the custom plugin.
+            "description": "A new MIT license with the year and author set.",
+
+            // Whether New should format keys like {author}, {date}, ..
+            "formatted": true,
+
+            // Post-processing plugins to ignore, like the chmodx plugin.
+            "ignore_post": ["chmodx"]
+        },
+
+        // Same thing, except uses content straight from the config file:
+        "hello": {
+            "aliases": ["helloworld", "myhelloplugin"],
+            "content": "Hello world from {author}, on {date}.",
+            "description": "A basic content-based custom plugin.",
+            "formatted": true,
+            "ignore_post": ["chmodx"]
+        }
+    }
+    // ...the rest of new.json's config settings.
+}""".strip()
+
+    if ProcessOutput is None:
+        debug('outputcatcher not installed, no highlighting.')
+    else:
+        # Free highlighting for those with outputcatcher installed.
+        cmds = (
+            [
+                'highlight',
+                '--style=night',
+                '--syntax=js',
+                '--out-format=ansi'
+            ],
+            ['ccat', '--colors', '--lexer', 'js', '--style', 'monokai'],
+        )
+        for cmd in cmds:
+            try:
+                with ProcessOutput(cmd, stdin_data=configstr) as p:
+                    debug('Ran command: {!r}'.format(cmd))
+                    configstr = p.stdout.decode()
+                    debug('Got output: {!r}...'.format(configstr[:40]))
+                    if p.stderr:
+                        debug('Got stderr!:')
+                        debug(p.stderr.decode(), align=True)
+                    break
+            except Exception as ex:
+                debug('Highlight failed for {!r}: {}'.format(cmd, ex))
+                continue
+
+    print('Custom plugin config example:\n\n{}'.format(configstr))
+    knowntags = (
+        ('author', 'Set in config under plugins.global.author.'),
+        ('date', 'Set to today\'s date.'),
+        ('email', 'Set in config under plugins.global.email.'),
+        ('version', 'Set in config under plugins.global.default_version.'),
+        ('year', 'Set to this year.'),
+    )
+    print('\nCurrent known formatting tags:\n    {}'.format(
+        '\n    '.join(
+            '{:>8}: {}'.format(key, desc)
+            for key, desc in knowntags
+        )
+    ))
+    return True
+
+
 def date(dateobj=None):
     """ Returns a string formatted date for today. """
     return datetime.strftime(dateobj or datetime.today(), '%m-%d-%Y')
@@ -454,10 +538,13 @@ def debug_missing(attr, plugintype, modname, plugin):
     debug_load_error(plugintype, modname, plugin, msg)
 
 
-def determine_plugin(argd):
+def determine_plugin(argd, use_default=True):
     """ Determine which plugin to use based on user's filename, or filetype.
         Arguments:
-            argd  : Docopt arg dict from user.
+            argd         : Docopt arg dict from user.
+            use_default  : Whether to return the default plugin on bad
+                           plugin names.
+                           Default: True
         Returns Plugin() on success, or None on failure.
         This may modify argd['FILENAME'] if needed.
     """
@@ -473,8 +560,8 @@ def determine_plugin(argd):
         # Plugin name was mistaken for a file name (ambiguous docopt usage).
         # Use default file name since no file name was given.
         argd['FILENAME'] = default_file
-        debug('Plugin loaded by name, using default file name.')
-        return namedplugincls
+    debug('Plugin loaded by name, using default file name.')
+    return namedplugincls
     debug('get_plugin_byname({!r}) failed (FILENAME), trying PLUGIN.'.format(
         argd['FILENAME']
     ))
@@ -509,7 +596,7 @@ def determine_plugin(argd):
     if plugincls:
         debug('Plugin loaded by given name.')
         return plugincls
-    return get_plugin_default()
+    return get_plugin_default() if use_default else None
 
 
 def do_post_plugins(fname, plugin):
