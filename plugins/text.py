@@ -20,8 +20,33 @@ class TextPlugin(Plugin):
     # Text files are not executable.
     ignore_post = {'chmodx'}
 
+    def config_dump(self):
+        """ Overloaded config_dump() for special-case text plugin. """
+        print('\nConfig for: {}\n'.format(self.get_name()))
+        print('{}')
+        print('\n'.join((
+            '\nThe text plugin has no config settings.',
+            'To create a custom text template use a CustomPlugin.',
+            'For more information run with --customhelp.',
+        )))
+        return True
+
     def create(self, filename):
         """ Creates a blank text file (no content). """
         return None
+
+    def help(self):
+        """ Overloaded help() for special-case text plugin. """
+        print('\nHelp for New plugin, {} v. {}:\n'.format(
+            self.get_name(),
+            self.version
+        ))
+        print('\n'.join((
+            'The text plugin creates a blank file, and has no settings.',
+            'To create custom text templates use a CustomPlugin.',
+            'For more information run with --customhelp.',
+        )))
+        return True
+
 
 exports = (TextPlugin, )
