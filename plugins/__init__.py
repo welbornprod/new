@@ -156,7 +156,8 @@ def create_custom_plugin(names, info):
         extensions = None
         # Any extension is allowed to be used.
         any_extension = True
-
+        # CustomPlugins are marked with this attribute.
+        is_custom = True
         # Attributes set by config.
         name = names
         input_file = filename
@@ -340,7 +341,6 @@ def create_custom_plugin(names, info):
                 in the content.
             """
             # Build some info about the bad tag/content.
-            max_length = 40
             linenum, linepos = self.find_tag_position(
                 content,
                 tagname
@@ -1700,6 +1700,18 @@ class PluginBase(object):
         if desc:
             print('Description:')
             print(desc)
+            if getattr(self, 'is_custom', False):
+                filename = getattr(self, 'input_file', None)
+                content = getattr(self, 'input_content', None)
+                if filename:
+                    print('\nBased on: {}'.format(filename))
+                    if not os.path.exists(filename):
+                        print('          This path does not exist!')
+                elif content:
+                    max_content_len = 75
+                    if len(content) > max_content_len:
+                        content = '{}...'.format(content[:max_content_len])
+                    print('\nBased on content:\n  {}'.format(content))
         else:
             print('(no description available)')
         return False
