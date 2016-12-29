@@ -560,8 +560,8 @@ def determine_plugin(argd, use_default=True):
         # Plugin name was mistaken for a file name (ambiguous docopt usage).
         # Use default file name since no file name was given.
         argd['FILENAME'] = default_file
-    debug('Plugin loaded by name, using default file name.')
-    return namedplugincls
+        debug('Plugin loaded by name, using default file name.')
+        return namedplugincls
     debug('get_plugin_byname({!r}) failed (FILENAME), trying PLUGIN.'.format(
         argd['FILENAME']
     ))

@@ -113,6 +113,7 @@ def main(argd):
 
     # Determine plugin based on file name/file type/explicit name.
     use_default_plugin = not (argd['--pluginhelp'] or argd['--pluginconfig'])
+    debug('Use default plugin?: {}'.format(use_default_plugin))
     plugin = get_plugin(argd, use_default=use_default_plugin)
     if not plugin:
         # Not a valid plugin name, user cancelled text plugin use.
