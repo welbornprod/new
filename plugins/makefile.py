@@ -4,7 +4,6 @@
 """
 
 import os.path
-import re
 from plugins import (
     confirm,
     debug,
@@ -17,7 +16,7 @@ from plugins import (
 )
 
 # Version number for both plugins (if one changes, usually the other changes)
-VERSION = '0.2.4'
+VERSION = '0.2.6'
 
 # Default filename for the resulting makefile.
 DEFAULT_MAKEFILE = 'makefile'
@@ -33,13 +32,14 @@ def format_cflags(flaglist):
     append = ' \\'
     # Max line width is 80, but allow room for 'CFLAGS=' and ' \'.
     linewidth = 80 - len(indent) - len(append)
-    return FormatBlock(' '.join(sorted(flaglist))).format(
+    return FormatBlock(' '.join(sorted(set(flaglist)))).format(
         prepend=indent,
         strip_first=True,
         append=append,
         strip_last=True,
         width=linewidth,
     )
+
 
 # I'm not very good with makefiles.
 # {targets} and {cleantarget} are set by compiler type,
@@ -77,7 +77,9 @@ csharedflags = [
     '-Wextra',
     '-Wfloat-equal',
     '-Winline',
+    '-Wlogical-op',
     '-Wmissing-include-dirs',
+    '-Wnull-dereference',
     '-Wpedantic',
     '-Wshadow',
     '-Wunused-macros',
@@ -303,5 +305,6 @@ class MakefilePlugin(Plugin):
             message=msg,
             filename=makefile,
             content=content)
+
 
 exports = (MakefilePost, MakefilePlugin)
