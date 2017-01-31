@@ -5,23 +5,43 @@
 import os.path
 from plugins import Plugin, date, fix_author, SignalAction
 
+
+__version__ = '0.1.0'
+
+# Template for defining vars.
 template_define = """
 #ifndef {define}
     #define {define}
 #endif
 """.strip()
 
+# Template for including headers.
 template_include = """
 #include {include}
 """.strip()
 
-template_lib = """/* {filename}
+# Template for all files with the filename, author, and date.
+template_header = """/* {filename}
     ...
     {author}{date}
 */
 
 """
 
+# Template for header file content.
+template_lib_body = """
+#ifndef {header_def}
+#pragma GCC diagnostic ignored "-Wunused-macros"
+#define {header_def}
+#pragma GCC diagnostic warning "-Wunused-macros"
+
+#endif // {header_def}
+"""
+# Template for header files.
+template_lib = ''.join((template_header, template_lib_body))
+
+
+# Template for C/C++ source files content.
 template_body = """
 {includes}
 {defines}
@@ -32,8 +52,8 @@ int main(int argc, char *argv[]) {{
 }}
 """.strip()
 
-# Headers and source files should use the same comment header.
-template = ''.join((template_lib, template_body))
+# Template for C/C++ source files.
+template = ''.join((template_header, template_body))
 
 c_defines = (
     '_GNU_SOURCE',
@@ -46,8 +66,6 @@ c_headers = (
 cpp_headers = (
     'iostream',
 )
-
-__version__ = '0.0.5'
 
 
 class CPlugin(Plugin):
@@ -175,12 +193,14 @@ class CHeaderPlugin(Plugin):
 
     def create(self, filename):
         """ Creates a basic C/C++ header file. """
-        parentdir, basename = os.path.split(filename)
+        parentdir, filepath = os.path.split(filename)
+        filebase = os.path.splitext(filepath)[0]
 
         return template_lib.format(
-            filename=basename,
+            filename=filepath,
             author=fix_author(self.config.get('author', None)),
             date=date(),
+            header_def='_{}_H'.format(filebase.upper()),
         )
 
 
