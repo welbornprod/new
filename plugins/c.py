@@ -6,7 +6,7 @@ import os.path
 from plugins import Plugin, date, fix_author, SignalAction
 
 
-__version__ = '0.1.0'
+__version__ = '0.2.2'
 
 # Template for defining vars.
 template_define = """
@@ -31,11 +31,25 @@ template_header = """/* {filename}
 # Template for header file content.
 template_lib_body = """
 #ifndef {header_def}
+/* Tell gcc to ignore this unused inclusion macro. */
 #pragma GCC diagnostic ignored "-Wunused-macros"
+/* Tell gcc to ignore clang pragmas, for linting. */
+#pragma GCC diagnostic ignored "-Wunknown-pragmas"
+/* Tell clang to ignore this unused inclusion macro. */
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wunused-macros"
 #define {header_def}
-#pragma GCC diagnostic warning "-Wunused-macros"
+#pragma clang diagnostic pop
 
-#endif // {header_def}
+/* Warn for any other unused macros, for gcc and clang. */
+#pragma GCC diagnostic warning "-Wunused-macros"
+#pragma clang diagnostic push
+#pragma clang diagnostic warning "-Wunused-macros"
+
+
+
+#pragma clang diagnostic pop /* end warning -Wunused-macros */
+#endif /* {header_def} */
 """
 # Template for header files.
 template_lib = ''.join((template_header, template_lib_body))
@@ -60,7 +74,9 @@ c_defines = (
 )
 
 c_headers = (
+    'stdbool.h',
     'stdio.h',
+    'stdlib.h',
 )
 
 cpp_headers = (
@@ -70,8 +86,8 @@ cpp_headers = (
 
 class CPlugin(Plugin):
     name = ('c', 'cpp', 'c++', 'cc')
-    extensions = ('.c', '.cpp', '.cc')
-    cpp_extensions = ('.cpp', '.cc')
+    extensions = ('.c', '.cpp', '.cc', '.cxx')
+    cpp_extensions = ('.cpp', '.cc', '.cxx')
     version = __version__
     ignore_post = {'chmodx'}
     description = '\n'.join((
