@@ -16,7 +16,7 @@ from plugins import (
 )
 
 # Version number for both plugins (if one changes, usually the other changes)
-VERSION = '0.2.6'
+VERSION = '0.2.7'
 
 # Default filename for the resulting makefile.
 DEFAULT_MAKEFILE = 'makefile'
@@ -48,6 +48,8 @@ def format_cflags(flaglist):
 pre_template = fix_indent_tabs("""SHELL=bash
 {{compilervar}}={{compiler}}
 {{cflagsvar}}={{cflags}}
+LIBS=
+
 binary={{binary}}
 source={{filename}}
 
@@ -97,7 +99,7 @@ cpponlyflags = [
 # Make targets for c/c++.
 ctargets = fix_indent_tabs("""
 all: {objects}
-    $({compilervar}) -o $(binary) $({cflagsvar}) *.o
+    $({compilervar}) -o $(binary) $({cflagsvar}) *.o $(LIBS)
 
 debug: {cflagsvar}+=-g3 -DDEBUG
 debug: all
@@ -111,7 +113,7 @@ release: all
     fi;
 
 {objects}: $(source)
-    $({compilervar}) -c $(source) $({cflagsvar})
+    $({compilervar}) -c $(source) $({cflagsvar}) $(LIBS)
 """).strip()
 
 # Clean target for C/C++.
@@ -222,7 +224,7 @@ class MakefilePost(PostPlugin):
     name = 'automakefile'
     version = VERSION
     description = '\n'.join((
-        'Creates a makefile for new C files.',
+        'Creates a makefile for new C, CPP, or Rust files.',
         'This will not overwrite existing makefiles.'
     ))
 
@@ -262,7 +264,7 @@ class MakefilePlugin(Plugin):
     extensions = tuple()
     version = VERSION
     ignore_post = {'chmodx'}
-    description = 'Creates a basic makefile for a given c or rust file name.'
+    description = 'Creates a makefile for a given c, cpp, or rust file.'
 
     docopt = True
     usage = """
