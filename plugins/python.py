@@ -13,7 +13,7 @@ from plugins import (
     fix_author
 )
 
-__version__ = '0.3.0'
+__version__ = '0.3.1'
 
 # TODO: This plugin was basically just copied and adapted from the original
 #       'newpython' script that inspired this project.
@@ -225,7 +225,7 @@ setup(
         'Programming Language :: Python :: 2.7',
         'Programming Language :: Python :: 3', # ' :: Only'
         'Topic :: Software Development :: Libraries',
-        'Topic :: Software Development :: Libraries :: Python Modules'
+        'Topic :: Software Development :: Libraries :: Python Modules',
     ],
     # TODO: List requirements, or delete these comments.
     # install_requires=[..],
@@ -252,7 +252,7 @@ class TestCase(unittest.TestCase):
         pass
 
 if __name__ == '__main__':
-    sys.exit(unittest.main(argv=sys.argv))
+    unittest.main(argv=sys.argv, verbosity=2)
 """
 
 # To retrieve a raw template string by name/id.
