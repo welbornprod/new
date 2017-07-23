@@ -31,7 +31,7 @@ import plugins
 debug = plugins.debug
 
 NAME = 'New'
-VERSION = '0.5.1'
+VERSION = '0.5.2'
 VERSIONSTR = '{} v. {}'.format(NAME, VERSION)
 SCRIPT = os.path.split(os.path.abspath(sys.argv[0]))[1]
 SCRIPTDIR = os.path.abspath(sys.path[0])
@@ -284,6 +284,13 @@ def handle_content(fname, content, plugin, dryrun=False):
         Run post-processing plugins if a file was written.
         Returns exit code status.
     """
+    if content and plugin.ensure_newline and (not content.endswith('\n')):
+        # Ensure newline if there is any content, only if plugin allows it.
+        debug(
+            'Adding missing newline for {} content.'.format(plugin.get_name())
+        )
+        content = ''.join((content, '\n'))
+
     if dryrun and fname != STDOUT_FILENAME:
         print('\nDry run, would\'ve written: {}\n'.format(fname))
         print(content or '<No Content>')

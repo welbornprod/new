@@ -1620,6 +1620,11 @@ class Plugin(PluginBase):
     # but if the user provides an extension then use it.
     any_extension = False
 
+    # (bool)
+    # Whether content should always have a newline at the end.
+    # If the plugin fails to end content with a newline, `new` will add it.
+    ensure_newline = True
+
     # (set)
     # Names of deferred plugins that will be skipped when using this plugin.
     ignore_deferred = set()
