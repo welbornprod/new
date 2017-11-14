@@ -14,7 +14,7 @@ template = """#!/usr/bin/env clisp
 
 class LispPlugin(Plugin):
 
-    """ Creates a blank text file (no content). """
+    """ Creates a basic lisp file (no content). """
 
     name = ('lisp', 'clisp')
     extensions = ('.lsp', '.lisp', '.cl')
