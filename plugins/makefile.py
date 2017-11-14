@@ -16,7 +16,7 @@ from plugins import (
 )
 
 # Version number for both plugins (if one changes, usually the other changes)
-VERSION = '0.2.7'
+VERSION = '0.3.0'
 
 # Default filename for the resulting makefile.
 DEFAULT_MAKEFILE = 'makefile'
@@ -41,14 +41,22 @@ def format_cflags(flaglist):
     )
 
 
+def format_vars(compilerinfo):
+    """ Format a dict of {'VAR': value} into makefile variables.
+    """
+    return '\n'.join(
+        '{}={}'.format(flag, compilerinfo[flag])
+        for flag in sorted(compilerinfo)
+    )
+
+
 # I'm not very good with makefiles.
 # {targets} and {cleantarget} are set by compiler type,
 # and *then* the whole template is rendered.
 # The fix_indent_tabs() is just for my sanity when dealing with tabs/spaces.
 pre_template = fix_indent_tabs("""SHELL=bash
-{{compilervar}}={{compiler}}
-{{cflagsvar}}={{cflags}}
-LIBS=
+{{compilervars}}
+{{flagvars}}{{libsline}}
 
 binary={{binary}}
 source={{filename}}
@@ -143,7 +151,7 @@ all: $(source)
 debug: {cflagsvar}+=-g
 debug: all
 
-release: {cflagsvar}+=-O
+release: {cflagsvar}+=-O2
 release: all
 """).strip()
 
@@ -158,26 +166,84 @@ rustcleantarget = fix_indent_tabs("""
     fi;
 """).lstrip('\n')
 
+# Make targets for nasm.
+nasmtargets = fix_indent_tabs("""
+all: {objects}
+    $({linkervar}) -o $(binary) $({linkerflagsvar}) *.o
+
+debug: {linkerflagsvar}+=-g3 -DDEBUG
+debug: all
+
+release: {linkerflagsvar}+=-O3 -DNDEBUG
+release: all
+    @if strip $(binary); then\\
+        printf "\\n%s was stripped.\\n" "$(binary)";\\
+    else\\
+        printf "\\nError stripping executable: %s\\n" "$(binary)" 1>&2;\\
+    fi;
+
+{objects}: $(source)
+    $({compilervar}) $({cflagsvar}) $(source)
+""").strip()
+
 # Template options based on compiler name.
 coptions = {
+    'nasm': {
+        'compilervar': 'CC',
+        'cflagsvar': 'CFLAGS',
+        'linkervar': 'LD',
+        'linkerflagsvar': 'LDFLAGS',
+        'compilervars': format_vars({'CC': 'nasm', 'LD': 'ld'}),
+        'flagvars': format_vars(
+            {'LDFLAGS': '', 'CFLAGS': '-felf64'}
+        ),
+        'libsline': '',
+        'targets': nasmtargets,
+        'cleantarget': ccleantarget,
+    },
+    'nasm-c': {
+        'compilervar': 'CC',
+        'cflagsvar': 'CFLAGS',
+        'linkervar': 'LD',
+        'linkerflagsvar': 'LDFLAGS',
+        'compilervars': format_vars({'CC': 'nasm', 'LD': 'gcc'}),
+        'flagvars': format_vars(
+            {'LDFLAGS': '-Wall -static', 'CFLAGS': '-felf64'}
+        ),
+        'libsline': '',
+        'targets': nasmtargets,
+        'cleantarget': ccleantarget,
+    },
     'gcc': {
         'compilervar': 'CC',
         'cflagsvar': 'CFLAGS',
-        'cflags': format_cflags(csharedflags + conlyflags),
+        'compilervars': format_vars({'CC': 'gcc'}),
+        'flagvars': format_vars(
+            {'CFLAGS': format_cflags(csharedflags + conlyflags)}
+        ),
+        'libsline': '\nLIBS=',
         'targets': ctargets,
         'cleantarget': ccleantarget,
     },
     'g++': {
         'compilervar': 'CXX',
         'cflagsvar': 'CXXFLAGS',
-        'cflags': format_cflags(csharedflags + cpponlyflags),
+        'compilervars': format_vars({'CXX': 'g++'}),
+        'flagvars': format_vars(
+            {'CXXFLAGS': format_cflags(csharedflags + cpponlyflags)}
+        ),
+        'libsline': '\nLIBS=',
         'targets': ctargets,
         'cleantarget': ccleantarget,
     },
     'rustc': {
         'compilervar': 'RUSTC',
         'cflagsvar': 'RUSTFLAGS',
-        'cflags': '',
+        'compilervars': format_vars({'RUSTC': 'rustc'}),
+        'flagvars': format_vars(
+            {'RUSTFLAGS': ''}
+        ),
+        'libsline': '\nLIBS=',
         'targets': rusttargets,
         'cleantarget': rustcleantarget,
     }
@@ -194,9 +260,12 @@ def template_render(filepath, makefile=None):
 
     # Get compiler and make options by file extension (default to gcc).
     compiler = {
+        '.asm': 'nasm',
+        '.asmc': 'nasm-c',
         '.c': 'gcc',
         '.cpp': 'g++',
-        '.rs': 'rustc'
+        '.rs': 'rustc',
+        '.s': 'nasm',
     }.get(fileext, 'gcc')
 
     # Create the base template, retrieve compiler-specific settings.
@@ -224,14 +293,14 @@ class MakefilePost(PostPlugin):
     name = 'automakefile'
     version = VERSION
     description = '\n'.join((
-        'Creates a makefile for new C, CPP, or Rust files.',
+        'Creates a makefile for new NASM, C, CPP, or Rust files.',
         'This will not overwrite existing makefiles.'
     ))
 
     def process(self, plugin, filename):
         """ When a C file is created, create a basic Makefile to go with it.
         """
-        if plugin.get_name() not in ('c', 'rust'):
+        if plugin.get_name() not in ('asm', 'c', 'rust'):
             return None
         self.create_makefile(filename)
 
