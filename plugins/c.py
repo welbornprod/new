@@ -61,6 +61,8 @@ template_body = """
 {defines}
 {namespace}
 int main(int argc, char *argv[]) {{
+    (void)argc; // <- To silence linters when not using argc.
+    (void)argv; // <- To silence linters when not using argv.
 
     return 0;
 }}
