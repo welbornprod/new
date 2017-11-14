@@ -31,7 +31,7 @@ import plugins
 debug = plugins.debug
 
 NAME = 'New'
-VERSION = '0.5.2'
+VERSION = '0.6.0'
 VERSIONSTR = '{} v. {}'.format(NAME, VERSION)
 SCRIPT = os.path.split(os.path.abspath(sys.argv[0]))[1]
 SCRIPTDIR = os.path.abspath(sys.path[0])
@@ -40,12 +40,12 @@ USAGESTR = """{versionstr}
     Usage:
         {script} --customhelp [-D]
         {script} (-c | -h | -v | -p) [-D]
-        {script} FILENAME [-d] [-D] [-o] [-x]
-        {script} FILENAME [-d] [-D] [-o] [-x] -- ARGS...
+        {script} FILENAME [-d | -O] [-D] [-o] [-x]
+        {script} FILENAME [-d | -O] [-D] [-o] [-x] -- ARGS...
         {script} PLUGIN (-C | -H) [-D]
         {script} PLUGIN [-D] -- ARGS...
-        {script} PLUGIN FILENAME [-d] [-D] [-o] [-x]
-        {script} PLUGIN FILENAME [-d] [-D] [-o] [-x] -- ARGS...
+        {script} PLUGIN FILENAME [-d | -O] [-D] [-o] [-x]
+        {script} PLUGIN FILENAME [-d | -O] [-D] [-o] [-x] -- ARGS...
 
     Options:
         ARGS               : Plugin-specific args.
@@ -67,6 +67,7 @@ USAGESTR = """{versionstr}
                              that file type will be used.
         -h,--help          : Show this help message.
         -o,--noopen        : Don't open the file after creating it.
+        -O,--overwrite     : Overwrite existing files.
         -p,--plugins       : List all available plugins.
         -x,--executable    : Force the chmodx plugin to run, to make the file
                              executable. This is for plugin types that
@@ -197,7 +198,10 @@ def main(argd):
 
     # Confirm overwriting existing files, exit on refusal.
     # Non-existant file names are considered valid, and need no confimation.
-    if not valid_filename(fname, dryrun=argd['--dryrun']):
+    if not valid_filename(
+            fname,
+            dryrun=argd['--dryrun'],
+            overwrite=argd['--overwrite']):
         return 1
 
     if not (plugin.allow_blank or content):
@@ -390,13 +394,16 @@ def print_status(msg):
     print('{}: {}'.format('new'.ljust(15), msg))
 
 
-def valid_filename(fname, dryrun=False):
+def valid_filename(fname, dryrun=False, overwrite=False):
     """ Make sure a file doesn't exist already.
         If it does exist, confirm that the user wants to overwrite it.
+        If `overwrite` is True, this function always returns True.
         Returns True if it is safe to write the file, otherwise False.
 
         For dryruns, existing files are ignored.
     """
+    if overwrite:
+        return True
     if not os.path.exists(fname):
         return True
 
