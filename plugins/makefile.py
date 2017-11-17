@@ -198,7 +198,10 @@ coptions = {
         'linkervar': 'LD',
         'linkerflagsvar': 'LDFLAGS',
         'linkerflags_debug': '',
-        'linkerflags_release': '--strip-all',
+        'linkerflags_release': format_cflags(
+            ('--strip-all', ),
+            var='LDFLAGS'
+        ),
         'compilervars': format_vars({'CC': 'nasm', 'LD': 'ld'}),
         'flagvars': format_vars(
             {'LDFLAGS': '-O1', 'CFLAGS': '-felf64 -Wall'}
@@ -210,12 +213,18 @@ coptions = {
     'nasm-c': {
         'compilervar': 'CC',
         'cflagsvar': 'CFLAGS',
-        'cflags_debug': '-g',
-        'cflags_release': '-Ox',
+        'cflags_debug': format_cflags(('-g', )),
+        'cflags_release': format_cflags(('-Ox', )),
         'linkervar': 'LD',
         'linkerflagsvar': 'LDFLAGS',
-        'linkerflags_debug': format_cflags(('-g3', '-DDEBUG')),
-        'linkerflags_release': format_cflags(('-O3', '-DNDEBUG')),
+        'linkerflags_debug': format_cflags(
+            ('-g3', '-DDEBUG'),
+            var='LDFLAGS'
+        ),
+        'linkerflags_release': format_cflags(
+            ('-O3', '-DNDEBUG'),
+            var='LDFLAGS'
+        ),
         'compilervars': format_vars({'CC': 'nasm', 'LD': 'gcc'}),
         'flagvars': format_vars(
             {'LDFLAGS': '-Wall -static', 'CFLAGS': '-felf64 -Wall'}
