@@ -16,18 +16,18 @@ from plugins import (
 )
 
 # Version number for both plugins (if one changes, usually the other changes)
-VERSION = '0.3.0'
+VERSION = '0.4.0'
 
 # Default filename for the resulting makefile.
 DEFAULT_MAKEFILE = 'makefile'
 
 
-def format_cflags(flaglist):
+def format_cflags(flaglist, var='CFLAGS'):
     """ Format a list of C flags as a str.
         Insert \ line breaks so that the maximum line width is 80 chars.
     """
     # make doesn't mind spaces for continuation lines.
-    indent = ' ' * len('CFLAGS=')
+    indent = ' ' * len('{}='.format(var))
     # Add line breaks when splitting lines.
     append = ' \\'
     # Max line width is 80, but allow room for 'CFLAGS=' and ' \'.
@@ -38,7 +38,7 @@ def format_cflags(flaglist):
         append=append,
         strip_last=True,
         width=linewidth,
-    )
+    ).rstrip('\\')
 
 
 def format_vars(compilerinfo):
@@ -171,10 +171,12 @@ nasmtargets = fix_indent_tabs("""
 all: {objects}
     $({linkervar}) -o $(binary) $({linkerflagsvar}) *.o
 
-debug: {linkerflagsvar}+=-g3 -DDEBUG
+debug: {linkerflagsvar}+={linkerflags_debug}
+debug: {cflagsvar}+={cflags_debug}
 debug: all
 
-release: {linkerflagsvar}+=-O3 -DNDEBUG
+release: {linkerflagsvar}+={linkerflags_release}
+release: {cflagsvar}+={cflags_release}
 release: all
     @if strip $(binary); then\\
         printf "\\n%s was stripped.\\n" "$(binary)";\\
@@ -191,11 +193,15 @@ coptions = {
     'nasm': {
         'compilervar': 'CC',
         'cflagsvar': 'CFLAGS',
+        'cflags_debug': '-g',
+        'cflags_release': '-Ox',
         'linkervar': 'LD',
         'linkerflagsvar': 'LDFLAGS',
+        'linkerflags_debug': '',
+        'linkerflags_release': '--strip-all',
         'compilervars': format_vars({'CC': 'nasm', 'LD': 'ld'}),
         'flagvars': format_vars(
-            {'LDFLAGS': '', 'CFLAGS': '-felf64'}
+            {'LDFLAGS': '-O1', 'CFLAGS': '-felf64 -Wall'}
         ),
         'libsline': '',
         'targets': nasmtargets,
@@ -204,11 +210,15 @@ coptions = {
     'nasm-c': {
         'compilervar': 'CC',
         'cflagsvar': 'CFLAGS',
+        'cflags_debug': '-g',
+        'cflags_release': '-Ox',
         'linkervar': 'LD',
         'linkerflagsvar': 'LDFLAGS',
+        'linkerflags_debug': format_cflags(('-g3', '-DDEBUG')),
+        'linkerflags_release': format_cflags(('-O3', '-DNDEBUG')),
         'compilervars': format_vars({'CC': 'nasm', 'LD': 'gcc'}),
         'flagvars': format_vars(
-            {'LDFLAGS': '-Wall -static', 'CFLAGS': '-felf64'}
+            {'LDFLAGS': '-Wall -static', 'CFLAGS': '-felf64 -Wall'}
         ),
         'libsline': '',
         'targets': nasmtargets,
@@ -250,8 +260,9 @@ coptions = {
 }
 
 
-def template_render(filepath, makefile=None):
+def template_render(filepath, makefile=None, argd=None):
     """ Render the makefile template for a given c source file name. """
+    argd = {} if (argd is None) else argd
     parentdir, filename = os.path.split(filepath)
     fileext = os.path.splitext(filename)[-1]
     makefile = os.path.join(parentdir, makefile or DEFAULT_MAKEFILE)
@@ -266,7 +277,7 @@ def template_render(filepath, makefile=None):
         '.cpp': 'g++',
         '.rs': 'rustc',
         '.s': 'nasm',
-    }.get(fileext, 'gcc')
+    }.get('.asmc' if argd['--clib'] else fileext, 'gcc')
 
     # Create the base template, retrieve compiler-specific settings.
     debug('Rendering makefile template for {}.'.format(compiler))
@@ -317,7 +328,9 @@ class MakefilePost(PostPlugin):
         config = MakefilePlugin().config
         makefile, content = template_render(
             filepath,
-            makefile=config.get('default_filename', DEFAULT_MAKEFILE))
+            makefile=config.get('default_filename', DEFAULT_MAKEFILE),
+            argd=self.argd,
+        )
 
         with open(makefile, 'w') as f:
             f.write(content)
@@ -338,11 +351,12 @@ class MakefilePlugin(Plugin):
     docopt = True
     usage = """
     Usage:
-        makefile [MAKEFILENAME]
+        makefile [MAKEFILENAME] [-l]
 
     Options:
         MAKEFILENAME  : Desired file name for the makefile.
                         Can also be set in config as 'default_filename'.
+        -l,--clib     : Use C library style for ASM files.
     """
 
     def __init__(self):
@@ -365,7 +379,9 @@ class MakefilePlugin(Plugin):
 
         makefile, content = template_render(
             filename,
-            makefile=defaultfile)
+            makefile=defaultfile,
+            argd=self.argd,
+        )
 
         _, basename = os.path.split(filename)
         msg = '\n'.join((

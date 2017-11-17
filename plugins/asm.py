@@ -54,8 +54,8 @@ class AsmPlugin(Plugin):
     """ Creates a basic nasm source file. """
 
     name = ('asm', 'nasm')
-    extensions = ('.asm', '.s')
-    version = '0.0.2'
+    extensions = ('.asm', '.s', '.asmc')
+    version = '0.0.3'
     ignore_post = {'chmodx'}
     docopt = True
     usage = """
