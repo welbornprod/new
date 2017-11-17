@@ -798,15 +798,32 @@ def is_plugins_module(module):
         isinstance(module.exports, (list, tuple)))
 
 
-def is_py_file(path):
+def is_private_module(basename):
+    """ Returns True if a file's base name looks like a private module. """
+    return (
+        basename.startswith('__') or
+        basename.endswith('pluginbase.py')
+    )
+
+
+def is_py_module(basename, path=''):
     """ Returns True if the given path looks like a python file name.
         Dunder names will return False (__init__.py is not included)
         The plugins module itself is skipped also.
     """
-    return (
-        path.endswith('.py') and
-        (not path.startswith('__')) and
-        (not path == 'pluginbase.py'))
+    if is_private_module(basename):
+        # Filter private files.
+        return False
+    if basename.endswith('.py'):
+        # Single file.
+        return True
+    # Check for package.
+    fullpath = os.path.join(path, basename)
+    if not os.path.isdir(fullpath):
+        # Not a directory, can't be a python package.
+        return False
+    initfile = os.path.join(fullpath, '__init__.py')
+    return os.path.exists(initfile)
 
 
 def is_invalid_plugin(plugincls):
@@ -831,11 +848,15 @@ def is_invalid_plugin(plugincls):
     return 'not a Plugin, PostPlugin, or DeferredPostPlugin'
 
 
-def iter_py_files(path):
-    """ Iterate over all python file names in the given path. """
+def iter_py_modules(path):
+    """ Iterate over all python file/module/package names in the given path.
+    """
     try:
-        for path in [f for f in os.listdir(path) if is_py_file(f)]:
-            yield path
+        for name in os.listdir(path):
+            if is_py_module(name, path=path):
+                yield name
+            elif not is_private_module(name):
+                debug('Not a valid plugin file/package: {}'.format(name))
     except EnvironmentError as exenv:
         debug('Error listing plugins: {}'.format(exenv))
     except Exception as ex:
@@ -1124,8 +1145,8 @@ def load_plugins(plugindir):
     # Load custom config/file-based plugins.
     tmp_plugins['custom'] = load_custom_plugins()
 
-    # Load actual plugins.
-    for modname in (os.path.splitext(p)[0] for p in iter_py_files(plugindir)):
+    # Load single-file plugins.
+    for modname in (os.path.splitext(p)[0] for p in iter_py_modules(plugindir)):
         try:
             module = load_module(modname)
         except ImportError as eximp:
@@ -1135,6 +1156,7 @@ def load_plugins(plugindir):
         try:
             moduleplugins = load_module_plugins(module)
             for ptype in ('types', 'post', 'deferred'):
+                # Add this module's [ptype]-plugins to the global set.
                 tmp_plugins[ptype].update(moduleplugins[ptype])
         except Exception as ex:
             print('\nError loading plugin: {}\n{}'.format(modname, ex))
@@ -1344,7 +1366,11 @@ class PluginBase(object):
     def debug(self, *args, **kwargs):
         """ Uses the debug() function, but includes the class name. """
         kargs = kwargs.copy()
-        kargs.update({'parent': self, 'back': 2})
+        kargs.update({
+            # debug may report methods from the base class of self.
+            'parent': self,
+            'level': kwargs.get('level', 1),
+        })
         return debug(*args, **kargs)
 
     def get_arg(self, index, default=None):
