@@ -4,7 +4,7 @@
 """
 
 import os.path
-from plugins import (
+from .. import (
     confirm,
     debug,
     fix_indent_tabs,
