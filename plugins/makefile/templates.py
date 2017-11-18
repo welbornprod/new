@@ -2,10 +2,15 @@
 """ Templates for the New plugin, `makefile`.
     -Christopher Welborn 11-17-17
 """
+import os
 from .. import (
+    debug,
     fix_indent_tabs,
     FormatBlock,
 )
+
+# Default filename for the resulting makefile.
+DEFAULT_MAKEFILE = 'makefile'
 
 
 def format_cflags(flaglist, var='CFLAGS'):
@@ -253,3 +258,43 @@ coptions = {
         'cleantarget': rustcleantarget,
     }
 }
+
+
+def template_render(filepath, makefile=None, argd=None):
+    """ Render the makefile template for a given c source file name. """
+    argd = {} if (argd is None) else argd
+    parentdir, filename = os.path.split(filepath)
+    fileext = os.path.splitext(filename)[-1]
+    makefile = os.path.join(parentdir, makefile or DEFAULT_MAKEFILE)
+    binary = os.path.splitext(filename)[0]
+    objects = '{}.o'.format(binary)
+
+    # Get compiler and make options by file extension (default to gcc).
+    compiler = {
+        '.asm': 'nasm',
+        '.asmc': 'nasm-c',
+        '.c': 'gcc',
+        '.cpp': 'g++',
+        '.rs': 'rustc',
+        '.s': 'nasm',
+    }.get('.asmc' if argd['--clib'] else fileext, 'gcc')
+
+    # Create the base template, retrieve compiler-specific settings.
+    debug('Rendering makefile template for {}.'.format(compiler))
+    compileropts = coptions[compiler]
+    template = pre_template.format(
+        targets=compileropts.pop('targets'),
+        cleantarget=compileropts.pop('cleantarget')
+    )
+
+    # Create template args, update with compiler-based options.
+    templateargs = {
+        'compiler': compiler,
+        'binary': binary,
+        'filename': filename,
+        'objects': objects
+    }
+    templateargs.update(coptions[compiler])
+
+    # Format the template with compiler-specific settings.
+    return makefile, template.format(**templateargs)

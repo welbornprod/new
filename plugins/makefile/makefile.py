@@ -7,7 +7,6 @@ import os.path
 
 from .. import (
     confirm,
-    debug,
     Plugin,
     PostPlugin,
     SignalAction,
@@ -17,50 +16,7 @@ from .. import (
 from . import templates
 
 # Version number for both plugins (if one changes, usually the other changes)
-VERSION = '0.4.0'
-
-# Default filename for the resulting makefile.
-DEFAULT_MAKEFILE = 'makefile'
-
-
-def template_render(filepath, makefile=None, argd=None):
-    """ Render the makefile template for a given c source file name. """
-    argd = {} if (argd is None) else argd
-    parentdir, filename = os.path.split(filepath)
-    fileext = os.path.splitext(filename)[-1]
-    makefile = os.path.join(parentdir, makefile or DEFAULT_MAKEFILE)
-    binary = os.path.splitext(filename)[0]
-    objects = '{}.o'.format(binary)
-
-    # Get compiler and make options by file extension (default to gcc).
-    compiler = {
-        '.asm': 'nasm',
-        '.asmc': 'nasm-c',
-        '.c': 'gcc',
-        '.cpp': 'g++',
-        '.rs': 'rustc',
-        '.s': 'nasm',
-    }.get('.asmc' if argd['--clib'] else fileext, 'gcc')
-
-    # Create the base template, retrieve compiler-specific settings.
-    debug('Rendering makefile template for {}.'.format(compiler))
-    compileropts = templates.coptions[compiler]
-    template = templates.pre_template.format(
-        targets=compileropts.pop('targets'),
-        cleantarget=compileropts.pop('cleantarget')
-    )
-
-    # Create template args, update with compiler-based options.
-    templateargs = {
-        'compiler': compiler,
-        'binary': binary,
-        'filename': filename,
-        'objects': objects
-    }
-    templateargs.update(templates.coptions[compiler])
-
-    # Format the template with compiler-specific settings.
-    return makefile, template.format(**templateargs)
+VERSION = '0.4.1'
 
 
 class MakefilePost(PostPlugin):
@@ -89,9 +45,12 @@ class MakefilePost(PostPlugin):
                 return None
         self.debug('Creating a makefile for: {}'.format(filename))
         config = MakefilePlugin().config
-        makefile, content = template_render(
+        makefile, content = templates.template_render(
             filepath,
-            makefile=config.get('default_filename', DEFAULT_MAKEFILE),
+            makefile=config.get(
+                'default_filename',
+                templates.DEFAULT_MAKEFILE
+            ),
             argd=self.argd,
         )
 
@@ -137,10 +96,13 @@ class MakefilePlugin(Plugin):
 
         defaultfile = (
             self.argd['MAKEFILENAME'] or
-            self.config.get('default_filename', DEFAULT_MAKEFILE)
+            self.config.get(
+                'default_filename',
+                templates.DEFAULT_MAKEFILE
+            )
         )
 
-        makefile, content = template_render(
+        makefile, content = templates.template_render(
             filename,
             makefile=defaultfile,
             argd=self.argd,
@@ -154,7 +116,8 @@ class MakefilePlugin(Plugin):
         raise SignalAction(
             message=msg,
             filename=makefile,
-            content=content)
+            content=content,
+        )
 
 
 exports = (MakefilePost, MakefilePlugin)
