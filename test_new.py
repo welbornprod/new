@@ -8,6 +8,7 @@
 """
 
 import os
+import socket
 import sys
 import unittest
 
@@ -16,6 +17,8 @@ import plugins
 
 # Can be set for more output.
 plugins.DEBUG = False
+plugins.debugprinter.enable(plugins.DEBUG)
+
 SCRIPTDIR = os.path.abspath(sys.path[0])
 PLUGINDIR = os.path.join(SCRIPTDIR, 'plugins')
 
@@ -26,6 +29,17 @@ if not all(len(plugins.plugins[k]) > 0 for k in plugins.plugins):
         'Failed to load any plugins: {!r}'.format(plugins.plugins),
         file=sys.stderr)
     sys.exit(1)
+
+# Check internet connection, for plugins that download things (html.jquery).
+has_internet = True
+try:
+    con = socket.create_connection(('8.8.8.8', 5353))
+except OSError as ex:
+    if ex.errno == 101:
+        has_internet = False
+    print('OSERROR: EX: {!r}'.format(ex))
+else:
+    con.close()
 
 
 class NewTest(unittest.TestCase):
@@ -54,6 +68,8 @@ class NewTest(unittest.TestCase):
             '--pluginhelp': False,
             '-h': False,
             '--help ': False,
+            '-O': False,
+            '--overwrite': False,
             '-p': False,
             '--plugins ': False,
             '-x': False,
@@ -154,6 +170,9 @@ class NewTest(unittest.TestCase):
             plugin = cls()
             # Notify plugin that this is just a test (disabled side-effects)
             plugin.dryrun = True
+            # Notify the plugin that it should not try to dl without inet.
+            plugin.config['no_download'] = not has_internet
+
             try:
                 content = plugin._create('no file', [])
             except plugins.SignalAction as sigaction:
@@ -200,6 +219,7 @@ class NewTest(unittest.TestCase):
                 plugins.plugins.get(key, {}),
                 msg='Global file {!r} plugins were not loaded!'.format(key)
             )
+
 
 if __name__ == '__main__':
     print('{!r}'.format(plugins.plugins))
