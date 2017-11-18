@@ -68,7 +68,7 @@ class MakefilePlugin(Plugin):
     extensions = tuple()
     version = VERSION
     ignore_post = {'chmodx'}
-    description = 'Creates a makefile for a given c, cpp, or rust file.'
+    description = 'Creates a makefile for a given c, cpp, nasm, or rust file.'
 
     docopt = True
     usage = """
