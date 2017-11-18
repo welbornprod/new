@@ -144,7 +144,6 @@ class JQueryPlugin(Plugin):
         )
         if skipdl:
             self.debug('Skipping jquery download.')
-            scripts = ''
             self.ignore_deferred.add('jquerydl')
         else:
             # Set an attribute for the jquerydl plugin.
