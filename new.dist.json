@@ -1,6 +1,6 @@
 {
     "bash": {
-        "default_args": ["args"]
+        "default_args": ["--args"]
     },
     "custom": {
         "hello": {
@@ -25,11 +25,11 @@
         "no_download": false
     },
     "open": {
-        "editor": ""
+        "editor": "/usr/bin/vim"
     },
     "plugins" : {
         "global": {
-            "author": "Your Name (set in config)",
+            "author": "Your Name (set in config->plugins->global)",
             "default_version": "0.0.1"
         },
         "default_filename": "new_file",
