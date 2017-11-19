@@ -72,7 +72,9 @@ def template_load(filepath, argd=None):
 def template_render(filepath, makefile=None, argd=None, config=None):
     """ Render the makefile template for a given c source file name. """
     parentdir, filename = os.path.split(filepath)
-    makefile = os.path.join(parentdir, makefile or DEFAULT_MAKEFILE)
+    makefile = os.path.abspath(
+        os.path.join(parentdir, makefile or DEFAULT_MAKEFILE)
+    )
     binary = os.path.splitext(filename)[0]
     author = fix_author((config or {}).get('author', ''))
 
@@ -81,6 +83,7 @@ def template_render(filepath, makefile=None, argd=None, config=None):
         'binary': binary,
         'date': ' {}'.format(date()) if author else date(),
         'source': filename,
+        'source_path': os.path.relpath(filepath),
     }
     template = template_load(filepath, argd={} if (argd is None) else argd)
 

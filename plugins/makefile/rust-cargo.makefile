@@ -9,14 +9,12 @@ SHELL=bash
 CC=cargo
 dir_debug=$(CURDIR)/target/debug
 dir_release=$(CURDIR)/target/release
+source={source_path}
 
-
-.PHONY: all
-all:
+all: $(source)
 	$(CC) build --release;
 
-.PHONY: debug
-debug:
+debug: $(source)
 	$(CC) build;
 
 .PHONY: run
@@ -32,7 +30,7 @@ clean:
 cleanmake makeclean:
 	@make --no-print-directory clean && make --no-print-directory;
 
-.PHONY help
+.PHONY: help
 help:
 	-@printf "Use 'make targets' for a list of available targets.\n";
 

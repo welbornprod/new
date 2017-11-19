@@ -27,12 +27,12 @@ class MakefilePost(PostPlugin):
         'This will not overwrite existing makefiles.'
     ))
 
-    def process(self, plugin, filename):
+    def process(self, plugin, filepath):
         """ When a C file is created, create a basic Makefile to go with it.
         """
         if plugin.get_name() not in ('asm', 'c', 'rust'):
             return None
-        self.create_makefile(filename, plugin)
+        self.create_makefile(filepath, plugin)
 
     def create_makefile(self, filepath, plugin):
         """ Create a basic Makefile with the C file as it's target. """
@@ -96,13 +96,13 @@ class MakefilePlugin(Plugin):
     def __init__(self):
         self.load_config()
 
-    def create(self, filename):
+    def create(self, filepath):
         """ Creates a basic Makefile for a given c file name. """
-        if not (self.dryrun or os.path.exists(filename)):
+        if not (self.dryrun or os.path.exists(filepath)):
             msg = '\n'.join((
                 'The target source file doesn\'t exist: {}',
                 'Continue anyway?'
-            )).format(filename)
+            )).format(filepath)
             if not confirm(msg):
                 raise SignalExit('User cancelled.')
 
@@ -115,13 +115,13 @@ class MakefilePlugin(Plugin):
         )
 
         makefile, content = templates.template_render(
-            filename,
+            filepath,
             makefile=defaultfile,
             argd=self.argd,
             config=self.config,
         )
 
-        _, basename = os.path.split(filename)
+        _, basename = os.path.split(filepath)
         msg = '\n'.join((
             'Creating a makefile for: {}'.format(basename),
             'Output file path: {}'.format(makefile)

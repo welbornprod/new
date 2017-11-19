@@ -1684,7 +1684,7 @@ class Plugin(PluginBase):
         # A usage string for this plugin.
         self.usage = None
 
-    def _create(self, filename, args=None):
+    def _create(self, filepath, args=None):
         """ This method is called for content creation, and is responsible
             for calling the plugin's create() method.
             It sets self.argv so they are available in create() and
@@ -1693,16 +1693,20 @@ class Plugin(PluginBase):
             from config.
         """
         self._setup(args=args)
-        return self.create(filename)
+        self.debug('Calling {}.create({!r})'.format(
+            type(self).__name__,
+            filepath,
+        ))
+        return self.create(filepath)
 
-    def create(self, filename):
+    def create(self, filepath):
         """ (unimplemented plugin description)
 
             This should return a string that is ready to be written to a file.
             It may raise an exception to signal that something went wrong.
 
             Arguments:
-                filename  : The file name that will be written.
+                filepath  : The file name that will be written.
                             Plugins do not write the file, but the file name
                             may be useful information. The python plugin
                             uses it to create the main doc str.
@@ -1717,7 +1721,7 @@ class PostPlugin(PluginBase):
     def __init__(self, name=None):
         self.name = name
 
-    def process(self, plugin, filename):
+    def process(self, plugin, filepath):
         """ (unimplemented post-plugin description)
 
             This should accept an existing file name and do some processing.
@@ -1725,7 +1729,7 @@ class PostPlugin(PluginBase):
 
             Arguments:
                 plugin    : The original Plugin that created the content.
-                filename  : The requested file name for file creation.
+                filepath  : The requested file name for file creation.
         """
         raise NotImplementedError('process() must be overridden!')
 

@@ -162,7 +162,9 @@ def main(argd):
         return exitcode
 
     # Get valid file name for this file.
-    fname = ensure_file_ext(argd['FILENAME'], plugin)
+    fname = expand_path(
+        ensure_file_ext(argd['FILENAME'], plugin)
+    )
 
     # Make sure the file name doesn't conflict with any plugins.
     # ...mainly during development and testing.
@@ -252,6 +254,13 @@ def ensure_file_ext(fname, plugin):
 
     # Add the extension (first extension in the list wins.)
     return '{}{}'.format(fname, plugin.extensions[0])
+
+
+def expand_path(fname):
+    """ Expand a file path, if it's not the marker for stdout output. """
+    if fname == STDOUT_FILENAME:
+        return fname
+    return os.path.abspath(fname)
 
 
 def get_plugin(argd, use_default=True):

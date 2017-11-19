@@ -9,7 +9,7 @@ SHELL=bash
 RUSTC=rustc
 RUSTFLAGS=
 binary={binary}
-source={source}
+source={source_path}
 
 all: $(source)
 	$(RUSTC) $(RUSTFLAGS) -o $(binary) $(source)
