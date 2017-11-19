@@ -422,6 +422,8 @@ def write_file(fname, content):
     if content is None:
         content = ''
     if fname == STDOUT_FILENAME:
+        # This is not needed, because `write_file()` is short-circuited in
+        # `handle_content()` anyway.
         print(content)
         return STDOUT_FILENAME
 
