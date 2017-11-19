@@ -9,6 +9,7 @@ import os
 import re
 import shutil
 import sys
+import traceback
 from datetime import datetime
 from enum import Enum
 from importlib import import_module
@@ -520,6 +521,20 @@ def custom_plugin_help():
 def date(dateobj=None):
     """ Returns a string formatted date for today. """
     return datetime.strftime(dateobj or datetime.today(), '%m-%d-%Y')
+
+
+def debug_ex():
+    """ Print an error msg in debug mode, formatted with str(Exception).
+        Arguments:
+            ex_type     : Type of exception obtained from sys.exc_info()
+            ex_value    : Value of exception obtained from sys.exc_info()
+            ex_tb       : Traceback for exception obtained from sys.exc_info()
+    """
+    ex_type, ex_value, ex_tb = sys.exc_info()
+    if all((ex_type, ex_value, ex_tb)):
+        debug('(debug mode traceback)\n{}\n'.format(
+            ''.join(traceback.format_exception(ex_type, ex_value, ex_tb))
+        ))
 
 
 def debug_load_error(plugintype, modname, plugin, exmsg):
@@ -1170,6 +1185,7 @@ def print_err(*args, **kwargs):
     if kwargs.get('file', None) is None:
         kwargs['file'] = sys.stderr
     print(*args, **kwargs)
+    debug_ex()
 
 
 def print_inplace(s):
@@ -1242,9 +1258,11 @@ def try_post_plugin(plugincls, typeplugin, filename):
         print_err('\nCancelling all post plugins.')
         return PluginReturn.fatal
     except Exception as ex:
-        print_err('\nError in post-processing plugin \'{}\':\n{}'.format(
+        msg = '\nError in post-processing plugin \'{}\':\n{}'.format(
             plugin.get_name(),
-            ex))
+            ex
+        )
+        print_err(msg)
         return PluginReturn.error
     return PluginReturn.success
 

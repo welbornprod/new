@@ -29,6 +29,7 @@ import docopt
 
 import plugins
 debug = plugins.debug
+print_err = plugins.print_err
 
 NAME = 'New'
 VERSION = '0.6.0'
@@ -354,15 +355,6 @@ def make_dirs(path):
         print_ex(ex, 'Failed to create directory: {}'.format(path))
         return None
     return path
-
-
-def print_err(*args, **kwargs):
-    """ Print a formatted error msg.
-        (color-formatting in the future.)
-    """
-    if kwargs.get('file', None) is None:
-        kwargs['file'] = sys.stderr
-    print(*args, **kwargs)
 
 
 def print_ex(ex, msg, ex_type=None, ex_value=None, ex_tb=None):
