@@ -29,6 +29,7 @@ import docopt
 
 import plugins
 debug = plugins.debug
+debug_ex = plugins.debug_ex
 print_err = plugins.print_err
 
 NAME = 'New'
@@ -175,13 +176,14 @@ def main(argd):
         # No-content is fatal unless explicitly allowed.
         if not (action.content or plugin.allow_blank):
             errmsg = 'Plugin action with no content!\n    {}'
-            print(errmsg.format(action.message))
+            print_err(errmsg.format(action.message))
             return 1
 
         content = action.content
         # Print plugin notification of any major changes (file name changes)
         if action.message:
-            print(action.message)
+            for line in action.message.split('\n'):
+                plugin.print_status(line)
         # Plugin is changing the output file name.
         if action.filename:
             fname = action.filename
@@ -207,7 +209,7 @@ def main(argd):
 
     if not (plugin.allow_blank or content):
         debug('{} is not allowed to create a blank file.'.format(pluginname))
-        print('\nFailed to create file: {}'.format(fname))
+        print_err('\nFailed to create file: {}'.format(fname))
         return 1
 
     if argd['--noopen']:
@@ -267,7 +269,7 @@ def get_plugin(argd, use_default=True):
         return plugincls()
 
     ftype = argd['PLUGIN'] or argd['FILENAME']
-    print('Not a valid file type (not supported): {}'.format(ftype))
+    print_err('Not a valid file type (not supported): {}'.format(ftype))
     if not use_default:
         return None
     elif not confirm('Continue with a blank file?'):
@@ -297,14 +299,14 @@ def handle_content(fname, content, plugin, dryrun=False):
         content = ''.join((content, '\n'))
 
     if dryrun and fname != STDOUT_FILENAME:
-        print('\nDry run, would\'ve written: {}\n'.format(fname))
+        print_term('Dry run, would\'ve written: {}\n'.format(fname))
         print(content or '<No Content>')
         # No post plugins can run.
         return 0 if content else 1
 
     created = write_file(fname, content)
     if not created:
-        print('\nUnable to create: {}'.format(fname))
+        print_err('\nUnable to create: {}'.format(fname))
         return 1
 
     if fname != STDOUT_FILENAME:
@@ -335,7 +337,8 @@ def handle_signalexit(ex):
     if ex.code != 0:
         # This was a real error, so print a message.
         reason = ex.reason or 'No reason was given for the exit.'
-        print('\n{}\n'.format(reason))
+        print_err('\n{}\n'.format(reason))
+        debug_ex()
     return ex.code
 
 
@@ -383,7 +386,17 @@ def print_status(msg):
     """ Print a status message.
         (color-formatting in the future)
     """
-    print('{}: {}'.format('new'.ljust(15), msg))
+    print_term('{}: {}'.format('new'.ljust(15), msg))
+
+
+def print_term(*args, **kwargs):
+    """ Print only if stdout is a terminal. """
+    if print_term.is_tty:
+        print(*args, **kwargs)
+
+
+# print_term remembers whether stdout is a tty.
+print_term.is_tty = sys.stdout.isatty()
 
 
 def valid_filename(fname, dryrun=False, overwrite=False):

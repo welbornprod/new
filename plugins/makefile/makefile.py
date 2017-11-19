@@ -62,6 +62,7 @@ class MakefilePost(PostPlugin):
                 templates.DEFAULT_MAKEFILE
             ),
             argd=self.argd,
+            config=config,
         )
 
         with open(makefile, 'w') as f:
@@ -116,12 +117,13 @@ class MakefilePlugin(Plugin):
             filename,
             makefile=defaultfile,
             argd=self.argd,
+            config=self.config,
         )
 
         _, basename = os.path.split(filename)
         msg = '\n'.join((
             'Creating a makefile for: {}'.format(basename),
-            '              File path: {}'.format(makefile)
+            'Output file path: {}'.format(makefile)
         ))
         raise SignalAction(
             message=msg,
