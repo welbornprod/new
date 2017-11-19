@@ -84,11 +84,12 @@ class MakefilePlugin(Plugin):
     docopt = True
     usage = """
     Usage:
-        makefile [MAKEFILENAME] [-l]
+        makefile [-c | -l] [MAKEFILENAME]
 
     Options:
         MAKEFILENAME  : Desired file name for the makefile.
                         Can also be set in config as 'default_filename'.
+        -c,--cargo    : Use Cargo style for Rust files.
         -l,--clib     : Use C library style for ASM files.
     """
 

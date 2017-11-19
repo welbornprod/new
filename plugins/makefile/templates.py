@@ -17,10 +17,12 @@ DEFAULT_MAKEFILE = 'makefile'
 
 templates_dir = os.path.split(__file__)[0]
 template_files = {
-    '.asm': os.path.join(templates_dir, 'asm.makefile'),
-    '.asmc': os.path.join(templates_dir, 'asmc.makefile'),
-    '.c': os.path.join(templates_dir, 'c.makefile'),
-    '.cpp': os.path.join(templates_dir, 'cpp.makefile'),
+    'asm': os.path.join(templates_dir, 'asm.makefile'),
+    'asmc': os.path.join(templates_dir, 'asmc.makefile'),
+    'c': os.path.join(templates_dir, 'c.makefile'),
+    'cpp': os.path.join(templates_dir, 'cpp.makefile'),
+    'rust': os.path.join(templates_dir, 'rust.makefile'),
+    'rust-cargo': os.path.join(templates_dir, 'rust-cargo.makefile'),
 }
 
 
@@ -29,11 +31,26 @@ def template_load(filepath, argd=None):
         name and user args.
     """
     fileext = os.path.splitext(filepath)[-1].lower()
+    try:
+        lang = {
+            '.asm': 'asm',
+            '.asmc': 'asmc',
+            '.c': 'c',
+            '.cc': 'cpp',
+            '.cpp': 'cpp',
+            '.rs': 'rust',
+        }[fileext]
+    except KeyError:
+        raise SignalExit('Unknown makefile type: {}'.format(fileext))
+
     if argd.get('--clib', False):
-        fileext = '.asmc'
+        lang = 'asmc'
+    elif argd.get('--cargo', False):
+        lang = 'rust-cargo'
+
     template_file = template_files.get(
-        fileext,
-        template_files['.c'],
+        lang,
+        template_files['c'],
     )
     try:
         lines = []
@@ -48,7 +65,7 @@ def template_load(filepath, argd=None):
         ))
     except EnvironmentError as ex:
         raise SignalExit('Error reading from template file: {}'.format(ex))
-    debug('Using {} template for makefile: {}'.format(fileext, template_file))
+    debug('Using {} template for makefile: {}'.format(lang, template_file))
     return ''.join(lines)
 
 
