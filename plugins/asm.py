@@ -14,15 +14,19 @@ template = """;
 ;
 ; {author}{date}
 
+section .data
+section .text
     global _start
 
-    section .text
 _start:
-
+    nop               ; possible breakpoint
     ; exit(0)
     mov eax, 60       ; system call 60 is exit
     xor rdi,rdi       ; exit code 0
     syscall           ; invoke exit call
+    nop               ; possible breakpoint
+
+section .bss
 """
 
 # Template for asm using the C library.
@@ -36,16 +40,21 @@ template_c = """;
 ;
 ; {author}{date}
 
+section .data
+section .text
     global main
     extern puts
 
-    section .text
 main:
+    nop                   ; possible breakpoint
     mov rdi, message      ; First integer/pointer argument in rdi.
     call puts             ; puts(message)
     ret                   ; Return from main back into C library wrapper.
+    nop                   ; possible breakpoint
 message:
     db "Hello, World", 0  ; Strings are terminated with 0 in C.
+
+section .bss
 """
 
 
