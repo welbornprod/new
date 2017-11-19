@@ -19,6 +19,9 @@ import plugins
 plugins.DEBUG = False
 plugins.debugprinter.enable(plugins.DEBUG)
 
+# Use the existing print_err, instead of writing a new one.
+print_err = plugins.print_err
+
 SCRIPTDIR = os.path.abspath(sys.path[0])
 PLUGINDIR = os.path.join(SCRIPTDIR, 'plugins')
 
@@ -37,7 +40,8 @@ try:
 except OSError as ex:
     if ex.errno == 101:
         has_internet = False
-    print('OSERROR: EX: {!r}'.format(ex))
+    else:
+        print_err('Error while detecting internet: {!r}'.format(ex))
 else:
     con.close()
 
