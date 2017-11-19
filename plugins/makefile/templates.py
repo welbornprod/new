@@ -36,8 +36,12 @@ def template_load(filepath, argd=None):
         template_files['.c'],
     )
     try:
+        lines = []
         with open(template_file, 'r') as f:
-            content = f.read()
+            for line in f:
+                if line.startswith('#!'):
+                    continue
+                lines.append(line)
     except FileNotFoundError as exnofile:
         raise SignalExit('Template file not found: {x.filename}'.format(
             x=exnofile,
@@ -45,7 +49,7 @@ def template_load(filepath, argd=None):
     except EnvironmentError as ex:
         raise SignalExit('Error reading from template file: {}'.format(ex))
     debug('Using {} template for makefile: {}'.format(fileext, template_file))
-    return content
+    return ''.join(lines)
 
 
 def template_render(filepath, makefile=None, argd=None, config=None):

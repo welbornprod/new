@@ -1,5 +1,9 @@
 # Makefile for {binary}
 # {author}{date}
+#!
+#! Lines starting with #! are not part of the template.
+#! New will ignore these lines when processing the template.
+#!
 
 SHELL=bash
 CC=nasm
@@ -30,7 +34,7 @@ release: all
 $(objects): $(source)
 	$(CC) $(CFLAGS) $(source)
 
-.PHONY: clean, cleanmake, makeclean, targets
+.PHONY: clean
 clean:
 	-@if [[ -e $(binary) ]]; then\
 		if rm -f $(binary); then\
@@ -48,10 +52,16 @@ clean:
 		printf "Objects already clean.\n";\
 	fi;
 
-
+.PHONY: cleanmake, makeclean
 cleanmake makeclean:
 	@make --no-print-directory clean && make --no-print-directory;
 
+.PHONY: tags
+tags:
+	-@printf "Building crags...\n";
+	ctags -R .;
+
+.PHONY: targets
 targets:
 	-@printf "Make targets available:\n\
 	all       : Build with no optimization or debug symbols.\n\
@@ -60,5 +70,5 @@ targets:
 	makeclean : Alias for \`cleanmake\`\n\
 	debug     : Build the executable with debug symbols.\n\
 	release   : Build the executable with optimization, and strip it.\n\
+	tags      : Build tags for this project using \`ctags\`.\n\
 	";
-
