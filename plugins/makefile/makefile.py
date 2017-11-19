@@ -16,7 +16,7 @@ from .. import (
 from . import templates
 
 # Version number for both plugins (if one changes, usually the other changes)
-VERSION = '0.4.1'
+VERSION = '0.4.2'
 
 
 class MakefilePost(PostPlugin):
@@ -32,9 +32,9 @@ class MakefilePost(PostPlugin):
         """
         if plugin.get_name() not in ('asm', 'c', 'rust'):
             return None
-        self.create_makefile(filename)
+        self.create_makefile(filename, plugin)
 
-    def create_makefile(self, filepath):
+    def create_makefile(self, filepath, plugin):
         """ Create a basic Makefile with the C file as it's target. """
         parentdir, filename = os.path.split(filepath)
         trynames = 'Makefile', 'makefile'
@@ -43,8 +43,18 @@ class MakefilePost(PostPlugin):
             if os.path.exists(fullpath):
                 self.debug('Makefile already exists: {}'.format(fullpath))
                 return None
-        self.debug('Creating a makefile for: {}'.format(filename))
+        # Pass plugin args to template_render if given.
+        self.argd.update(getattr(plugin, 'argd', {}))
+        pluginname = plugin.get_name()
+        if self.argd.get('--clib', False):
+            pluginname = '{}-c'.format(pluginname)
+        self.debug('Creating a makefile ({} style) for: {}'.format(
+            pluginname,
+            filename,
+        ))
+        # Use default MakeFilePlugin config.
         config = MakefilePlugin().config
+        # Render makefile templates based on file name and user args.
         makefile, content = templates.template_render(
             filepath,
             makefile=config.get(

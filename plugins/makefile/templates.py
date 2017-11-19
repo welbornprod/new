@@ -71,6 +71,9 @@ targets:
     release   : Build the executable with optimization, and strip it.\\n\\
     ";
 """)
+# ####
+# TODO: Add `ctags` target for c/c++ files (`ctags -R .`)
+# ####
 
 # Flags shared between C and C++.
 csharedflags = [
@@ -184,8 +187,8 @@ coptions = {
     'nasm': {
         'compilervar': 'CC',
         'cflagsvar': 'CFLAGS',
-        'cflags_debug': '-g',
-        'cflags_release': '-Ox',
+        'cflags_debug': format_cflags(('-g', '-F stabs')),
+        'cflags_release': format_cflags(('-Ox', )),
         'linkervar': 'LD',
         'linkerflagsvar': 'LDFLAGS',
         'linkerflags_debug': '',
@@ -204,7 +207,7 @@ coptions = {
     'nasm-c': {
         'compilervar': 'CC',
         'cflagsvar': 'CFLAGS',
-        'cflags_debug': format_cflags(('-g', )),
+        'cflags_debug': format_cflags(('-g', '-F stabs')),
         'cflags_release': format_cflags(('-Ox', )),
         'linkervar': 'LD',
         'linkerflagsvar': 'LDFLAGS',
@@ -277,7 +280,7 @@ def template_render(filepath, makefile=None, argd=None):
         '.cpp': 'g++',
         '.rs': 'rustc',
         '.s': 'nasm',
-    }.get('.asmc' if argd['--clib'] else fileext, 'gcc')
+    }.get('.asmc' if argd.get('--clib', False) else fileext, 'gcc')
 
     # Create the base template, retrieve compiler-specific settings.
     debug('Rendering makefile template for {}.'.format(compiler))
