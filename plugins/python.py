@@ -81,7 +81,7 @@ templates = {
                  '""".format(script=SCRIPT, versionstr=VERSIONSTR)\n'
                  ),
         'mainsignature': 'main(argd)',
-        'maindoc': 'Main entry point, expects doctopt arg dict as argd.',
+        'maindoc': 'Main entry point, expects docopt arg dict as argd.',
         'mainif': MAIN_DOCOPT
     },
     'setup': {
@@ -467,4 +467,4 @@ class PythonPlugin(Plugin):
         print('\n    {}'.format('\n    '.join(sorted(templates))))
         return 0
 
-exports = (PythonPlugin,)
+exports = (PythonPlugin, )  # noqa
