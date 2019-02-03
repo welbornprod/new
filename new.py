@@ -21,6 +21,13 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
+
+###############
+#
+# TODO: Create multiple files at once.
+#
+###############
+
 import os
 import sys
 import traceback
@@ -33,7 +40,7 @@ debug_ex = plugins.debug_ex
 print_err = plugins.print_err
 
 NAME = 'New'
-VERSION = '0.6.0'
+VERSION = '0.6.1'
 VERSIONSTR = '{} v. {}'.format(NAME, VERSION)
 SCRIPT = os.path.split(os.path.abspath(sys.argv[0]))[1]
 SCRIPTDIR = os.path.abspath(sys.path[0])
@@ -306,6 +313,11 @@ def handle_content(fname, content, plugin, dryrun=False):
             'Adding missing newline for {} content.'.format(plugin.get_name())
         )
         content = ''.join((content, '\n'))
+    elif content and plugin.ensure_newline and content.endswith('\n\n'):
+        debug('Removing multiple newlines for {} content.'.format(
+            plugin.get_name()
+        ))
+        content = '{}\n'.format(content.rstrip('\n'))
 
     if dryrun and fname != STDOUT_FILENAME:
         print_term('Dry run, would\'ve written: {}\n'.format(fname))
