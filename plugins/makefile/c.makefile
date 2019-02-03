@@ -14,7 +14,7 @@ LIBS=
 
 binary={binary}
 source={source}
-objects={binary}.o
+objects:=$(source:.c=.o)
 
 all: $(objects)
 	$(CC) -o $(binary) $(CFLAGS) $(objects) $(LIBS)
@@ -30,25 +30,25 @@ release: all
 		printf "\nError stripping executable: %s\n" "$(binary)" 1>&2;\
 	fi;
 
-$(objects): $(source)
-	$(CC) -c $(source) $(CFLAGS) $(LIBS)
+%.o: %.c
+	$(CC) -c $< $(CFLAGS) $(LIBS)
 
 .PHONY: clean
 clean:
 	-@if [[ -e $(binary) ]]; then\
 		if rm -f $(binary); then\
-			printf "Binaries cleaned.\n";\
+			printf "Binaries cleaned: $(binary)\n";\
 		fi;\
 	else\
-		printf "Binaries already clean.\n";\
+		printf "Binaries already clean: $(binary)\n";\
 	fi;
 
-	-@if ls *.o &>/dev/null; then\
-		if rm *.o; then\
-			printf "Objects cleaned.\n";\
+	-@if ls $(objects) &>/dev/null; then\
+		if rm $(objects); then\
+			printf "Objects cleaned: $(objects)\n";\
 		fi;\
 	else\
-		printf "Objects already clean.\n";\
+		printf "Objects already clean: $(objects)\n";\
 	fi;
 
 .PHONY: cleanmake, makeclean
@@ -57,7 +57,7 @@ cleanmake makeclean:
 
 .PHONY: tags
 tags:
-	-@printf "Building crags...\n";
+	-@printf "Building ctags...\n";
 	ctags -R .;
 
 .PHONY: targets

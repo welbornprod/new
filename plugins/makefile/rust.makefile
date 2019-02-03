@@ -24,10 +24,10 @@ release: all
 clean:
 	-@if [[ -e $(binary) ]]; then\
 			if rm -f $(binary); then\
-					printf "Binaries cleaned.\n";\
+					printf "Binaries cleaned: $(binary)\n";\
 			fi;\
 	else\
-			printf "Binaries already clean.\n";\
+			printf "Binaries already clean: $(binary)\n";\
 	fi;
 
 .PHONY: cleanmake, makeclean
