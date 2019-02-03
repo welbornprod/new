@@ -15,18 +15,20 @@ template = """;
 ; {author}{date}
 
 section .data
+
+section .bss
+
 section .text
     global _start
 
 _start:
     nop               ; possible breakpoint
     ; exit(0)
-    mov eax, 60       ; system call 60 is exit
+    mov rax, 60       ; system call 60 is exit
     xor rdi,rdi       ; exit code 0
     syscall           ; invoke exit call
     nop               ; possible breakpoint
 
-section .bss
 """
 
 # Template for asm using the C library.
@@ -41,6 +43,10 @@ template_c = """;
 ; {author}{date}
 
 section .data
+    message: db "Hello, World", 0  ; Strings are terminated with 0 in C.
+
+section .bss
+
 section .text
     global main
     extern puts
@@ -51,10 +57,6 @@ main:
     call puts             ; puts(message)
     ret                   ; Return from main back into C library wrapper.
     nop                   ; possible breakpoint
-message:
-    db "Hello, World", 0  ; Strings are terminated with 0 in C.
-
-section .bss
 """
 
 
@@ -64,15 +66,15 @@ class AsmPlugin(Plugin):
 
     name = ('asm', 'nasm')
     extensions = ('.asm', '.s', '.asmc')
-    version = '0.0.3'
+    version = '0.0.5'
     ignore_post = {'chmodx'}
     docopt = True
     usage = """
     Usage:
-        asm [-c]
+        asm [-l]
 
     Options:
-        -c,--clib  : Use C library.
+        -l,--clib  : Use C library.
     """
     description = '\n'.join((
         'Creates a basic asm file, with or without C library usage.',
@@ -86,9 +88,7 @@ class AsmPlugin(Plugin):
         _, basename = os.path.split(filename)
         name, _ = os.path.splitext(basename)
         objfile = '{}.o'.format(name)
-        return (
-            template_c if self.argd['--clib'] else template
-        ).format(
+        return self.get_template(filename).format(
             name=name,
             filename=basename,
             author=fix_author(self.config.get('author', None)),
@@ -96,6 +96,15 @@ class AsmPlugin(Plugin):
             objectfile=objfile,
             outputfile=name,
         )
+
+    def get_template(self, filename):
+        """ Return the template we are using, based on the filename or
+            self.argd['--clib'].
+        """
+        return {
+            True: template_c,
+            False: template,
+        }.get(filename.lower().endswith('.asmc') or self.argd['--clib'])
 
 
 exports = (AsmPlugin, )
