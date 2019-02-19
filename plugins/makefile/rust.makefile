@@ -25,11 +25,11 @@ release: all
 .PHONY: clean
 clean:
 	-@if [[ -e $(binary) ]]; then\
-			if rm -f $(binary); then\
-					printf "Binaries cleaned: $(binary)\n";\
-			fi;\
+		if rm -f $(binary); then\
+			printf "Binaries cleaned:\n    $(binary)\n";\
+		fi;\
 	else\
-			printf "Binaries already clean: $(binary)\n";\
+		printf "Binaries already clean:\n    $(binary)\n";\
 	fi;
 
 .PHONY: cleanmake, makeclean
