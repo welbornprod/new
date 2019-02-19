@@ -6,24 +6,26 @@
 #!
 
 SHELL=bash
-CC=nasm
-LD=gcc
-CFLAGS=-felf64 -Wall
-LDFLAGS=-Wall -static
+CC=yasm
+LD=ld
+CFLAGS=-f elf64 -m amd64 -Worphan-labels
+LDFLAGS=-melf_x86_64
 
 binary={binary}
 source={source}
-objects=$(source:.asmc=.o)
+objects=$(source:.asm=.o)
 
-all: $(objects)
+$(binary): $(objects)
 	$(LD) -o $(binary) $(LDFLAGS) $(objects)
 
-debug: LDFLAGS+=-DDEBUG -g3
-debug: CFLAGS+=-F stabs -g
+all: $(binary)
+
+debug: LDFLAGS+=
+debug: CFLAGS+=-g dwarf2
 debug: all
 
-release: LDFLAGS+=-DNDEBUG -O3
-release: CFLAGS+=-Ox
+release: LDFLAGS+=--strip-all
+release: CFLAGS+=
 release: all
 	@if strip $(binary); then\
 		printf "\n%s was stripped.\n" "$(binary)";\
@@ -31,7 +33,7 @@ release: all
 		printf "\nError stripping executable: %s\n" "$(binary)" 1>&2;\
 	fi;
 
-%.o: %.asmc
+%.o: %.asm
 	$(CC) $(CFLAGS) -o $@ $<
 
 .PHONY: clean

@@ -17,41 +17,56 @@ DEFAULT_MAKEFILE = 'makefile'
 
 templates_dir = os.path.split(__file__)[0]
 template_files = {
-    'asm': os.path.join(templates_dir, 'asm.makefile'),
-    'asmc': os.path.join(templates_dir, 'asmc.makefile'),
     'c': os.path.join(templates_dir, 'c.makefile'),
     'cpp': os.path.join(templates_dir, 'cpp.makefile'),
+    'nasm': os.path.join(templates_dir, 'nasm.makefile'),
+    'nasmc': os.path.join(templates_dir, 'nasmc.makefile'),
     'rust': os.path.join(templates_dir, 'rust.makefile'),
     'rust-cargo': os.path.join(templates_dir, 'rust-cargo.makefile'),
+    'yasm': os.path.join(templates_dir, 'yasm.makefile'),
+    'yasmc': os.path.join(templates_dir, 'yasmc.makefile'),
 }
 
 
-def template_load(filepath, argd=None):
-    """ Load content from one of the templates, based on the target file
-        name and user args.
+def choose_template(filepath, argd):
+    """ Decide which template file to use based on the filepath and argd
+        options.
+        Returns (lang_name, template_file)
     """
     fileext = os.path.splitext(filepath)[-1].lower()
+    argd = argd or {}
+
     try:
         lang = {
-            '.asm': 'asm',
-            '.asmc': 'asmc',
+            '.asm': 'nasm' if argd.get('--nasm', False) else 'yasm',
+            '.asmc': 'nasmc' if argd.get('--nasm', False) else 'yasmc',
             '.c': 'c',
             '.cc': 'cpp',
             '.cpp': 'cpp',
-            '.rs': 'rust',
+            '.rs': 'rust-cargo' if argd.get('--cargo', False) else 'rust',
+            '.s': 'nasm' if argd.get('--nasm', False) else 'yasm',
         }[fileext]
     except KeyError:
         raise SignalExit('Unknown makefile type: {}'.format(fileext))
 
     if argd.get('--clib', False):
-        lang = 'asmc'
-    elif argd.get('--cargo', False):
-        lang = 'rust-cargo'
-
-    template_file = template_files.get(
+        if lang in ('nasm', 'yasm'):
+            lang = '{}c'.format(lang)
+        elif lang not in ('nasmc', 'yasmc'):
+            raise SignalExit('--clib is for asm files (.asm, .asmc).')
+    elif argd.get('--cargo', False) and (not lang.startswith('rust')):
+        raise SignalExit('--cargo is for rust files (.rs).')
+    return lang, template_files.get(
         lang,
         template_files['c'],
     )
+
+
+def template_load(filepath, argd):
+    """ Load content from one of the templates, based on the target file
+        name and user args.
+    """
+    lang, template_file = choose_template(filepath, argd=argd)
     try:
         lines = []
         with open(template_file, 'r') as f:
@@ -85,7 +100,7 @@ def template_render(filepath, makefile=None, argd=None, config=None):
         'source': filename,
         'source_path': os.path.relpath(filepath),
     }
-    template = template_load(filepath, argd={} if (argd is None) else argd)
+    template = template_load(filepath, {} if (argd is None) else argd)
 
     # Format the template with compiler-specific settings.
     debug('Rendering makefile: {}'.format(makefile))

@@ -17,8 +17,10 @@ source={source}
 objects_tmp:=$(source:.cpp=.o)
 objects:=$(objects_tmp:.cc=.o)
 
-all: $(objects)
+$(binary): $(objects)
 	$(CXX) -o $(binary) $(CXXFLAGS) $(objects) $(LIBS)
+
+all: $(binary)
 
 debug: CXXFLAGS+=-g3 -DDEBUG
 debug: all

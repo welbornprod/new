@@ -16,28 +16,28 @@ from .. import (
 from . import templates
 
 # Version number for both plugins (if one changes, usually the other changes)
-VERSION = '0.4.2'
+VERSION = '0.4.3'
 
 
 class MakefilePost(PostPlugin):
     name = 'automakefile'
     version = VERSION
     description = '\n'.join((
-        'Creates a makefile for new NASM, C, CPP, or Rust files.',
+        'Creates a makefile for new C, CPP, NASM, or Rust files.',
         'This will not overwrite existing makefiles.'
     ))
 
     def process(self, plugin, filepath):
-        """ When a C file is created, create a basic Makefile to go with it.
+        """ When a file is created, create a basic Makefile to go with it.
         """
         if plugin.get_name() not in ('asm', 'c', 'rust'):
             return None
         self.create_makefile(filepath, plugin)
 
     def create_makefile(self, filepath, plugin):
-        """ Create a basic Makefile with the C file as it's target. """
+        """ Create a basic Makefile with the file as it's target. """
         parentdir, filename = os.path.split(filepath)
-        trynames = 'Makefile', 'makefile'
+        trynames = 'Makefile', 'makefile', 'MakeFile'
         for makefilename in trynames:
             fullpath = os.path.join(parentdir, makefilename)
             if os.path.exists(fullpath):
@@ -48,6 +48,10 @@ class MakefilePost(PostPlugin):
         pluginname = plugin.get_name()
         if self.argd.get('--clib', False):
             pluginname = '{}-c'.format(pluginname)
+        if self.argd.get('--nasm', False):
+            pluginname = 'n{}'.format(pluginname)
+        else:
+            pluginname = 'y{}'.format(pluginname)
         self.debug('Creating a makefile ({} style) for: {}'.format(
             pluginname,
             filename,
@@ -84,13 +88,14 @@ class MakefilePlugin(Plugin):
     docopt = True
     usage = """
     Usage:
-        makefile [-c | -l] [MAKEFILENAME]
+        makefile [-c | -l] [-n] [MAKEFILENAME]
 
     Options:
         MAKEFILENAME  : Desired file name for the makefile.
                         Can also be set in config as 'default_filename'.
         -c,--cargo    : Use Cargo style for Rust files.
         -l,--clib     : Use C library style for ASM files.
+        -n,--nasm     : Use nasm instead of yasm for ASM files.
     """
 
     def __init__(self):

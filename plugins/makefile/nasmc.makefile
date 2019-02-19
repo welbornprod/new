@@ -6,25 +6,26 @@
 #!
 
 SHELL=bash
-CC=gcc
-CFLAGS=-Wall -Wextra -Wfloat-equal -Winline -Wlogical-op \
-       -Wmissing-include-dirs -Wnull-dereference -Wpedantic -Wshadow \
-       -Wstrict-prototypes -Wunused-macros -std=c11
-LIBS=
+CC=nasm
+LD=gcc
+CFLAGS=-m64 -Wall
+LDFLAGS=-Wall -static
 
 binary={binary}
 source={source}
-objects:=$(source:.c=.o)
+objects=$(source:.asmc=.o)
 
 $(binary): $(objects)
-	$(CC) -o $(binary) $(CFLAGS) $(objects) $(LIBS)
+	$(LD) -o $(binary) $(LDFLAGS) $(objects)
 
 all: $(binary)
 
-debug: CFLAGS+=-g3 -DDEBUG
+debug: LDFLAGS+=-DDEBUG -g3
+debug: CFLAGS+=-O0 -g -F dwarf
 debug: all
 
-release: CFLAGS+=-O3 -DNDEBUG
+release: LDFLAGS+=-DNDEBUG -O3
+release: CFLAGS+=-Ox
 release: all
 	@if strip $(binary); then\
 		printf "\n%s was stripped.\n" "$(binary)";\
@@ -32,8 +33,8 @@ release: all
 		printf "\nError stripping executable: %s\n" "$(binary)" 1>&2;\
 	fi;
 
-%.o: %.c
-	$(CC) -c $< $(CFLAGS) $(LIBS)
+%.o: %.asmc
+	$(CC) $(CFLAGS) -o $@ $<
 
 .PHONY: clean
 clean:

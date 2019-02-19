@@ -11,8 +11,10 @@ RUSTFLAGS=
 binary={binary}
 source={source_path}
 
-all: $(source)
+$(binary): $(source)
 	$(RUSTC) $(RUSTFLAGS) -o $(binary) $(source)
+
+all: $(binary)
 
 debug: RUSTFLAGS+=-g
 debug: all

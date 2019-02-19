@@ -9,17 +9,19 @@ SHELL=bash
 CC=nasm
 LD=ld
 CFLAGS=-felf64 -Wall
-LDFLAGS=-O1
+LDFLAGS=-melf_x86_64
 
 binary={binary}
 source={source}
 objects=$(source:.asm=.o)
 
-all: $(objects)
+$(binary): $(objects)
 	$(LD) -o $(binary) $(LDFLAGS) $(objects)
 
+all: $(binary)
+
 debug: LDFLAGS+=
-debug: CFLAGS+=-F dwarf -g
+debug: CFLAGS+=-O0 -g -F dwarf
 debug: all
 
 release: LDFLAGS+=--strip-all
