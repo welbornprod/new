@@ -77,6 +77,8 @@ section .text
 
     nop                   ; possible breakpoint
 """
+
+
 class AsmPlugin(Plugin):
 
     """ Creates a basic nasm source file. """
@@ -101,8 +103,6 @@ class AsmPlugin(Plugin):
         'Creates a basic asm file, with or without C library usage.',
     ))
 
-    created = []
-
     def __init__(self):
         self.load_config()
 
@@ -115,7 +115,6 @@ class AsmPlugin(Plugin):
             tmplate = template_blank
         else:
             tmplate = self.get_template(filename)
-        self.created.append(filename)
 
         return tmplate.format(
             name=name,

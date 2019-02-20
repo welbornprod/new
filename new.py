@@ -28,7 +28,7 @@ import traceback
 
 import plugins
 from plugins import docopt
-
+from plugins import C
 debug = plugins.debug
 debug_ex = plugins.debug_ex
 print_err = plugins.print_err
@@ -266,7 +266,7 @@ def handle_content(fname, content, plugin, dryrun=False, filepaths=None):
         return None
 
     if fname != STDOUT_FILENAME:
-        print_status('Created {}'.format(created))
+        print_status('Created ({}) {}'.format(plugin.get_name(), created))
     return created
 
 
@@ -540,8 +540,11 @@ def parse_args():
             pluginargs.append(arg)
         else:
             sysargs.append(arg)
+
+    plugins.debugprinter.enable(('-D' in sysargs) or ('--debug' in sysargs))
     debug('  Sys args: {}'.format(sysargs))
     debug('Plugin arg: {}'.format(pluginargs), align=True)
+
     argd = docopt(USAGESTR, version=VERSIONSTR, argv=sysargs, script=SCRIPT)
     argd['ARGS'] = pluginargs
     return argd
@@ -573,17 +576,14 @@ def print_status(msg):
     """ Print a status message.
         (color-formatting in the future)
     """
-    print_term('{}: {}'.format('new'.ljust(15), msg))
+    print_term('{}: {}'.format(C('new'.ljust(16), 'blue'), msg))
 
 
 def print_term(*args, **kwargs):
     """ Print only if stdout is a terminal. """
-    if print_term.is_tty:
+    kwargs['file'] = kwargs.get('file', sys.stdout)
+    if kwargs['file'].isatty():
         print(*args, **kwargs)
-
-
-# print_term remembers whether stdout is a tty.
-print_term.is_tty = sys.stdout.isatty()
 
 
 def valid_filename(fname, dryrun=False, overwrite=False):

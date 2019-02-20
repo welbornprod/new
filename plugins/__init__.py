@@ -1407,11 +1407,13 @@ class PluginBase(object):
     description = None
 
     # (tuple) - Plugin
-    #     Plugin: Names/aliases for this plugin/filetype.
-    #             The proper name will be self.name[0].
+    #           Plugin: Names/aliases for this plugin/filetype.
+    #                   The proper name will be self.name[0].
     # (str)   - PostPlugin
-    # PostPlugin: The name for this plugin.
+    #           PostPlugin: The name for this plugin.
     name = None
+    # Cached proper name, set in PluginBase.get_name()
+    _name = None
 
     # (list/tuple)
     # Usage string for this plugin when `new plugin -H` is used.
@@ -1778,19 +1780,26 @@ class PluginBase(object):
             **kwargs
         )
 
-    def print_status(self, msg, end='n', padlines=0, **kwargs):
+    def print_status(self, msg, end='\n', padlines=0, **kwargs):
         """ Print a status msg for a plugin instance.
             This function provides implementation of 'self.print_status' for
             Plugins and PostPlugins.
         """
-        print(
+        self.print_term(
             '{}{}: {}'.format(
                 '\n' * padlines,
-                self.get_name().ljust(15),
+                C(self.get_name().ljust(16), 'blue'),
                 msg
             ),
             **kwargs
         )
+
+    @staticmethod
+    def print_term(*args, **kwargs):
+        """ Print only if stdout is a terminal. """
+        kwargs['file'] = kwargs.get('file', sys.stdout)
+        if kwargs['file'].isatty():
+            print(*args, **kwargs)
 
 
 class Plugin(PluginBase):
@@ -1827,11 +1836,12 @@ class Plugin(PluginBase):
     ignore_post = set()
 
     def __init__(self, name=None, extensions=None):
-        self._name = None
-        self.name = name
-        self.extensions = extensions
-        # A usage string for this plugin.
-        self.usage = None
+        self.name = self.name or name
+        self.extensions = self.extensions or extensions
+
+        # Files created with this instance while running.
+        # This is automatically updated when self.create() is called.
+        self.created = []
 
     def _create(self, filepath, args=None):
         """ This method is called for content creation, and is responsible
@@ -1842,11 +1852,19 @@ class Plugin(PluginBase):
             from config.
         """
         self._setup(args=args)
+        if getattr(self, 'created', None) is None:
+            self.created = []
         self.debug('Calling {}.create({!r})'.format(
             type(self).__name__,
             filepath,
         ))
-        return self.create(filepath)
+        try:
+            content = self.create(filepath)
+        except Exception:
+            raise
+        else:
+            self.created.append(filepath)
+        return content
 
     def _create_multi(self, filepaths, args=None):
         """ This method is called for content creation, and is responsible
@@ -1861,7 +1879,14 @@ class Plugin(PluginBase):
             type(self).__name__,
             filepaths,
         ))
-        return self.create_multi(filepaths)
+        try:
+            filename, content = self.create_multi(filepaths)
+        except Exception:
+            raise
+        else:
+            self.created.extend(filepaths)
+            if filename not in self.created:
+                self.created.append(filename)
 
     def create(self, filepath):
         """ (unimplemented plugin description)

@@ -98,7 +98,7 @@ class MakefilePost(PostPlugin):
 
         with open(makefile, 'w') as f:
             f.write(content)
-        print('Makefile created: {}'.format(makefile))
+        self.print_status('Created {}'.format(makefile))
         return makefile
 
 
