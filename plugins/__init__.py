@@ -577,7 +577,6 @@ def determine_plugin(pluginname, filename, use_default=True):
                            plugin names.
                            Default: True
         Returns Plugin class on success, or None on failure.
-        This may modify argd['FILENAME'] if needed.
     """
 
     globalconfig = config.get('plugins', {}).get('global', {})
@@ -618,9 +617,13 @@ def determine_plugin(pluginname, filename, use_default=True):
         filename
     ))
 
-    # If the file has an extension, don't use the default plugin.
+    # If the file has an extension, don't use the default plugin unless
+    # forced by the plugin_hint.
     _, ext = os.path.splitext(filename)
     if ext:
+        debug('Explicit extension with no known plugin: {}'.format(
+            filename
+        ))
         return None
 
     # No file extension,
@@ -633,7 +636,56 @@ def determine_plugin(pluginname, filename, use_default=True):
     return get_plugin_default() if use_default else None
 
 
-def do_post_plugins(fname, plugin):
+def determine_plugins(pluginname, filenames, use_default=True):
+    """ Determine which plugin to use based on user's filename, or filetype.
+        Arguments:
+            pluginname   : Plugin name provided by the user (from docopt).
+            filenames    : File names provided by the user (from docopt).
+            use_default  : Whether to return the default plugin on bad
+                           plugin names.
+                           Default: True
+        Returns {Plugin: [filepaths, ..], ..} for each successful plugin
+        determination. On failure to determine a plugin for a given
+        filename, there will be a None key with the filepaths that failed.
+    """
+    if not pluginname:
+        # Check to see if first 'filename' is actually a plugin name.
+        # This is a workaround for docopt.
+        plugincls = get_plugin_byname(filenames[0])
+        if plugincls:
+            pluginname = plugincls.get_name()
+            filenames.pop(0)
+            debug(
+                'Plugin name given, using {} for the following files:'.format(
+                    pluginname,
+                )
+            )
+    if pluginname and (not filenames):
+        plugincls = get_plugin_byname(pluginname)
+        if plugincls:
+            return {plugincls: filenames}
+        print_err('Not a valid file type (not supported): {}'.format(
+            pluginname,
+        ))
+        return {}
+
+    determined = {}
+    for filename in filenames:
+        debug('Determining plugin for: plugin: {}, filename: {}'.format(
+            pluginname,
+            filename,
+        ))
+        plugin = determine_plugin(
+            pluginname,
+            filename,
+            use_default=use_default,
+        )
+        determined.setdefault(plugin, [])
+        determined[plugin].append(filename)
+    return determined
+
+
+def do_post_plugins(filepaths, plugin):
     """ Handle all post-processing plugins.
         These plugins will be given the file name to work with.
         The plugin return values are not used.
@@ -641,9 +693,16 @@ def do_post_plugins(fname, plugin):
         Any other Exceptions are debug-printed, but processing continues.
         Returns: Number of errors encountered (can be used as an exit code)
         Arguments:
-            fname   : The created file name.
-            plugin  : The Plugin that was used to create the file.
+            filepaths  : The files created by the plugin.
+            plugin     : The Plugin that was used to create the files.
     """
+    debug('Running post-plugins for {}: {}'.format(
+        plugin.get_name(),
+        filepaths,
+    ))
+    if not filepaths:
+        return 0
+
     errors = 0
     for postcls in plugins['post'].values():
         if plugin.ignore_post and (postcls.get_name() in plugin.ignore_post):
@@ -651,7 +710,11 @@ def do_post_plugins(fname, plugin):
             debug(skipmsg.format(postcls.get_name(), plugin.get_name()))
             continue
 
-        pluginret = try_post_plugin(postcls, plugin, fname)
+        pluginret = try_post_plugin(
+            postcls,
+            plugin,
+            filepaths,
+        )
         if pluginret == PluginReturn.fatal:
             return errors + 1
         errors += pluginret.value
@@ -676,7 +739,11 @@ def do_post_plugins(fname, plugin):
             skipmsg = 'Skipping deferred-plugin {} for {}.'
             debug(skipmsg.format(deferredcls.get_name(), plugin.get_name()))
             continue
-        pluginret = try_post_plugin(deferredcls, plugin, fname)
+        pluginret = try_post_plugin(
+            deferredcls,
+            plugin,
+            filepaths,
+        )
         if pluginret == PluginReturn.fatal:
             return errors + 1
         errors += pluginret.value
@@ -1180,7 +1247,8 @@ def load_plugins(plugindir):
     tmp_plugins['custom'] = load_custom_plugins()
 
     # Load single-file plugins.
-    for modname in (os.path.splitext(p)[0] for p in iter_py_modules(plugindir)):
+    modnames = (os.path.splitext(p)[0] for p in iter_py_modules(plugindir))
+    for modname in modnames:
         try:
             module = load_module(modname)
         except ImportError as eximp:
@@ -1262,12 +1330,12 @@ def set_debug_mode(enabled, debugplugin=None):
         DEBUG_PLUGIN = debugplugin
 
 
-def try_post_plugin(plugincls, typeplugin, filename):
+def try_post_plugin(plugincls, typeplugin, filepaths):
     """ Try running plugin.process(filename).
         Arguments:
             plugin      : Post or Deferred plugin to try running.
             typeplugin  : The original Plugin that created the content.
-            filename    : The requested filename for file creation.
+            filepaths   : The files created by the plugin.
         Returns one of:
             PluginReturn.success (0)
             PluginReturn.error (1)
@@ -1284,7 +1352,11 @@ def try_post_plugin(plugincls, typeplugin, filename):
         return PluginReturn.fatal
 
     try:
-        plugin.process(typeplugin, filename)
+        if plugin.multifile:
+            plugin.process_multi(typeplugin, filepaths)
+        else:
+            for filepath in filepaths:
+                plugin.process(typeplugin, filepath)
     except SignalExit as exstop:
         if exstop.reason:
             errmsg = '\nFatal error in post-processing plugin \'{}\':\n{}'
@@ -1366,13 +1438,17 @@ class PluginBase(object):
     # If true, self.create_multi() is used instead of self.create() for
     # Plugins, and self.process_multi() is used instead of self.process() for
     # PostPlugins.
-    multi_file = False
+    multifile = False
 
     # Whether this plugin should be hidden from --plugins listing.
     private = False
 
     def _setup(self, args=None):
         """ Perform any plugin setup before using it. """
+        if self.argv or self.argd:
+            # Already setup.
+            return None
+
         self.debug_enabled = DEBUG_PLUGIN
 
         # Handle -h and -v before docopt, for a better new-style plugin msg.
@@ -1416,6 +1492,7 @@ class PluginBase(object):
                 '{}: {}'.format(k, v) for k, v in self.argd.items()
             )
         ))
+
         self.debug_call(self.debug_attrs)
 
     def attributes(self):
@@ -1429,7 +1506,12 @@ class PluginBase(object):
                 val = getattr(self, name)
             except Exception:
                 continue
-            attrs[name] = str(val)
+            try:
+                json.dumps(val)
+                attrs[name] = val
+            except TypeError:
+                # No JSON for you.
+                attrs[name] = repr(val)
         return attrs
 
     def debug(self, *args, **kwargs):
@@ -1444,7 +1526,7 @@ class PluginBase(object):
 
     def debug_attrs(self):
         """ Print JSON-formatted attributes of this plugin instance. """
-        self.debug_json(self.attributes(), sort_keys=True, file=sys.stderr)
+        self.debug_json(self.attributes(), sort_keys=True)
 
     def debug_call(self, func, *args, **kwargs):
         """ Call a function only if self.debug_enabled is enabled. """
@@ -1766,6 +1848,21 @@ class Plugin(PluginBase):
         ))
         return self.create(filepath)
 
+    def _create_multi(self, filepaths, args=None):
+        """ This method is called for content creation, and is responsible
+            for calling the plugin's create_multi() method.
+            It sets self.argv so they are available in create_multi() and
+            afterwards.
+            If no args were given then get_default_args() is used to grab them
+            from config.
+        """
+        self._setup(args=args)
+        self.debug('Calling {}.create_multi({!r})'.format(
+            type(self).__name__,
+            filepaths,
+        ))
+        return self.create_multi(filepaths)
+
     def create(self, filepath):
         """ (unimplemented plugin description)
 
@@ -1781,21 +1878,23 @@ class Plugin(PluginBase):
         raise NotImplementedError('create() must be implemented!')
 
     def create_multi(self, filepaths):
-        """ (default implementation of create_multi)
-            This should return an iterable of:
-                ((filepath1, content1), (filepath2, content2), ...)
-            It may raise an exception to signal that something went wrong.
+        """ (unimplemented plugin description)
+
+            This should return a tuple of (filename, content), where content
+            is ready to be written to a file.
+            `New` already handles creating multiple files of the same type,
+            but this allows a plugin to do other things with the extra
+            filepaths provided on the command line (like makefile, including
+            them as source files).
 
             Arguments:
-                filepaths : An iterable of filepaths that will be written.
+                filepaths : An iterable of filepaths from the user (docopt).
                             Plugins do not write the files, but the file names
-                            may be useful information. The python plugin
-                            uses it in it's template to create the doc strs.
+                            may be useful information. The makefile plugin
+                            uses these file names to add source files to the
+                            template.
         """
-        return (
-            (filepath, self.create(filepath))
-            for filepath in filepaths
-        )
+        raise NotImplementedError('create_multi() must be implemented!')
 
 
 class PostPlugin(PluginBase):
@@ -1820,7 +1919,8 @@ class PostPlugin(PluginBase):
     def process_multi(self, plugin, filepaths):
         """ (unimplemented post-plugin description)
 
-            This should accept an existing file name and do some processing.
+            This should accept an iterable of file names and do some
+            processing.
             It may raise an exception to signal that something went wrong.
 
             Arguments:

@@ -44,11 +44,9 @@ USAGESTR = """{versionstr}
         {script} --customhelp [-D]
         {script} (-c | -h | -v | -p) [-D] [-P]
         {script} FILENAME... [-d | -O] [-D] [-P] [-o] [-x]
-        {script} FILENAME... [-d | -O] [-D] [-P] [-o] [-x] -- ARGS...
         {script} PLUGIN (-C | -H) [-D] [-P]
-        {script} PLUGIN [-D] [-P] -- ARGS...
+        {script} PLUGIN [-D] [-P]
         {script} PLUGIN FILENAME... [-d | -O] [-D] [-P] [-o] [-x]
-        {script} PLUGIN FILENAME... [-d | -O] [-D] [-P] [-o] [-x] -- ARGS...
 
     Options:
         ARGS               : Plugin-specific args.
@@ -78,6 +76,8 @@ USAGESTR = """{versionstr}
                              executable. This is for plugin types that
                              normally ignore the chmodx plugin.
         -v,--version       : Show version.
+
+    Plugin arguments must follow a bare -- argument.
 """.format(script=SCRIPT, versionstr=VERSIONSTR)
 
 # Where to locate plugins.
@@ -115,110 +115,24 @@ def main(argd):
     # Determine plugin based on file name/file type/explicit name.
     use_default_plugin = not (argd['--pluginhelp'] or argd['--pluginconfig'])
     debug('Use default plugin?: {}'.format(use_default_plugin))
-    plugin = get_plugin(
+    pluginclses = get_plugins(
         argd['PLUGIN'],
         argd['FILENAME'],
         use_default=use_default_plugin,
     )
-    if not plugin:
-        # Not a valid plugin name, user cancelled text plugin use.
+    if not pluginclses:
+        # No a valid plugin names, user cancelled text plugin use.
         return 1
 
-    # Notify plugin that this might be a dry run.
-    plugin.dryrun = argd['--dryrun']
+    createdfiles = {}
+    for plugin, filepaths in pluginclses.items():
+        pluginfiles = handle_plugin(plugin, filepaths, argd)
+        if not pluginfiles:
+            break
+        createdfiles.setdefault(plugin, [])
+        createdfiles[plugin].extend(pluginfiles)
 
-    if argd['--executable'] and 'chmodx' in plugin.ignore_post:
-        # Current behaviour says files are made executable unless told
-        # otherwise, so to 'force chmodx' simply means to remove it from the
-        # 'ignored' list.
-        try:
-            plugin.ignore_post.remove('chmodx')
-        except (AttributeError, KeyError):
-            pass
-    pluginname = plugin.get_name().title()
-    debug('Using plugin: {}'.format(pluginname))
-    # Do plugin help.
-    if argd['--pluginhelp']:
-        return 0 if plugin.help() else 1
-    elif argd['--pluginconfig']:
-        return 0 if plugin.config_dump() else 1
-    elif hasattr(plugin, 'run'):
-        # This is a post plugin, it should only be used as a command.
-        debug('Running post-processing plugin as command: {}'.format(
-            pluginname
-        ))
-        try:
-            exitcode = plugin._run(args=argd['ARGS'])
-        except NotImplementedError as ex:
-            print_err(str(ex))
-            exitcode = 1
-        except plugins.SignalExit as excancel:
-            exitcode = handle_signalexit(excancel)
-        except Exception:
-            exitcode = handle_exception(
-                '{} error:'.format(pluginname),
-                *sys.exc_info())
-        return exitcode
-
-    # Get valid file name for this file.
-    fname = expand_path(
-        ensure_file_ext(argd['FILENAME'], plugin)
-    )
-
-    # Make sure the file name doesn't conflict with any plugins.
-    # ...mainly during development and testing.
-    if plugins.conflicting_file(plugin, argd['FILENAME'], fname):
-        return 1
-
-    try:
-        content = plugin._create(fname, argd['ARGS'])
-    except plugins.SignalAction as action:
-        # See if we have content to write
-        # No-content is fatal unless explicitly allowed.
-        if not (action.content or plugin.allow_blank):
-            errmsg = 'Plugin action with no content!\n    {}'
-            print_err(errmsg.format(action.message))
-            return 1
-
-        content = action.content
-        # Print plugin notification of any major changes (file name changes)
-        if action.message:
-            for line in action.message.split('\n'):
-                plugin.print_status(line)
-        # Plugin is changing the output file name.
-        if action.filename:
-            fname = action.filename
-        # Plugin is adding ignore_post plugins.
-        if action.ignore_post:
-            debug('Adding ignore_post: {!r}'.format(action.ignore_post))
-            plugin.ignore_post.update(action.ignore_post)
-    except plugins.SignalExit as excancel:
-        # Plugin wants to stop immediately.
-        return handle_signalexit(excancel)
-    except Exception:
-        return handle_exception(
-            '{} error:'.format(pluginname),
-            *sys.exc_info())
-
-    # Confirm overwriting existing files, exit on refusal.
-    # Non-existant file names are considered valid, and need no confimation.
-    if not valid_filename(
-            fname,
-            dryrun=argd['--dryrun'],
-            overwrite=argd['--overwrite']):
-        return 1
-
-    if not (plugin.allow_blank or content):
-        debug('{} is not allowed to create a blank file.'.format(pluginname))
-        print_err('\nFailed to create file: {}'.format(fname))
-        return 1
-
-    if argd['--noopen']:
-        # Don't open the file.
-        debug('Cancelling open plugin for {}'.format(plugin.get_name()))
-        plugin.ignore_deferred.add('open')
-
-    return handle_content(fname, content, plugin, dryrun=argd['--dryrun'])
+    return handle_post_plugins(createdfiles)
 
 
 def confirm(msg):
@@ -262,53 +176,71 @@ def expand_path(fname):
     return os.path.abspath(fname)
 
 
-def get_plugin(pluginname, filename, use_default=True):
+def get_plugins(pluginname, filenames, use_default=True):
     """ Get the plugin to use based on the user's args (arg dict from docopt).
         When an invalid name is used, optionally use the text plugin.
         Print a message and return None on failure/cancellation.
         Arguments:
-            argd         : Command line argument dict from docopt.
+            pluginname   : Plugin name provided by the user (from docopt).
+            filenames    : File names provided by the user (from docopt).
             use_default  : Whether determine_plugin() should use the default
                            plugin on bad names/types.
                            Default: True
     """
-    if filename == '--':
+    debug('Using PLUGIN={!r}, FILENAMES={!r}'.format(pluginname, filenames))
+    if filenames and (filenames[0] == '--'):
         # Occurs when no args are passed after the seperator: new plugin --
-        debug('No args after --, filename is: {}'.format(filename))
+        debug('No args after --, filename is: {}'.format(filenames[0]))
         filename = None
 
-    plugincls = plugins.determine_plugin(
+    pluginclses = plugins.determine_plugins(
         pluginname,
-        filename,
+        filenames,
         use_default=use_default,
     )
-    if plugincls:
-        return plugincls()
+    if not pluginclses:
+        return {}
 
-    # Regular plugin-determining failed
-    ftype = pluginname or filename
-    print_err('Not a valid file type (not supported): {}'.format(ftype))
-    if not use_default:
-        return None
-    elif not confirm('Continue with a blank file?'):
-        print_err('Use --plugins to list available plugins.\n')
-        return None
+    if all((cls is not None) for cls in pluginclses):
+        # All plugins were determined.
+        return {cls(): filepaths for cls, filepaths in pluginclses.items()}
 
-    # Use text plugin (blank file).
-    pluginname = 'text'
-    plugincls = plugins.determine_plugin(pluginname, filename)
-    if plugincls:
-        return plugincls()
+    # Regular plugin-determinaing failed
+    for filename in pluginclses[None]:
+        ftype = pluginname or filename
+        print_err('Not a valid file type (not supported): {}'.format(ftype))
+        if not use_default:
+            return None
+        elif not confirm('Continue with a blank file?'):
+            print_err('Use --plugins to list available plugins.\n')
+            return None
 
-    print_err('Unable to load the text plugin, sorry.')
-    return None
+        # Use text plugin (blank file).
+        pluginname = 'text'
+        plugincls = plugins.determine_plugin(pluginname, filename)
+        if plugincls:
+            pluginclses.setdefault(plugincls, [])
+            pluginclses[plugincls].append(filename)
+        else:
+            # If the text plugin can't be loaded, we have bigger problems.
+            print_err('Something is horribly wrong.')
+            print_err('Unable to load the text plugin, sorry.')
+            return None
+    # All plugins were determined or set to the TextPlugin.
+    return {cls(): filepaths for cls, filepaths in pluginclses.items()}
 
 
-def handle_content(fname, content, plugin, dryrun=False):
+def handle_content(fname, content, plugin, dryrun=False, filepaths=None):
     """ Either write the new content to a file,
         or print it if this is a dryrun.
         Run post-processing plugins if a file was written.
-        Returns exit code status.
+        Returns the created file name.
+        Arguments:
+            fname     : The file name to write.
+            content   : Content to write to the file.
+            plugin    : The plugin that created the content.
+            filepaths : Any extra file paths that were passed to the plugin,
+                        for multi-file plugins.
     """
     if content and plugin.ensure_newline and (not content.endswith('\n')):
         # Ensure newline if there is any content, only if plugin allows it.
@@ -326,18 +258,16 @@ def handle_content(fname, content, plugin, dryrun=False):
         print_term('Dry run, would\'ve written: {}\n'.format(fname))
         print(content or '<No Content>')
         # No post plugins can run.
-        return 0 if content else 1
+        return None
 
     created = write_file(fname, content)
     if not created:
         print_err('\nUnable to create: {}'.format(fname))
-        return 1
+        return None
 
     if fname != STDOUT_FILENAME:
         print_status('Created {}'.format(created))
-        # Do post-processing plugins on the created file.
-        return plugins.do_post_plugins(fname, plugin)
-    return 0
+    return created
 
 
 def handle_exception(msg, ex_type, ex_value, ex_tb):
@@ -352,6 +282,217 @@ def handle_exception(msg, ex_type, ex_value, ex_tb):
         exargs = {}
     print_ex(ex_value, msg, **exargs)
     return 1
+
+
+def handle_plugin(plugin, filepaths, argd):
+    """ Sets up the plugin, runs command plugins, plugin help,
+        plugin config dump, or multiple file writes.
+        Returns a list of created files.
+    """
+    # Notify plugin that this might be a dry run.
+    plugin.dryrun = argd['--dryrun']
+
+    if argd['--executable'] and 'chmodx' in plugin.ignore_post:
+        # Current behaviour says files are made executable unless told
+        # otherwise, so to 'force chmodx' simply means to remove it from the
+        # 'ignored' list.
+        try:
+            plugin.ignore_post.remove('chmodx')
+        except (AttributeError, KeyError):
+            pass
+    pluginname = plugin.get_name().title()
+    debug('Using plugin: {}'.format(pluginname))
+    # Do plugin help.
+    if argd['--pluginhelp']:
+        return 0 if plugin.help() else 1
+    elif argd['--pluginconfig']:
+        return 0 if plugin.config_dump() else 1
+    elif hasattr(plugin, 'run'):
+        # This is a post plugin, it should only be used as a command.
+        debug('Running post-processing plugin as command: {}'.format(
+            pluginname
+        ))
+        try:
+            exitcode = plugin._run(args=argd['ARGS'])
+        except NotImplementedError as ex:
+            print_err(str(ex))
+            exitcode = 1
+        except plugins.SignalExit as excancel:
+            exitcode = handle_signalexit(excancel)
+        except Exception:
+            exitcode = handle_exception(
+                '{} error:'.format(pluginname),
+                *sys.exc_info())
+        return exitcode
+
+    if plugin.multifile:
+        # This plugin handles multiple file names on it's own.
+        created = handle_plugin_multifile(plugin, filepaths, argd)
+        return [created] if created else []
+
+    createdfiles = []
+    for filename in filepaths:
+        created = handle_plugin_file(plugin, filename, argd)
+        if created:
+            createdfiles.append(created)
+        else:
+            break
+    return createdfiles
+
+
+def handle_plugin_file(plugin, filename, argd):
+    """ Ensure valid file names, call plugin.create(), catch any
+        SignalActions or SignalExits, and eventually write the file content
+        if everything goes well.
+        Returns the name of the file created.
+    """
+    debug('Handling file for {} plugin: {}'.format(
+        plugin.get_name(),
+        filename,
+    ))
+    # Get valid file name for this file.
+    fname = expand_path(
+        ensure_file_ext(filename, plugin)
+    )
+
+    # Make sure the file name doesn't conflict with any plugins.
+    # ...mainly during development and testing.
+    if plugins.conflicting_file(plugin, filename, fname):
+        return None
+    pluginname = plugin.get_name().title()
+    try:
+        content = plugin._create(fname, argd['ARGS'])
+    except plugins.SignalAction as action:
+        # See if we have content to write
+        # No-content is fatal unless explicitly allowed.
+        if not (action.content or plugin.allow_blank):
+            errmsg = 'Plugin action with no content!\n    {}'
+            print_err(errmsg.format(action.message))
+            return None
+
+        content = action.content
+        # Print plugin notification of any major changes (file name changes)
+        if action.message:
+            for line in action.message.split('\n'):
+                plugin.print_status(line)
+        # Plugin is changing the output file name.
+        if action.filename:
+            fname = action.filename
+        # Plugin is adding ignore_post plugins.
+        if action.ignore_post:
+            debug('Adding ignore_post: {!r}'.format(action.ignore_post))
+            plugin.ignore_post.update(action.ignore_post)
+    except plugins.SignalExit as excancel:
+        # Plugin wants to stop immediately.
+        return handle_signalexit(excancel)
+    except Exception:
+        return handle_exception(
+            '{} error:'.format(pluginname),
+            *sys.exc_info())
+
+    # Confirm overwriting existing files, exit on refusal.
+    # Non-existant file names are considered valid, and need no confirmation.
+    if not valid_filename(
+            fname,
+            dryrun=argd['--dryrun'],
+            overwrite=argd['--overwrite']):
+        return None
+
+    if not (plugin.allow_blank or content):
+        debug('{} is not allowed to create a blank file.'.format(pluginname))
+        print_err('\nFailed to create file: {}'.format(fname))
+        return None
+
+    if argd['--noopen']:
+        # Don't open the file.
+        debug('Cancelling open plugin for {}'.format(plugin.get_name()))
+        plugin.ignore_deferred.add('open')
+
+    return handle_content(
+        fname,
+        content,
+        plugin,
+        dryrun=argd['--dryrun'],
+        filepaths=None,
+    )
+
+
+def handle_plugin_multifile(plugin, filepaths, argd):
+    """ Like handle_plugin_file, except the plugin will receive multiple
+        file names and return a single file name and content to be written.
+        It is the plugin's responsibility to ensure a valid file name
+        and extension.
+        This function will handle the setup/error-handling for that file
+        to be written.
+        Returns the name of the file created.
+    """
+    pluginname = plugin.get_name().title()
+    try:
+        filename, content = plugin._create_multi(filepaths, argd['ARGS'])
+    except plugins.SignalAction as action:
+        # See if we have content to write
+        # No-content is fatal unless explicitly allowed.
+        if not (action.content or plugin.allow_blank):
+            errmsg = 'Plugin action with no content!\n    {}'
+            print_err(errmsg.format(action.message))
+            return None
+
+        content = action.content
+        # Print plugin notification of any major changes (file name changes)
+        if action.message:
+            for line in action.message.split('\n'):
+                plugin.print_status(line)
+        # Plugin is changing the output file name.
+        if action.filename:
+            filename = action.filename
+        # Plugin is adding ignore_post plugins.
+        if action.ignore_post:
+            debug('Adding ignore_post: {!r}'.format(action.ignore_post))
+            plugin.ignore_post.update(action.ignore_post)
+    except plugins.SignalExit as excancel:
+        # Plugin wants to stop immediately.
+        return handle_signalexit(excancel)
+    except Exception:
+        return handle_exception(
+            '{} error:'.format(pluginname),
+            *sys.exc_info())
+
+    # Confirm overwriting existing files, exit on refusal.
+    # Non-existant file names are considered valid, and need no confirmation.
+    if not valid_filename(
+            filename,
+            dryrun=argd['--dryrun'],
+            overwrite=argd['--overwrite']):
+        return None
+
+    if not (plugin.allow_blank or content):
+        debug('{} is not allowed to create a blank file.'.format(pluginname))
+        print_err('\nFailed to create file: {}'.format(filename))
+        return None
+
+    if argd['--noopen']:
+        # Don't open the file.
+        debug('Cancelling open plugin for {}'.format(plugin.get_name()))
+        plugin.ignore_deferred.add('open')
+
+    return handle_content(
+        filename,
+        content,
+        plugin,
+        dryrun=argd['--dryrun'],
+        filepaths=filepaths,
+    )
+
+
+def handle_post_plugins(createdinfo):
+    """ Runs post plugins on the created files.
+        Arguments:
+            createdinfo : A dict of {plugin: [created_file, ..], ..}
+    """
+    errs = 0
+    for plugin, pluginfiles in createdinfo.items():
+        errs += plugins.do_post_plugins(pluginfiles, plugin)
+    return errs
 
 
 def handle_signalexit(ex):
@@ -382,6 +523,28 @@ def make_dirs(path):
         print_ex(ex, 'Failed to create directory: {}'.format(path))
         return None
     return path
+
+
+def parse_args():
+    """ Strips plugin args from sys.argv, and fixes the docopt argd.
+        Returns a docopt arg dict.
+    """
+    sysargs = []
+    pluginargs = []
+    in_plugin_args = False
+    for arg in sys.argv[1:]:
+        if arg == '--':
+            in_plugin_args = True
+            continue
+        if in_plugin_args:
+            pluginargs.append(arg)
+        else:
+            sysargs.append(arg)
+    debug('  Sys args: {}'.format(sysargs))
+    debug('Plugin arg: {}'.format(pluginargs), align=True)
+    argd = docopt(USAGESTR, version=VERSIONSTR, argv=sysargs, script=SCRIPT)
+    argd['ARGS'] = pluginargs
+    return argd
 
 
 def print_ex(ex, msg, ex_type=None, ex_value=None, ex_tb=None):
@@ -474,7 +637,7 @@ def write_file(fname, content):
 if __name__ == '__main__':
     # Okay, run.
     try:
-        mainret = main(docopt(USAGESTR, version=VERSIONSTR, script=SCRIPT))
+        mainret = main(parse_args())
     except ValueError as ex:
         print_err('Error: {}'.format(ex))
         mainret = 1

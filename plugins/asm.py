@@ -59,7 +59,24 @@ main:
     nop                   ; possible breakpoint
 """
 
+# Template for asm with no main.
+template_blank = """;
+; {name}
+; ...
+; To compile:
+;   nasm -felf64 {filename} && gcc -o {outputfile} {objectfile}
+;
+; {author}{date}
 
+section .data
+
+section .bss
+
+section .text
+    nop                   ; possible breakpoint
+
+    nop                   ; possible breakpoint
+"""
 class AsmPlugin(Plugin):
 
     """ Creates a basic nasm source file. """
@@ -71,14 +88,20 @@ class AsmPlugin(Plugin):
     docopt = True
     usage = """
     Usage:
-        asm [-l]
+        asm [-b | -l] [-m]
 
     Options:
-        -l,--clib  : Use C library.
+        -b,--blank  : Blank asm file, no _start label.
+        -l,--clib   : Use C library.
+        -m,--multi  : Multiple source file mode.
+                      The first file is created with or without -l,
+                      and the following files are blank source files.
     """
     description = '\n'.join((
         'Creates a basic asm file, with or without C library usage.',
     ))
+
+    created = []
 
     def __init__(self):
         self.load_config()
@@ -88,7 +111,13 @@ class AsmPlugin(Plugin):
         _, basename = os.path.split(filename)
         name, _ = os.path.splitext(basename)
         objfile = '{}.o'.format(name)
-        return self.get_template(filename).format(
+        if self.argd['--multi'] and self.created:
+            tmplate = template_blank
+        else:
+            tmplate = self.get_template(filename)
+        self.created.append(filename)
+
+        return tmplate.format(
             name=name,
             filename=basename,
             author=fix_author(self.config.get('author', None)),
@@ -101,10 +130,11 @@ class AsmPlugin(Plugin):
         """ Return the template we are using, based on the filename or
             self.argd['--clib'].
         """
-        return {
-            True: template_c,
-            False: template,
-        }.get(filename.lower().endswith('.asmc') or self.argd['--clib'])
+        if self.argd['--clib'] or filename.endswith('.asmc'):
+            return template_c
+        elif self.argd['--blank']:
+            return template_blank
+        return template
 
 
 exports = (AsmPlugin, )

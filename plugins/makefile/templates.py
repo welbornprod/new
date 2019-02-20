@@ -105,3 +105,27 @@ def template_render(filepath, makefile=None, argd=None, config=None):
     # Format the template with compiler-specific settings.
     debug('Rendering makefile: {}'.format(makefile))
     return makefile, template.format(**templateargs)
+
+
+def template_render_multi(filepaths, makefile=None, argd=None, config=None):
+    """ Render the makefile template for a given c source file name. """
+    parentdir, mainfile = os.path.split(filepaths[0])
+    srcfiles = (os.path.split(s)[-1] for s in filepaths)
+    makefile = os.path.abspath(
+        os.path.join(parentdir, makefile or DEFAULT_MAKEFILE)
+    )
+    binary = os.path.splitext(mainfile)[0]
+    author = fix_author((config or {}).get('author', ''))
+
+    templateargs = {
+        'author': author,
+        'binary': binary,
+        'date': ' {}'.format(date()) if author else date(),
+        'source': ' '.join(srcfiles),
+        'source_path': os.path.relpath(mainfile),
+    }
+    template = template_load(mainfile, {} if (argd is None) else argd)
+
+    # Format the template with compiler-specific settings.
+    debug('Rendering makefile: {}'.format(makefile))
+    return makefile, template.format(**templateargs)

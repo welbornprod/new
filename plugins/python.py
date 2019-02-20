@@ -337,14 +337,14 @@ class PythonPlugin(Plugin):
         if not template_base:
             errmsg = 'Misconfigured template base: {}'
             raise ValueError(errmsg.format(templateid))
-
         imports = self.argd['IMPORTS'] + template_args['imports']
         scriptname = os.path.split(filename)[-1]
         shebangexe = self.config.get('shebangexe', '/usr/bin/env python3')
         version = self.config.get('default_version', default_version)
 
+        use_template_args = {k: v for k, v in template_args.items()}
         # Regular template (none, unittest, docopt)...
-        template_args.update({
+        use_template_args.update({
             'author': fix_author(self.config.get('author', None)),
             'explanation': self.config.get('explanation', ''),
             'date': date(),
@@ -371,15 +371,15 @@ class PythonPlugin(Plugin):
                     message='Switching to unittest file name format.',
                     filename=filename)
             # Fix the scriptname, add the testtarget args.
-            template_args['scriptname'] = scriptname
-            template_args['testtarget'] = testtarget
+            use_template_args['scriptname'] = scriptname
+            use_template_args['testtarget'] = testtarget
             # Render the template, action is needed because of a name change.
             if testaction:
-                testaction.content = template_base.format(**template_args)
+                testaction.content = template_base.format(**use_template_args)
                 raise testaction
 
         # Render a normal template and return the content.
-        return template_base.format(**template_args)
+        return template_base.format(**use_template_args)
 
     def create_setup(self, filename, *args):
         """ Create a basic setup.py. """
