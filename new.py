@@ -22,12 +22,6 @@
 
 """
 
-###############
-#
-# TODO: Create multiple files at once.
-#
-###############
-
 import os
 import sys
 import traceback
@@ -48,13 +42,13 @@ SCRIPTDIR = os.path.abspath(sys.path[0])
 USAGESTR = """{versionstr}
     Usage:
         {script} --customhelp [-D]
-        {script} (-c | -h | -v | -p) [-D]
-        {script} FILENAME [-d | -O] [-D] [-o] [-x]
-        {script} FILENAME [-d | -O] [-D] [-o] [-x] -- ARGS...
-        {script} PLUGIN (-C | -H) [-D]
-        {script} PLUGIN [-D] -- ARGS...
-        {script} PLUGIN FILENAME [-d | -O] [-D] [-o] [-x]
-        {script} PLUGIN FILENAME [-d | -O] [-D] [-o] [-x] -- ARGS...
+        {script} (-c | -h | -v | -p) [-D] [-P]
+        {script} FILENAME... [-d | -O] [-D] [-P] [-o] [-x]
+        {script} FILENAME... [-d | -O] [-D] [-P] [-o] [-x] -- ARGS...
+        {script} PLUGIN (-C | -H) [-D] [-P]
+        {script} PLUGIN [-D] [-P] -- ARGS...
+        {script} PLUGIN FILENAME... [-d | -O] [-D] [-P] [-o] [-x]
+        {script} PLUGIN FILENAME... [-d | -O] [-D] [-P] [-o] [-x] -- ARGS...
 
     Options:
         ARGS               : Plugin-specific args.
@@ -64,6 +58,7 @@ USAGESTR = """{versionstr}
         PLUGIN             : Plugin name to use (like bash, python, etc.)
                              Defaults to: python (unless set in config)
         FILENAME           : File name for the new file.
+                             Multiple files can be created.
         --customhelp       : Show help for creating a custom plugin.
         -c,--config        : Print global config and exit.
         -C,--pluginconfig  : Print plugin config and exit.
@@ -77,6 +72,7 @@ USAGESTR = """{versionstr}
         -h,--help          : Show this help message.
         -o,--noopen        : Don't open the file after creating it.
         -O,--overwrite     : Overwrite existing files.
+        -P,--debugplugin   : Show more plugin-debugging info.
         -p,--plugins       : List all available plugins.
         -x,--executable    : Force the chmodx plugin to run, to make the file
                              executable. This is for plugin types that
@@ -91,19 +87,14 @@ sys.path.insert(1, PLUGINDIR)
 # Passing this as a file name will write to stdout.
 STDOUT_FILENAME = '-'
 
-# Global debug flag, set with --debug.
-DEBUG = False
-# Print extra info about plugins (the chosen plugin's attributes).
-# This has to be set manually for now.
-DEBUG_PLUGIN = False
-
 
 def main(argd):
     """ Main entry point, expects doctopt arg dict as argd """
-    global DEBUG
-    DEBUG = argd['--debug']
-    if not DEBUG:
-        plugins.debugprinter.disable()
+    plugins.set_debug_mode(
+        argd['--debug'] or argd['--debugplugin'],
+        debugplugin=argd['--debugplugin'],
+    )
+
     if argd['--customhelp']:
         return 0 if plugins.custom_plugin_help() else 1
 
@@ -128,9 +119,6 @@ def main(argd):
     if not plugin:
         # Not a valid plugin name, user cancelled text plugin use.
         return 1
-
-    if DEBUG_PLUGIN:
-        plugins.print_json(plugin.attributes(), sort_keys=True)
 
     # Notify plugin that this might be a dry run.
     plugin.dryrun = argd['--dryrun']
@@ -343,7 +331,7 @@ def handle_exception(msg, ex_type, ex_value, ex_tb):
         message is printed.
         Returns an error exit status.
     """
-    if DEBUG:
+    if plugins.DEBUG:
         exargs = {'ex_type': ex_type, 'ex_value': ex_value, 'ex_tb': ex_tb}
     else:
         exargs = {}

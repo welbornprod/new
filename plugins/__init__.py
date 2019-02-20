@@ -20,6 +20,14 @@ from printdebug import DebugColrPrinter
 debugprinter = DebugColrPrinter()
 debug = debugprinter.debug
 
+# Global debug flag.
+# Set with --debug in main().
+DEBUG = False
+# Extra plugin-debugging flag. Shows plugin attributes and other
+# plugin-specific info.
+# Set with --debugplugin in main().
+DEBUG_PLUGIN = False
+
 SCRIPTDIR = os.path.abspath(sys.path[0])
 
 plugins = {'types': {}, 'post': {}, 'deferred': {}}
@@ -560,7 +568,7 @@ def determine_plugin(argd, use_default=True):
             use_default  : Whether to return the default plugin on bad
                            plugin names.
                            Default: True
-        Returns Plugin() on success, or None on failure.
+        Returns Plugin class on success, or None on failure.
         This may modify argd['FILENAME'] if needed.
     """
     globalconfig = config.get('plugins', {}).get('global', {})
@@ -1194,9 +1202,12 @@ def print_inplace(s):
     print(s)
 
 
-def print_json(o, indent=4, sort_keys=False):
+def print_json(o, indent=4, sort_keys=False, file=None):
     """ Shortcut to print(json.dumps(o)). """
-    print(json.dumps(o, indent=indent, sort_keys=sort_keys))
+    print(
+        json.dumps(o, indent=indent, sort_keys=sort_keys),
+        file=file or sys.stdout,
+    )
 
 
 def save_config(config, section=None):
@@ -1223,6 +1234,21 @@ def save_config(config, section=None):
         return True
     # Failure.
     return False
+
+
+def set_debug_mode(enabled, debugplugin=None):
+    """ Set the global DEBUG flag, and optionally set the DEBUG_PLUGIN flag.
+        `debugprinter` will be enabled/disabled also.
+        Arguments:
+            enabled      : Whether DEBUG is enabled.
+            debugplugin  : Whether DEBUG_PLUGIN is enabled.
+                           If this is None, DEBUG_PLUGIN is not changed.
+    """
+    global DEBUG, DEBUG_PLUGIN
+    DEBUG = enabled
+    debugprinter.enable(DEBUG)
+    if debugplugin is not None:
+        DEBUG_PLUGIN = debugplugin
 
 
 def try_post_plugin(plugincls, typeplugin, filename):
@@ -1285,6 +1311,12 @@ class PluginBase(object):
     """ Base for all plugins. Used to implement common methods that don't
         depend on the plugin type.
     """
+    # (bool)
+    # Whether DEBUG_PLUGIN is enabled for this plugin.
+    # This is set in _setup(), and is made public so that plugins can
+    # determine if they are being run in debug mode.
+    # Also see: self.debug_call() to run functions only when in debug mode.
+    debug_enabled = False
     # (str)
     # Description for this plugin.
     # When present, this overrides the default behaviour of using
@@ -1314,16 +1346,23 @@ class PluginBase(object):
 
     # Set by _setup(), before create() or run() is called.
     argv = tuple()
+    # Whether to use docopt to parse plugin help/usage.
+    docopt = False
     # Docopt args if self.docopt is True, set in _setup().
     argd = {}
 
-    docopt = False
+    # Whether the plugin can handle multiple file names.
+    # If true, self.create_multi() is used instead of self.create() for
+    # Plugins, and self.process_multi() is used instead of self.process() for
+    # PostPlugins.
+    multi_file = False
 
     # Whether this plugin should be hidden from --plugins listing.
     private = False
 
     def _setup(self, args=None):
         """ Perform any plugin setup before using it. """
+        self.debug_enabled = DEBUG_PLUGIN
 
         # Handle -h and -v before docopt, for a better new-style plugin msg.
         if ('-h' in args) or ('--help' in args):
@@ -1366,6 +1405,7 @@ class PluginBase(object):
                 '{}: {}'.format(k, v) for k, v in self.argd.items()
             )
         ))
+        self.debug_call(self.debug_attrs)
 
     def attributes(self):
         """ Return a dict of {self.attribute: value} for public attributes.
@@ -1390,6 +1430,22 @@ class PluginBase(object):
             'level': kwargs.get('level', 1),
         })
         return debug(*args, **kargs)
+
+    def debug_attrs(self):
+        """ Print JSON-formatted attributes of this plugin instance. """
+        self.debug_json(self.attributes(), sort_keys=True, file=sys.stderr)
+
+    def debug_call(self, func, *args, **kwargs):
+        """ Call a function only if self.debug_enabled is enabled. """
+        if not self.debug_enabled:
+            return None
+        return func(*args, **kwargs)
+
+    def debug_json(self, obj, sort_keys=False):
+        """ Debug-print a JSON-formatted object. """
+        self.debug('\n{}'.format(
+            json.dumps(obj, sort_keys=sort_keys, indent=4)
+        ))
 
     def get_arg(self, index, default=None):
         """ Safely retrieve an argument by index.
@@ -1709,9 +1765,26 @@ class Plugin(PluginBase):
                 filepath  : The file name that will be written.
                             Plugins do not write the file, but the file name
                             may be useful information. The python plugin
-                            uses it to create the main doc str.
+                            uses it in it's template to create the doc strs.
         """
         raise NotImplementedError('create() must be implemented!')
+
+    def create_multi(self, filepaths):
+        """ (default implementation of create_multi)
+            This should return an iterable of:
+                ((filepath1, content1), (filepath2, content2), ...)
+            It may raise an exception to signal that something went wrong.
+
+            Arguments:
+                filepaths : An iterable of filepaths that will be written.
+                            Plugins do not write the files, but the file names
+                            may be useful information. The python plugin
+                            uses it in it's template to create the doc strs.
+        """
+        return (
+            (filepath, self.create(filepath))
+            for filepath in filepaths
+        )
 
 
 class PostPlugin(PluginBase):
@@ -1732,6 +1805,18 @@ class PostPlugin(PluginBase):
                 filepath  : The requested file name for file creation.
         """
         raise NotImplementedError('process() must be overridden!')
+
+    def process_multi(self, plugin, filepaths):
+        """ (unimplemented post-plugin description)
+
+            This should accept an existing file name and do some processing.
+            It may raise an exception to signal that something went wrong.
+
+            Arguments:
+                plugin    : The original Plugin that created the content.
+                filepaths : The requested file names for file creation.
+        """
+        raise NotImplementedError('process_multi() must be overridden!')
 
     def _run(self, args=None):
         """ This function performs any plugin setup, and then calls the actual
