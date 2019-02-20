@@ -26,9 +26,9 @@ import os
 import sys
 import traceback
 
-import docopt
-
 import plugins
+from plugins import docopt
+
 debug = plugins.debug
 debug_ex = plugins.debug_ex
 print_err = plugins.print_err
@@ -115,7 +115,11 @@ def main(argd):
     # Determine plugin based on file name/file type/explicit name.
     use_default_plugin = not (argd['--pluginhelp'] or argd['--pluginconfig'])
     debug('Use default plugin?: {}'.format(use_default_plugin))
-    plugin = get_plugin(argd, use_default=use_default_plugin)
+    plugin = get_plugin(
+        argd['PLUGIN'],
+        argd['FILENAME'],
+        use_default=use_default_plugin,
+    )
     if not plugin:
         # Not a valid plugin name, user cancelled text plugin use.
         return 1
@@ -258,7 +262,7 @@ def expand_path(fname):
     return os.path.abspath(fname)
 
 
-def get_plugin(argd, use_default=True):
+def get_plugin(pluginname, filename, use_default=True):
     """ Get the plugin to use based on the user's args (arg dict from docopt).
         When an invalid name is used, optionally use the text plugin.
         Print a message and return None on failure/cancellation.
@@ -268,11 +272,21 @@ def get_plugin(argd, use_default=True):
                            plugin on bad names/types.
                            Default: True
     """
-    plugincls = plugins.determine_plugin(argd, use_default=use_default)
+    if filename == '--':
+        # Occurs when no args are passed after the seperator: new plugin --
+        debug('No args after --, filename is: {}'.format(filename))
+        filename = None
+
+    plugincls = plugins.determine_plugin(
+        pluginname,
+        filename,
+        use_default=use_default,
+    )
     if plugincls:
         return plugincls()
 
-    ftype = argd['PLUGIN'] or argd['FILENAME']
+    # Regular plugin-determining failed
+    ftype = pluginname or filename
     print_err('Not a valid file type (not supported): {}'.format(ftype))
     if not use_default:
         return None
@@ -280,8 +294,9 @@ def get_plugin(argd, use_default=True):
         print_err('Use --plugins to list available plugins.\n')
         return None
 
-    argd['PLUGIN'] = 'text'
-    plugincls = plugins.determine_plugin(argd)
+    # Use text plugin (blank file).
+    pluginname = 'text'
+    plugincls = plugins.determine_plugin(pluginname, filename)
     if plugincls:
         return plugincls()
 
@@ -459,7 +474,7 @@ def write_file(fname, content):
 if __name__ == '__main__':
     # Okay, run.
     try:
-        mainret = main(docopt.docopt(USAGESTR, version=VERSIONSTR))
+        mainret = main(docopt(USAGESTR, version=VERSIONSTR, script=SCRIPT))
     except ValueError as ex:
         print_err('Error: {}'.format(ex))
         mainret = 1

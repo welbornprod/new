@@ -14,11 +14,18 @@ from datetime import datetime
 from enum import Enum
 from importlib import import_module
 
-from docopt import docopt, DocoptExit, DocoptLanguageError
+from docopt import DocoptExit, DocoptLanguageError
+from colr import (
+    auto_disable as colr_auto_disable,
+    Colr as C,
+    docopt,
+)
+
 from fmtblock import FormatBlock  # noqa
 from printdebug import DebugColrPrinter
 debugprinter = DebugColrPrinter()
 debug = debugprinter.debug
+colr_auto_disable()
 
 # Global debug flag.
 # Set with --debug in main().
@@ -561,61 +568,65 @@ def debug_missing(attr, plugintype, modname, plugin):
     debug_load_error(plugintype, modname, plugin, msg)
 
 
-def determine_plugin(argd, use_default=True):
+def determine_plugin(pluginname, filename, use_default=True):
     """ Determine which plugin to use based on user's filename, or filetype.
         Arguments:
-            argd         : Docopt arg dict from user.
+            pluginname   : Plugin name provided by the user (from docopt).
+            filename     : File name provided by the user (from docopt).
             use_default  : Whether to return the default plugin on bad
                            plugin names.
                            Default: True
         Returns Plugin class on success, or None on failure.
         This may modify argd['FILENAME'] if needed.
     """
+
     globalconfig = config.get('plugins', {}).get('global', {})
     default_file = globalconfig.get('default_filename', 'new_file')
-    if argd['FILENAME'] == '--':
-        # Occurs when no args are passed after the seperator: new plugin --
-        debug('No args after --, filename is: {}'.format(argd['FILENAME']))
-        raise DocoptExit()
 
-    namedplugincls = get_plugin_byname(argd['FILENAME'], use_post=True)
+    namedplugincls = get_plugin_byname(filename, use_post=True)
     if namedplugincls:
         # Plugin name was mistaken for a file name (ambiguous docopt usage).
         # Use default file name since no file name was given.
-        argd['FILENAME'] = default_file
+        filename = default_file
         debug('Plugin loaded by name, using default file name.')
         return namedplugincls
     debug('get_plugin_byname({!r}) failed (FILENAME), trying PLUGIN.'.format(
-        argd['FILENAME']
+        filename
     ))
-    if argd['PLUGIN']:
-        plugincls = get_plugin_byname(argd['PLUGIN'], use_post=True)
+    if pluginname:
+        plugincls = get_plugin_byname(pluginname, use_post=True)
         if plugincls:
             msg = ['Plugin loaded by given name.']
-            if not argd['FILENAME']:
-                argd['FILENAME'] = default_file
+            if not filename:
+                filename = default_file
                 msg.append('Default file name used.')
             debug(' '.join(msg))
             return plugincls
     debug('get_plugin_byname({!r}) failed (PLUGIN), trying extension.'.format(
-        argd['PLUGIN']
+        pluginname
     ))
     # No known plugin name in either FILENAME or PLUGIN,
     # Fix args to assume filename was passed.
-    argd['FILENAME'] = argd['PLUGIN'] or argd['FILENAME']
-    argd['PLUGIN'] = None
-    extplugin = get_plugin_byext(argd['FILENAME'])
+    filename = pluginname or filename
+    pluginname = None
+    extplugin = get_plugin_byext(filename)
     if extplugin:
         # Determined plugin by file extension.
         debug('Plugin determined by file name/extension.')
         return extplugin
     debug('get_plugin_byext({!r}) (FILENAME) failed, trying PLUGIN.'.format(
-        argd['FILENAME']
+        filename
     ))
 
-    # Fall back to default plugin, or user specified.
+    # If the file has an extension, don't use the default plugin.
+    _, ext = os.path.splitext(filename)
+    if ext:
+        return None
+
+    # No file extension,
+    # fall back to default plugin, or user specified.
     # Allow loading post-plugins by name when using --pluginconfig.
-    plugincls = get_plugin_byname(argd['PLUGIN'], use_post=True)
+    plugincls = get_plugin_byname(pluginname, use_post=True)
     if plugincls:
         debug('Plugin loaded by given name.')
         return plugincls
