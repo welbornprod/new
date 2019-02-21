@@ -1376,6 +1376,20 @@ def try_post_plugin(plugincls, typeplugin, filepaths):
     return PluginReturn.success
 
 
+class InvalidArg(ValueError):
+    def __init__(self, arg, msg=None):
+        self.arg = arg
+        self.msg = msg
+
+    def __str__(self):
+        if not self.msg:
+            return 'Invalid argument: {}'.format(self.arg)
+        msgstripped = self.msg.rstrip()
+        if msgstripped.endswith(':'):
+            return '{} {}'.format(msgstripped, self.arg)
+        return '{}: {}'.format(msgstripped, self.arg)
+
+
 class InvalidConfig(ValueError):
     def __init__(self, msg=None, filename=None):
         self.filename = filename
@@ -1432,7 +1446,7 @@ class PluginBase(object):
     # Set by _setup(), before create() or run() is called.
     argv = tuple()
     # Whether to use docopt to parse plugin help/usage.
-    docopt = False
+    docopt = False  # noqa
     # Docopt args if self.docopt is True, set in _setup().
     argd = {}
 
@@ -1465,28 +1479,7 @@ class PluginBase(object):
 
         # Fill in default args from config.
         self.argv = args or self.get_default_args()
-
-        if self.usage and self.docopt:
-            try:
-                self.argd = docopt(
-                    self.usage,
-                    self.argv,
-                    version=getattr(self, 'version', None))
-            except DocoptExit as ex:
-                pname = self.get_name()
-                raise SignalExit(
-                    str(ex).replace(pname, 'new {} --'.format(pname)),
-                    code=1)
-            except DocoptLanguageError as ex:
-                raise SignalExit(
-                    'Plugin usage string error in {} plugin: {}'.format(
-                        self.get_name(),
-                        ex),
-                    code=1)
-
-        else:
-            # No docopt, but flag arguments will be marked with True if given.
-            self.argd = {a: True for a in self.argv if a.startswith('-')}
+        self.argd = self.get_argd()
 
         self.debug('argv: {!r}'.format(', '.join(self.argv)))
         self.debug('argd: {!r}'.format(
@@ -1536,11 +1529,17 @@ class PluginBase(object):
             return None
         return func(*args, **kwargs)
 
-    def debug_json(self, obj, sort_keys=False):
+    def debug_json(self, obj, sort_keys=False, msg=None):
         """ Debug-print a JSON-formatted object. """
-        self.debug('\n{}'.format(
-            json.dumps(obj, sort_keys=sort_keys, indent=4)
-        ))
+        if msg:
+            self.debug(msg)
+        self.debug(
+            '{}{}'.format(
+                '' if msg else '\n',
+                json.dumps(obj, sort_keys=sort_keys, indent=4)
+            ),
+            align=bool(msg),
+        )
 
     def get_arg(self, index, default=None):
         """ Safely retrieve an argument by index.
@@ -1632,6 +1631,50 @@ class PluginBase(object):
         print('\nConfig for: {}\n'.format(pluginname))
         print(configstr)
         return True
+
+    def get_argd(self, usage=None, argv=None, raise_err=True):
+        """ Run docopt() on self.argv, with self.usage, and optionally
+            self.version.
+            self.docopt must be True.
+            Returns the arg dict from docopt on success.
+            If self.docopt is not set, a dict is returned in the form of:
+                {
+                    flag_arg1: True,
+                    flag_arg2: True,
+                    ..
+                    0: 'first non-flag arg',
+                    1: 'second non-flag arg'
+                    ..
+                }
+            Where the user's flag arguments are set to True, and non-flag args
+            have an index key for the order they were given.
+
+            Possibly raises SignalExit on error, or when the user enters
+            invalid command line arguments.
+        """
+        if not (self.docopt and (usage or self.usage)):
+            # No docopt, but flag arguments will be marked with True if given.
+            argd = {}
+            nonflagcnt = 0
+            for a in (argv or self.argv):
+                if a.startswith('-'):
+                    argd[a] = True
+                else:
+                    argd[nonflagcnt] = a
+                    nonflagcnt += 1
+
+            return argd
+
+        try:
+            argd = self.parse_docopt(
+                usage or self.usage,
+                argv or self.argv,
+                version=getattr(self, 'version', None),
+            )
+        except SignalExit:
+            if raise_err:
+                raise
+        return argd or {}
 
     def has_arg(self, pattern, position=None):
         """ Determine if an argument was given using a regex pattern.
@@ -1749,6 +1792,32 @@ class PluginBase(object):
                 pluginconfig[k] = v
 
         self.config = pluginconfig
+
+    def parse_docopt(self, usage, argv, version=None):
+        """ Wrapper around docopt.docopt() for plugins.
+            It provides better error messages, and includes the plugin name.
+            Returns an arg dict on success.
+            Raises SignalExit on error, or when the user provides incorrect
+            command line arguments.
+        """
+        try:
+            argd = docopt(
+                usage,
+                argv,
+                version=getattr(self, 'version', None),
+            )
+        except DocoptExit as ex:
+            pname = self.get_name()
+            raise SignalExit(
+                str(ex).replace(pname, 'new {} --'.format(pname)),
+                code=1)
+        except DocoptLanguageError as ex:
+            raise SignalExit(
+                'Plugin usage string error in {} plugin: {}'.format(
+                    self.get_name(),
+                    ex),
+                code=1)
+        return argd
 
     def pop_args(self, *args):
         """ Safely removes any occurrence of an argument from self.argv.
@@ -1923,11 +1992,39 @@ class Plugin(PluginBase):
 
 
 class PostPlugin(PluginBase):
-
     """ Base for post-processing plugins. """
 
-    def __init__(self, name=None):
-        self.name = name
+    def plugin_argd(self, plugin):
+        """ Retrieve any arguments that the regular Plugin may have sent
+            to this PostPlugin, through the <PostPlugin.name>_argd attribute.
+            If self.docopt is set, docopt will be used to parse the args.
+            The parsing of docopt args is cancelled if there are no args
+            given. Not forwarding arguments is a valid use of a PostPlugin,
+            and the PostPlugin's usage may prevent it if docopt was used
+            unconditionally.
+
+            Returns a dict of arguments.
+            Arguments:
+                plugin       : The plugin that created the file being
+                               processed.
+        """
+        pluginargs = self.plugin_args(plugin)
+        argd = self.get_argd(argv=pluginargs, raise_err=False)
+        if argd:
+            self.debug_json(argd, msg='Got plugin-forwarded argd:')
+        return argd
+
+    def plugin_args(self, plugin, valid=None):
+        """ Retrieve any arguments that the regular Plugin may have sent
+            to this PostPlugin, through the <PostPlugin.name>_args attribute.
+
+            Returns a list of arguments.
+        """
+        argattr = '{}_args'.format(self.get_name().lower())
+        args = getattr(plugin, argattr, [])
+        if args:
+            self.debug_json(args, msg='Got plugin-forwarded args:')
+        return args
 
     def process(self, plugin, filepath):
         """ (unimplemented post-plugin description)

@@ -90,9 +90,12 @@ class AsmPlugin(Plugin):
     docopt = True
     usage = """
     Usage:
-        asm [-b | -l] [-m]
+        asm [-b | -l] [-m] [MAKE_ARGS]
 
     Options:
+        MAKE_ARGS   : A comma-separated list of arguments to forward to the
+                      makefile post-processing plugin, with - or -- preceding
+                      them.
         -b,--blank  : Blank asm file, no _start label.
         -l,--clib   : Use C library.
         -m,--multi  : Multiple source file mode.
@@ -105,6 +108,8 @@ class AsmPlugin(Plugin):
 
     def __init__(self):
         self.load_config()
+        # Arguments forwarded to the makefile post-processing plugin.
+        self.automakefile_args = []
 
     def create(self, filename):
         """ Creates a basic nasm file. """
@@ -116,6 +121,7 @@ class AsmPlugin(Plugin):
         else:
             tmplate = self.get_template(filename)
 
+        self.automakefile_args = self.parse_make_args()
         return tmplate.format(
             name=name,
             filename=basename,
@@ -134,6 +140,22 @@ class AsmPlugin(Plugin):
         elif self.argd['--blank']:
             return template_blank
         return template
+
+    def parse_make_args(self):
+        """ Parse the MAKE_ARGS cmdline argument, and return a list of
+            flag arguments.
+        """
+        if not self.argd['MAKE_ARGS']:
+            return []
+        rawargs = [s.strip() for s in self.argd['MAKE_ARGS'].split(',') if s]
+        return [
+            '{}{}'.format(
+                '-' if len(s) == 1 else '--',
+                s,
+            )
+            for s in rawargs
+            if s
+        ]
 
 
 exports = (AsmPlugin, )
