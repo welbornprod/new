@@ -6,8 +6,10 @@
 #!
 
 SHELL=bash
-CC=yasm
-CFLAGS=-f elf64 -m amd64 -Worphan-labels
+CCNASM=nasm
+NASMFLAGS=-E -felf64 -Wall
+CCYASM=yasm
+YASMFLAGS=-r raw -f elf64 -m amd64 -Worphan-labels
 LD=ld
 LDFLAGS=-melf_x86_64
 
@@ -21,15 +23,15 @@ $(binary): $(objects)
 all: $(binary)
 
 debug: LDFLAGS+=
-debug: CFLAGS+=-g dwarf2
+debug: YASMFLAGS+=-g dwarf2
 debug: all
 
 release: LDFLAGS+=--strip-all
-release: CFLAGS+=
+release: CFLAGS+=-Ox
 release: all
 
 %.o: %.asm
-	$(CC) $(CFLAGS) -o $@ $<
+	$(CCNASM) $(NASMFLAGS) $< | $(CCYASM) $(YASMFLAGS) -o $@ -
 
 .PHONY: clean
 clean:

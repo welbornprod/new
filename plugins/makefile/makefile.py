@@ -16,7 +16,7 @@ from .. import (
 from . import templates
 
 # Version number for both plugins (if one changes, usually the other changes)
-VERSION = '0.5.0'
+VERSION = '0.5.1'
 
 
 class MakefilePost(PostPlugin):
@@ -56,11 +56,22 @@ class MakefilePost(PostPlugin):
                 return None
         # Pass plugin args to template_render if given.
         self.argd.update(getattr(plugin, 'argd', {}))
+        # Use args forwarded from plugin.
+        pluginargd = self.plugin_argd(plugin)
+        self.debug_json(pluginargd, msg='Plugin-forwarded argd:')
+        self.argd.update({
+            k: v
+            for k, v in pluginargd.items()
+            if v
+        })
+        self.debug_json(self.argd, msg='Using argd:')
         pluginname = plugin.get_name()
         if self.argd.get('--clib', False):
             pluginname = '{}-c'.format(pluginname)
         if self.argd.get('--nasm', False):
             pluginname = 'n{}'.format(pluginname)
+        elif self.argd.get('--nyasm', False):
+            pluginname = 'ny{}'.format(pluginname)
         else:
             pluginname = 'y{}'.format(pluginname)
         self.debug('Creating a makefile ({} style) for: {}'.format(
@@ -117,7 +128,7 @@ class MakefilePlugin(Plugin):
     docopt = True
     usage = """
     Usage:
-        makefile [-c | -l] [-n] [MAKEFILENAME]
+        makefile [-c | -l] [-n | -N] [MAKEFILENAME]
 
     Options:
         MAKEFILENAME  : Desired file name for the makefile.
@@ -125,6 +136,8 @@ class MakefilePlugin(Plugin):
         -c,--cargo    : Use Cargo style for Rust files.
         -l,--clib     : Use C library style for ASM files.
         -n,--nasm     : Use nasm instead of yasm for ASM files.
+        -N,--nyasm    : Use both nasm/yasm. Send nasm preprocessor output to
+                        yasm for compilation. (nasm -E file | yasm)
     """
 
     def __init__(self):

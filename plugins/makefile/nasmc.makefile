@@ -7,8 +7,8 @@
 
 SHELL=bash
 CC=nasm
-LD=gcc
 CFLAGS=-m64 -Wall
+LD=gcc
 LDFLAGS=-Wall -static
 
 binary={binary}

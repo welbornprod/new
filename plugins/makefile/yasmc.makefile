@@ -7,8 +7,8 @@
 
 SHELL=bash
 CC=yasm
-LD=gcc
 CFLAGS=-f elf64 -m amd64 -Worphan-labels
+LD=gcc
 LDFLAGS=-Wall -static
 
 binary={binary}

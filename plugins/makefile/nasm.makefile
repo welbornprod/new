@@ -7,8 +7,8 @@
 
 SHELL=bash
 CC=nasm
-LD=ld
 CFLAGS=-felf64 -Wall
+LD=ld
 LDFLAGS=-melf_x86_64
 
 binary={binary}

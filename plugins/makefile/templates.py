@@ -35,24 +35,29 @@ def choose_template(filepath, argd):
     """
     fileext = os.path.splitext(filepath)[-1].lower()
     argd = argd or {}
-
+    asmlang = 'yasm'
+    if argd.get('--nasm', False):
+        asmlang = 'nasm'
+    elif argd.get('--nyasm'):
+        asmlang = 'nyasm'
+    asmlangc = '{}c'.format(asmlang)
     try:
         lang = {
-            '.asm': 'nasm' if argd.get('--nasm', False) else 'yasm',
-            '.asmc': 'nasmc' if argd.get('--nasm', False) else 'yasmc',
+            '.asm': asmlang,
+            '.asmc': asmlangc,
             '.c': 'c',
             '.cc': 'cpp',
             '.cpp': 'cpp',
             '.rs': 'rust-cargo' if argd.get('--cargo', False) else 'rust',
-            '.s': 'nasm' if argd.get('--nasm', False) else 'yasm',
+            '.s': asmlang,
         }[fileext]
     except KeyError:
         raise SignalExit('Unknown makefile type: {}'.format(fileext))
 
     if argd.get('--clib', False):
-        if lang in ('nasm', 'yasm'):
+        if lang in ('nasm', 'yasm', 'nyasm'):
             lang = '{}c'.format(lang)
-        elif lang not in ('nasmc', 'yasmc'):
+        elif lang not in ('nasmc', 'yasmc', 'nyasmc'):
             raise SignalExit('--clib is for asm files (.asm, .asmc).')
     elif argd.get('--cargo', False) and (not lang.startswith('rust')):
         raise SignalExit('--cargo is for rust files (.rs).')
