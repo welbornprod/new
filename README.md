@@ -24,34 +24,44 @@ Usage:
 ------
 
 ```
-Usage:
-    new (-c | -h | -v | -p) [-D]
-    new PLUGIN (-C | -H) [-D]
-    new PLUGIN [-D] -- ARGS...
-    new FILENAME [-d] [-D] [-x]
-    new FILENAME [-d] [-D] [-x] -- ARGS...
-    new PLUGIN FILENAME [-d] [-D] [-x]
-    new PLUGIN FILENAME [-d] [-D] [-x] -- ARGS...
+    Usage:
+        new --customhelp [-D]
+        new (-c | -h | -v | -p) [-D] [-P]
+        new FILENAME... [-d | -O] [-D] [-P] [-o] [-x]
+        new PLUGIN (-C | -H) [-D] [-P]
+        new PLUGIN [-D] [-P]
+        new PLUGIN FILENAME... [-d | -O] [-D] [-P] [-o] [-x]
 
-Options:
-    ARGS               : Plugin-specific args.
-                         Use -H for plugin-specific help.
-                         Simply using '--' is enough to run post-plugins
-                         as commands with no args.
-    PLUGIN             : Plugin name to use (like bash, python, etc.)
-                         Defaults to: python (unless set in config)
-    FILENAME           : File name for the new file.
-    -c,--config        : Print global config and exit.
-    -C,--pluginconfig  : Print plugin config and exit.
-    -d,--dryrun        : Don't write anything. Print to stdout instead.
-    -D,--debug         : Show more debugging info.
-    -H,--pluginhelp    : Show plugin help.
-    -h,--help          : Show this help message.
-    -p,--plugins       : List all available plugins.
-    -x,--executable    : Force the chmodx plugin to run, to make the file
-                         executable. This is for plugin types that
-                         normally ignore the chmodx plugin.
-    -v,--version       : Show version.
+    Options:
+        ARGS               : Plugin-specific args.
+                             Use -H for plugin-specific help.
+                             Simply using '--' is enough to run post-plugins
+                             as commands with no args.
+        PLUGIN             : Plugin name to use (like bash, python, etc.)
+                             Defaults to: python (unless set in config)
+        FILENAME           : File name for the new file.
+                             Multiple files can be created.
+        --customhelp       : Show help for creating a custom plugin.
+        -c,--config        : Print global config and exit.
+        -C,--pluginconfig  : Print plugin config and exit.
+                             If a file path is given, the default plugin for
+                             that file type will be used.
+        -d,--dryrun        : Don't write anything. Print to stdout instead.
+        -D,--debug         : Show more debugging info.
+        -H,--pluginhelp    : Show plugin help.
+                             If a file path is given, the default plugin for
+                             that file type will be used.
+        -h,--help          : Show this help message.
+        -o,--noopen        : Don't open the file after creating it.
+        -O,--overwrite     : Overwrite existing files.
+        -P,--debugplugin   : Show more plugin-debugging info.
+        -p,--plugins       : List all available plugins.
+        -x,--executable    : Force the chmodx plugin to run, to make the file
+                             executable. This is for plugin types that
+                             normally ignore the chmodx plugin.
+        -v,--version       : Show version.
+
+    Plugin arguments must follow a bare -- argument.
 ```
 
 Example Usage:
