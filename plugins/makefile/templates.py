@@ -21,6 +21,8 @@ template_files = {
     'cpp': os.path.join(templates_dir, 'cpp.makefile'),
     'nasm': os.path.join(templates_dir, 'nasm.makefile'),
     'nasmc': os.path.join(templates_dir, 'nasmc.makefile'),
+    'nyasm': os.path.join(templates_dir, 'nyasm.makefile'),
+    'nyasmc': os.path.join(templates_dir, 'nyasmc.makefile'),
     'rust': os.path.join(templates_dir, 'rust.makefile'),
     'rust-cargo': os.path.join(templates_dir, 'rust-cargo.makefile'),
     'yasm': os.path.join(templates_dir, 'yasm.makefile'),
