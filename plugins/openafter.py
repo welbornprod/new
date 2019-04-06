@@ -48,7 +48,9 @@ class OpenPlugin(DeferredPostPlugin):
                 '  }}\n'))
             raise ValueError(msg.format(self.config_file))
             return 1
-
+        self.debug('Opening multiple files:')
+        for s in paths:
+            self.debug(s, align=True)
         try:
             self.open_files(editor, paths)
         except Exception as ex:

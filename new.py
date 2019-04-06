@@ -126,7 +126,10 @@ def main(argd):
 
     createdfiles = {}
     for plugin, filepaths in pluginclses.items():
-        pluginfiles = handle_plugin(plugin, filepaths, argd)
+        try:
+            pluginfiles = handle_plugin(plugin, filepaths, argd)
+        except plugins.SignalExit as ex:
+            return ex.code
         if not pluginfiles:
             break
         createdfiles.setdefault(plugin, [])
@@ -323,7 +326,7 @@ def handle_plugin(plugin, filepaths, argd):
             exitcode = handle_exception(
                 '{} error:'.format(pluginname),
                 *sys.exc_info())
-        return exitcode
+        raise plugins.SignalExit('Exiting for errors.', code=exitcode)
 
     if plugin.multifile:
         # This plugin handles multiple file names on it's own.
@@ -451,11 +454,18 @@ def handle_plugin_multifile(plugin, filepaths, argd):
             plugin.ignore_post.update(action.ignore_post)
     except plugins.SignalExit as excancel:
         # Plugin wants to stop immediately.
-        return handle_signalexit(excancel)
+        raise plugins.SignalExit(
+            'Exiting for errors.',
+            code=handle_signalexit(excancel)
+        )
     except Exception:
-        return handle_exception(
-            '{} error:'.format(pluginname),
-            *sys.exc_info())
+        raise plugins.SignalExit(
+            'Exiting for errors.',
+            code=handle_exception(
+                '{} error:'.format(pluginname),
+                *sys.exc_info()
+            )
+        )
 
     # Confirm overwriting existing files, exit on refusal.
     # Non-existant file names are considered valid, and need no confirmation.
