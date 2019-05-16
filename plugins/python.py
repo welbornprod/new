@@ -245,11 +245,13 @@ template_test = """#!{shebangexe}
 
 {imports}
 
+
 class TestCase(unittest.TestCase):
     {testsetup}
     def test_function(self):
         \"\"\" test for ... \"\"\"
         pass
+
 
 if __name__ == '__main__':
     unittest.main(argv=sys.argv, verbosity=2)
