@@ -13,7 +13,7 @@ from plugins import (
     fix_author
 )
 
-__version__ = '0.3.1'
+__version__ = '0.3.2'
 
 # TODO: This plugin was basically just copied and adapted from the original
 #       'newpython' script that inspired this project.
@@ -38,6 +38,8 @@ MAIN_DOCOPT = """
         mainret = 3
     sys.exit(mainret)
 """
+
+MAIN_COLR = MAIN_DOCOPT.replace('VERSIONSTR', 'VERSIONSTR, script=SCRIPT')
 
 MAIN_NORMAL = """
     try:
@@ -68,6 +70,29 @@ templates = {
         'mainsignature': 'main(args)',
         'maindoc': 'Main entry point, expects args from sys.',
         'mainif': MAIN_NORMAL,
+    },
+    'colr': {
+        'base': 'main',
+        'imports': DEFAULT_IMPORTS + [
+            {
+                'colr': (
+                    'Colr as C',
+                    'auto_disable as colr_auto_disable',
+                    'docopt',
+                )
+            },
+        ],
+        'head': ('USAGESTR = """{versionstr}\n'
+                 '    Usage:\n'
+                 '        {script} [-h | -v]\n\n'
+                 '    Options:\n'
+                 '        -h,--help     : Show this help message.\n'
+                 '        -v,--version  : Show version.\n'
+                 '""".format(script=SCRIPT, versionstr=VERSIONSTR)\n'
+                 ),
+        'mainsignature': 'main(argd)',
+        'maindoc': 'Main entry point, expects docopt arg dict as argd.',
+        'mainif': MAIN_COLR,
     },
     'docopt': {
         'base': 'main',
@@ -421,8 +446,16 @@ class PythonPlugin(Plugin):
         """ Returns proper import line based on import name.
             'mymodule' returns 'import mymodule'
             'my.module.myclass' returns 'from my.module import myclass'
+            {"module": ("a", "b")} returns 'from module import (a, b,)'
         """
-
+        if isinstance(modulename, dict):
+            lines = []
+            for k in sorted(modulename):
+                lines.append('from {} import ('.format(k))
+                for submodule in modulename[k]:
+                    lines.append('    {},'.format(submodule))
+                lines.append(')')
+            return '\n'.join(lines)
         importfrom, _, realimport = modulename.rpartition('.')
         if importfrom:
             return 'from {} import {}'.format(importfrom, realimport)
@@ -437,7 +470,21 @@ class PythonPlugin(Plugin):
 
         lines = [self.parse_importitem(imp) for imp in imports]
         # Remove any duplicates and sort the lines.
-        return '\n'.join(sorted(set(lines)))
+        presorted = sorted(set(lines))
+        # Place the 'from' imports at the end.
+        imps = []
+        froms = []
+        for line in presorted:
+            if line.startswith('import'):
+                imps.append(line)
+            elif line.startswith('from'):
+                froms.append(line)
+            else:
+                raise SignalExit('Invalid import: {!r}'.format(line), code=1)
+        if froms:
+            # Insert blank line between 'imports' and 'from X imports'
+            froms.insert(0, '')
+        return '\n'.join(imps + froms)
 
     def parse_setup_args(self, *args):
         """ Parse IMPORTS as NAME, VERSION, DESC arguments. """
