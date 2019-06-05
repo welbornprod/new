@@ -56,6 +56,39 @@ MAIN_NORMAL = """
     sys.exit(mainret)
 """
 
+PRINT_ERR_COLR = """
+def print_err(*args, **kwargs):
+    \"\"\" A wrapper for print() that uses stderr by default.
+        Colorizes messages, unless a Colr itself is passed in.
+    \"\"\"
+    if kwargs.get('file', None) is None:
+        kwargs['file'] = sys.stderr
+
+    # Use color if the file is a tty.
+    if kwargs['file'].isatty():
+        # Keep any Colr args passed, convert strs into Colrs.
+        msg = kwargs.get('sep', ' ').join(
+            str(a) if isinstance(a, C) else str(C(a, 'red'))
+            for a in args
+        )
+    else:
+        # The file is not a tty anyway, no escape codes.
+        msg = kwargs.get('sep', ' ').join(
+            str(a.stripped() if isinstance(a, C) else a)
+            for a in args
+        )
+
+    print(msg, **kwargs)
+""".strip()
+
+PRINT_ERR_NORMAL = """
+def print_err(*args, **kwargs):
+    \"\"\" A wrapper for print() that uses stderr by default. \"\"\"
+    if kwargs.get('file', None) is None:
+        kwargs['file'] = sys.stderr
+    print(*args, **kwargs)
+""".strip()
+
 # Settings per template by name
 # ..must at least contain {'base': 'template name', 'imports': []}
 templates = {
@@ -70,6 +103,7 @@ templates = {
         'mainsignature': 'main(args)',
         'maindoc': 'Main entry point, expects args from sys.',
         'mainif': MAIN_NORMAL,
+        'print_err': PRINT_ERR_NORMAL,
     },
     'colr': {
         'base': 'main',
@@ -93,6 +127,7 @@ templates = {
         'mainsignature': 'main(argd)',
         'maindoc': 'Main entry point, expects docopt arg dict as argd.',
         'mainif': MAIN_COLR,
+        'print_err': PRINT_ERR_COLR,
     },
     'docopt': {
         'base': 'main',
@@ -107,7 +142,8 @@ templates = {
                  ),
         'mainsignature': 'main(argd)',
         'maindoc': 'Main entry point, expects docopt arg dict as argd.',
-        'mainif': MAIN_DOCOPT
+        'mainif': MAIN_DOCOPT,
+        'print_err': PRINT_ERR_NORMAL,
     },
     'setup': {
         'base': 'setup',
@@ -159,11 +195,7 @@ def {mainsignature}:
     return 0
 
 
-def print_err(*args, **kwargs):
-    \"\"\" A wrapper for print() that uses stderr by default. \"\"\"
-    if kwargs.get('file', None) is None:
-        kwargs['file'] = sys.stderr
-    print(*args, **kwargs)
+{print_err}
 
 
 class InvalidArg(ValueError):
