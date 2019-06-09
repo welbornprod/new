@@ -17,18 +17,20 @@ binary={binary}
 source={source}
 objects=$(source:.asm=.o)
 
-$(binary): $(objects)
-	$(LD) -o $(binary) $(LDFLAGS) $(objects)
-
-all: $(binary)
+.PHONY: all, debug, release
+all: debug
 
 debug: LDFLAGS+=
 debug: YASMFLAGS+=-g dwarf2
-debug: all
+debug: tags
+debug: $(binary)
 
 release: LDFLAGS+=--strip-all
 release: CFLAGS+=-Ox
-release: all
+release: $(binary)
+
+$(binary): $(objects)
+	$(LD) -o $(binary) $(LDFLAGS) $(objects)
 
 %.o: %.asm
 	$(CCNASM) $(NASMFLAGS) $< | $(CCYASM) $(YASMFLAGS) -o $@ -

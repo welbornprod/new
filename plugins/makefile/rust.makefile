@@ -11,16 +11,17 @@ RUSTFLAGS=
 binary={binary}
 source={source_path}
 
-$(binary): $(source)
-	$(RUSTC) $(RUSTFLAGS) -o $(binary) $(source)
-
-all: $(binary)
+.PHONY: all, debug, release
+all: debug
 
 debug: RUSTFLAGS+=-g
-debug: all
+debug: $(binary)
 
 release: RUSTFLAGS+=-O
-release: all
+release: $(binary)
+
+$(binary): $(source)
+	$(RUSTC) $(RUSTFLAGS) -o $(binary) $(source)
 
 .PHONY: clean
 clean:

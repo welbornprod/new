@@ -16,7 +16,7 @@ from .. import (
 from . import templates
 
 # Version number for both plugins (if one changes, usually the other changes)
-VERSION = '0.5.1'
+VERSION = '0.5.2'
 
 
 class MakefilePost(PostPlugin):
@@ -138,6 +138,9 @@ class MakefilePlugin(Plugin):
         -n,--nasm     : Use nasm instead of yasm for ASM files.
         -N,--nyasm    : Use both nasm/yasm. Send nasm preprocessor output to
                         yasm for compilation. (nasm -E file | yasm)
+
+    Create a makefile for an existing source file:
+        new make SOURCE_FILE -- [MAKEFILENAME]
     """
 
     def __init__(self):
@@ -183,6 +186,10 @@ class MakefilePlugin(Plugin):
         """ Creates a basic Makefile for a given c file name.
             This will include all file paths as source files.
         """
+        if not filepaths:
+            raise SignalExit(
+                'No target file paths were given for the makefile.'
+            )
         for filepath in filepaths:
             if not (self.dryrun or os.path.exists(filepath)):
                 msg = '\n'.join((

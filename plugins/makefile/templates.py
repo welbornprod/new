@@ -116,6 +116,9 @@ def template_render(filepath, makefile=None, argd=None, config=None):
 
 def template_render_multi(filepaths, makefile=None, argd=None, config=None):
     """ Render the makefile template for a given c source file name. """
+    if not filepaths:
+        raise SignalExit('No target file specified for makefile.')
+
     parentdir, mainfile = os.path.split(filepaths[0])
     srcfiles = (os.path.split(s)[-1] for s in filepaths)
     makefile = os.path.abspath(

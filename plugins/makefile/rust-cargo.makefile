@@ -11,6 +11,8 @@ dir_debug=$(CURDIR)/target/debug
 dir_release=$(CURDIR)/target/release
 source={source_path}
 
+.PHONY: all, debug
+
 all: $(source)
 	$(CC) build --release;
 

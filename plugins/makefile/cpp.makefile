@@ -17,16 +17,19 @@ source={source}
 objects_tmp:=$(source:.cpp=.o)
 objects:=$(objects_tmp:.cc=.o)
 
-$(binary): $(objects)
-	$(CXX) -o $(binary) $(CXXFLAGS) $(objects) $(LIBS)
+.PHONY: all, debug, release
 
-all: $(binary)
+all: debug
 
 debug: CXXFLAGS+=-g3 -DDEBUG
-debug: all
+debug: tags
+debug: $(binary)
 
 release: CXXFLAGS+=-O3 -DNDEBUG
-release: all
+release: $(binary)
+
+$(binary): $(objects)
+	$(CXX) -o $(binary) $(CXXFLAGS) $(objects) $(LIBS)
 
 %.o: %.cpp %.cc
 	$(CXX) -c $(source) $(CXXFLAGS) $(LIBS)

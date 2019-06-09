@@ -16,16 +16,18 @@ binary={binary}
 source={source}
 objects:=$(source:.c=.o)
 
-$(binary): $(objects)
-	$(CC) -o $(binary) $(CFLAGS) $(objects) $(LIBS)
-
-all: $(binary)
+.PHONY: all, debug, release
+all: debug
 
 debug: CFLAGS+=-g3 -DDEBUG
-debug: all
+debug: tags
+debug: $(binary)
 
 release: CFLAGS+=-O3 -DNDEBUG
-release: all
+release: $(binary)
+
+$(binary): $(objects)
+	$(CC) -o $(binary) $(CFLAGS) $(objects) $(LIBS)
 
 %.o: %.c
 	$(CC) -c $< $(CFLAGS) $(LIBS)
