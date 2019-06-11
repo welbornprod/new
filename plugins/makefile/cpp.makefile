@@ -9,7 +9,9 @@ SHELL=bash
 CXX=g++
 CXXFLAGS=-Wall -Wextra -Wfloat-equal -Winline -Wlogical-op \
        -Wmissing-include-dirs -Wnull-dereference -Wpedantic -Wshadow \
-       -Wunused-macros -std=c++14
+       -Wunused-macros \
+       -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=2 \
+       -std=c++14
 LIBS=
 
 binary={binary}
