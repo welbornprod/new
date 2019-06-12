@@ -36,6 +36,10 @@ $(binary): $(objects)
 %.o: %.cpp %.cc
 	$(CXX) -c $(source) $(CXXFLAGS) $(LIBS)
 
+tags: $(source)
+	-@printf "Building ctags...\n";
+	ctags -R $(source);
+
 .PHONY: clean
 clean:
 	-@if [[ -e $(binary) ]]; then\
@@ -67,11 +71,6 @@ strip:
 	else\
 		printf "\nError stripping executable: %s\n" "$(binary)" 1>&2;\
 	fi;
-
-.PHONY: tags
-tags:
-	-@printf "Building ctags...\n";
-	ctags -R $(source);
 
 .PHONY: targets
 targets:

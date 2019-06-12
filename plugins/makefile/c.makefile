@@ -21,8 +21,8 @@ objects:=$(source:.c=.o)
 .PHONY: all, debug, release
 all: debug
 
-debug: CFLAGS+=-g3 -DDEBUG
 debug: tags
+debug: CFLAGS+=-g3 -DDEBUG
 debug: $(binary)
 
 release: CFLAGS+=-O3 -DNDEBUG
@@ -33,6 +33,10 @@ $(binary): $(objects)
 
 %.o: %.c
 	$(CC) -c $< $(CFLAGS) $(LIBS)
+
+tags: $(source)
+	-@printf "Building ctags...\n";
+	ctags -R $(source);
 
 .PHONY: clean
 clean:
@@ -65,11 +69,6 @@ strip:
 	else\
 		printf "\nError stripping executable: %s\n" "$(binary)" 1>&2;\
 	fi;
-
-.PHONY: tags
-tags:
-	-@printf "Building ctags...\n";
-	ctags -R $(source);
 
 .PHONY: targets
 targets:

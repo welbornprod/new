@@ -20,9 +20,9 @@ objects=$(source:.asmc=.o)
 .PHONY: all, debug, release
 all: debug
 
+debug: tags
 debug: LDFLAGS+=-DDEBUG -g3
 debug: YASMFLAGS+=-g dwarf2
-debug: tags
 debug: $(binary)
 
 release: LDFLAGS+=-DNDEBUG -O3
@@ -34,6 +34,10 @@ $(binary): $(objects)
 
 %.o: %.asmc
 	$(CC) $(CFLAGS) -o $@ $<
+
+tags: $(source)
+	-@printf "Building ctags...\n";
+	ctags -R $(source);
 
 .PHONY: clean
 clean:
@@ -66,11 +70,6 @@ strip:
 	else\
 		printf "\nError stripping executable: %s\n" "$(binary)" 1>&2;\
 	fi;
-
-.PHONY: tags
-tags:
-	-@printf "Building ctags...\n";
-	ctags -R $(source);
 
 .PHONY: targets
 targets:
