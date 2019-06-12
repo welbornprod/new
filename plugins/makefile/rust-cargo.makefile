@@ -28,16 +28,8 @@ run:
 clean:
 	cargo clean;
 
-.PHONY: cleanmake, makeclean
-cleanmake makeclean:
-	@make --no-print-directory clean && make --no-print-directory;
-
-.PHONY: help
-help:
-	-@printf "Use 'make targets' for a list of available targets.\n";
-
-.PHONY: targets
-targets:
+.PHONY: help, targets
+help targets:
 	-@printf "Make targets available:\n\
 	all        : Build a release executable.\n\
 	clean      : Remove the ./target directory.\n\
@@ -45,5 +37,4 @@ targets:
 	debug      : Build a debug executable.\n\
 	makeclean  : Alias for \`cleanmake\`  target.\n\
 	run        : Run the release executable, build if needed.\n\
-	targets    : Show this message.\n\
 	";

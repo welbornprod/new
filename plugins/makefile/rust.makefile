@@ -33,17 +33,11 @@ clean:
 		printf "Binaries already clean:\n    $(binary)\n";\
 	fi;
 
-.PHONY: cleanmake, makeclean
-cleanmake makeclean:
-	@make --no-print-directory clean && make --no-print-directory;
-
-.PHONY: targets
-targets:
+.PHONY: help, targets
+help targets:
 	-@printf "Make targets available:\n\
 	all       : Build with no optimization or debug symbols.\n\
 	clean     : Delete previous build files.\n\
-	cleanmake : Run \`make clean && make\`\n\
-	makeclean : Alias for \`cleanmake\`\n\
 	debug     : Build the executable with debug symbols.\n\
 	release   : Build the executable with optimization, and strip it.\n\
 	";
