@@ -7,7 +7,7 @@
 
 SHELL=bash
 CC=gcc
-CFLAGS=-Wall -Wextra -Wfloat-equal -Winline -Wlogical-op \
+CFLAGS=-Wall -Wextra -Wenum-compare -Wfloat-equal -Winline -Wlogical-op \
        -Wimplicit-fallthrough -Wlogical-not-parentheses \
        -Wmissing-include-dirs -Wnull-dereference -Wpedantic -Wshadow \
        -Wstrict-prototypes -Wunused \

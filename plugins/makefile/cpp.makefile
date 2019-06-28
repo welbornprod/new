@@ -7,7 +7,7 @@
 
 SHELL=bash
 CXX=g++
-CXXFLAGS=-Wall -Wextra -Wfloat-equal -Winline -Wlogical-op \
+CXXFLAGS=-Wall -Wextra -Wenum-compare -Wfloat-equal -Winline -Wlogical-op \
        -Wimplicit-fallthrough -Wlogical-not-parentheses \
        -Wmissing-include-dirs -Wnull-dereference -Wpedantic -Wshadow \
        -Wunused \
