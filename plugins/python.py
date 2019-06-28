@@ -13,7 +13,7 @@ from plugins import (
     fix_author
 )
 
-__version__ = '0.3.2'
+__version__ = '0.3.3'
 
 # TODO: This plugin was basically just copied and adapted from the original
 #       'newpython' script that inspired this project.
@@ -116,6 +116,7 @@ templates = {
                 )
             },
         ],
+        'afterimports': 'colr_auto_disable()',
         'head': ('USAGESTR = """{versionstr}\n'
                  '    Usage:\n'
                  '        {script} [-h | -v]\n\n'
@@ -412,6 +413,14 @@ class PythonPlugin(Plugin):
             'scriptname': scriptname,
             'shebangexe': shebangexe,
         })
+        after_imports = template_args.get('afterimports', None)
+        if not isinstance(after_imports, str):
+            after_imports = '\n'.join(after_imports)
+        if after_imports:
+            use_template_args['imports'] = '\n\n'.join((
+                use_template_args['imports'],
+                after_imports,
+            ))
 
         testaction = None
         if templateid in {'unittest', 'test'}:
