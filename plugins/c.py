@@ -6,7 +6,7 @@ import os.path
 from plugins import Plugin, date, fix_author, SignalAction
 
 
-__version__ = '0.2.2'
+__version__ = '0.2.3'
 
 # Template for defining vars.
 template_define = """
@@ -218,7 +218,7 @@ class CHeaderPlugin(Plugin):
             filename=filepath,
             author=fix_author(self.config.get('author', None)),
             date=date(),
-            header_def='_{}_H'.format(filebase.upper()),
+            header_def='{}_H'.format(filebase.upper()),
         )
 
 
