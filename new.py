@@ -140,6 +140,7 @@ def main(argd):
             return ex.code
         if not pluginfiles:
             break
+
         createdfiles.setdefault(plugin, [])
         createdfiles[plugin].extend(pluginfiles)
 
@@ -292,7 +293,7 @@ def handle_exception(msg, ex_type, ex_value, ex_tb):
     else:
         exargs = {}
     print_ex(ex_value, msg, **exargs)
-    return 1
+    raise plugins.SignalExit(str(ex_value), code=1)
 
 
 def handle_plugin(plugin, filepaths, argd):
@@ -315,9 +316,11 @@ def handle_plugin(plugin, filepaths, argd):
     debug('Using plugin: {}'.format(pluginname))
     # Do plugin help.
     if argd['--pluginhelp']:
-        return 0 if plugin.help() else 1
+        exitcode = 0 if plugin.help() else 1
+        raise plugins.SignalExit('Nothing to do.', code=exitcode)
     elif argd['--pluginconfig']:
-        return 0 if plugin.config_dump() else 1
+        exitcode = 0 if plugin.config_dump() else 1
+        raise plugins.SignalExit('Nothing to do.', code=exitcode)
     elif hasattr(plugin, 'run'):
         # This is a post plugin, it should only be used as a command.
         debug('Running post-processing plugin as command: {}'.format(

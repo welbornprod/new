@@ -31,8 +31,8 @@ template_header = """/* {filename}
 # Template for Doxygen-style docs.
 template_header_doxygen = """/*! \\file {filename}
     ...
-    \\author
-    \\date
+    \\author {author}
+    \\date   {date}
 */
 
 """
@@ -174,9 +174,12 @@ class CPlugin(Plugin):
             template_header_doxygen if use_doxygen else template_header,
             template_body
         ))
+        author = fix_author(self.config.get('author', None))
+        if use_doxygen:
+            author = author.lstrip('-')
         return template.format(
             filename=basename,
-            author=fix_author(self.config.get('author', None)),
+            author=author,
             date=date(),
             defines=self.make_defines(self.argd['--define']),
             includes=includes,
@@ -219,6 +222,7 @@ class CHeaderPlugin(Plugin):
         'author': 'Default author name for all files.',
         'doxygen': 'If truthy, use Doxygen-style comments, like --doxygen.',
     }
+    docopt = True
     usage = """
     Usage:
         header [-D]
@@ -241,9 +245,12 @@ class CHeaderPlugin(Plugin):
             template_header_doxygen if use_doxygen else template_header,
             template_lib_body
         ))
+        author = fix_author(self.config.get('author', None))
+        if use_doxygen:
+            author = author.lstrip('-')
         return template_lib.format(
             filename=filepath,
-            author=fix_author(self.config.get('author', None)),
+            author=author,
             date=date(),
             header_def='{}_H'.format(filebase.upper()),
         )
