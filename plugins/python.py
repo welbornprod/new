@@ -23,6 +23,9 @@ __version__ = '0.3.3'
 # Default imports to use if '--noimports' isn't given.
 DEFAULT_IMPORTS = ['os', 'sys']
 
+DEFAULT_SHEBANG = '/usr/bin/env python3'
+DEFAULT_TEMPLATE = 'docopt'
+
 # if __name__ == '__main__' templates:
 MAIN_DOCOPT = """
     try:
@@ -330,6 +333,17 @@ class PythonPlugin(Plugin):
     name = ('python', 'py')
     extensions = ('.py',)
     version = __version__
+    config_opts = {
+        'author': 'Default author name for all files.',
+        'default_version': ''.join((
+            'Starting version number for __version__ and setup.py',
+            f' ({default_version}).'
+        )),
+        'email': 'Default author email address.',
+        'explanation': 'Default file description.',
+        'shebangexe': f'Default shebang executable ({DEFAULT_SHEBANG}).',
+        'template': f'Default template to use ({DEFAULT_TEMPLATE}).',
+    }
 
     docopt = True
     usage = """
@@ -378,7 +392,7 @@ class PythonPlugin(Plugin):
 
         templateid = (
             self.argd['TEMPLATE'] or
-            self.config.get('template', 'docopt')
+            self.config.get('template', DEFAULT_TEMPLATE)
         ).lower()
 
         # Setup.py is completely different, these really need to be separated.
@@ -399,7 +413,7 @@ class PythonPlugin(Plugin):
             raise ValueError(errmsg.format(templateid))
         imports = self.argd['IMPORTS'] + template_args['imports']
         scriptname = os.path.split(filename)[-1]
-        shebangexe = self.config.get('shebangexe', '/usr/bin/env python3')
+        shebangexe = self.config.get('shebangexe', DEFAULT_SHEBANG)
         version = self.config.get('default_version', default_version)
 
         use_template_args = {k: v for k, v in template_args.items()}
@@ -453,7 +467,7 @@ class PythonPlugin(Plugin):
         """ Create a basic setup.py. """
 
         name, ver, desc = self.parse_setup_args(*args)
-        shebangexe = self.config.get('shebangexe', '/usr/bin/env python3')
+        shebangexe = self.config.get('shebangexe', DEFAULT_SHEBANG)
         tmpargs = {
             'author': self.config.get('author', os.environ.get('USER', '?')),
             'date': date(),

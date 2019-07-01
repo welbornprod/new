@@ -37,8 +37,8 @@ teardown() {
 class BatsPlugin(Plugin):
     name = ('bats',)
     extensions = ('.bats',)
-    version = '0.0.1'
-
+    version = '0.0.2'
+    config_opts = {'author': 'Default author name for all files.'}
     docopt = True
     usage = """
     Usage:
@@ -70,5 +70,6 @@ class BatsPlugin(Plugin):
             setup=setup,
             teardown=teardown
         )
+
 
 exports = (BatsPlugin,)

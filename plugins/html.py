@@ -49,10 +49,10 @@ class HtmlPlugin(Plugin):
     """ Creates a blank HTML file with common css and js sources included. """
     name = ('html', 'htm')
     extensions = ('.html', '.htm')
-    version = '0.0.1-3'
+    version = '0.0.2'
     # Html files are not executable.
     ignore_post = {'chmodx'}
-
+    config_opts = {'author': 'Default author name for all files.'}
     docopt = True
     usage = """
     Usage:
@@ -171,5 +171,6 @@ class JQueryPlugin(Plugin):
             'bodyend': template_scriptblk.format(template_ready)
         }
         return template.format(**template_args)
+
 
 exports = (HtmlPlugin, JQueryPlugin)

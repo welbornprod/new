@@ -18,7 +18,8 @@ class LispPlugin(Plugin):
 
     name = ('lisp', 'clisp')
     extensions = ('.lsp', '.lisp', '.cl')
-    version = '0.0.2'
+    version = '0.0.3'
+    config_opts = {'author': 'Default author name for all files.'}
 
     def __init__(self):
         self.load_config()

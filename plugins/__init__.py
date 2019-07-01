@@ -45,6 +45,26 @@ config = {}
 default_version = '0.0.1'
 
 
+def append_plugin_versions(basever):
+    """ Take New's base version, and calculate a new version based on all
+        plugin versions. Any plugin version change automatically
+        create a new version for New.
+    """
+    bmajor, bminor, bmicro = basever.split('.')
+    bminor = int(bminor)
+    try:
+        bmicro = int(bmicro)
+    except ValueError:
+        bmicro = float('.'.join(bmicro.split('-')))
+
+    major, minor, micro = sum_plugin_versions()
+    fminor = bminor + major
+    fmicro = bmicro + minor + micro
+    fminor, fmicro = divmod(fmicro, 10)
+    fmicro = str(fmicro).replace('.', '-')
+    return f'{bmajor}.{fminor}.{fmicro}'
+
+
 def config_dump():
     """ Dump config to stdout. """
     if not config:
@@ -125,7 +145,7 @@ def conflicting_file(plugin, filearg, filename):
     return False
 
 
-def create_custom_plugin(names, info):
+def create_custom_plugin(names, info):  # noqa (too complex, I know.)
     """ Creates a CustomPlugin from user config.
         Returns an uninstantiated CustomPlugin class.
 
@@ -972,6 +992,7 @@ def list_plugins():
     )
     # Normal Plugins (file-type)
     indent = 20
+    verlbl = 'version'.rjust(indent)
     aliaslbl = 'aliases'.rjust(indent)
     extlbl = 'extensions'.rjust(indent)
     desclbl = 'description'.rjust(indent)
@@ -997,6 +1018,7 @@ def list_plugins():
                 if plugin.private:
                     continue
                 print('    {}:'.format(pluginname))
+                print('{}: {}'.format(verlbl, plugin.version))
                 if len(plugin.name) > 1:
                     print('{}: {}'.format(aliaslbl, ', '.join(plugin.name)))
                 if plugin.extensions:
@@ -1013,6 +1035,7 @@ def list_plugins():
         ('post', 'post-processing'),
         ('deferred', 'deferred post-processing')
     )
+    verlbl = 'version'.rjust(indent - 5)
     for ptype, pname in posttypes:
         if plugins[ptype]:
             publicposts = sorted(
@@ -1026,8 +1049,41 @@ def list_plugins():
                 if plugin.private:
                     continue
                 desc = plugin.get_desc().replace('\n', '\n        ')
-                print('    {}:'.format(pname))
+                print('    {}'.format(pname))
+                print('{}: {}'.format(verlbl, plugin.version))
                 print('        {}'.format(desc))
+
+
+def list_plugin_versions():
+    plen = sum(len(plugins[k]) for k in plugins)
+    if not plen:
+        print_err('\nNo plugins found!')
+        return 1
+    filetypes = (
+        ('custom', 'custom file-based'),
+        ('types', 'file-type')
+    )
+    posttypes = (
+        ('post', 'post-processing'),
+        ('deferred', 'deferred post-processing')
+    )
+
+    print('\nFound {} {}:'.format(plen, 'plugin' if plen == 1 else 'plugins'))
+    for ptype, typedesc in filetypes:
+        typefmt = typedesc.title()
+        typelen = len(plugins[ptype])
+        print(f'\n    {typefmt} ({typelen}):')
+        for name in sorted(plugins[ptype]):
+            p = plugins[ptype][name]
+            print(f'        {name:<16}: {p.version}')
+    for ptype, typedesc in posttypes:
+        typefmt = typedesc.title()
+        typelen = len(plugins[ptype])
+        print(f'\n    {typefmt} ({typelen}):')
+        for name in sorted(plugins[ptype]):
+            p = plugins[ptype][name]
+            print(f'        {name:<16}: {p.version}')
+    return 0
 
 
 def load_config(section=None):
@@ -1330,6 +1386,23 @@ def set_debug_mode(enabled, debugplugin=None):
         DEBUG_PLUGIN = debugplugin
 
 
+def sum_plugin_versions():
+    if not plugins:
+        debug('No plugins to sum!')
+        return (0, 0, 0)
+    majors = 0
+    minors = 0
+    micros = 0
+    for ptype in plugins:
+        for name in plugins[ptype]:
+            p = plugins[ptype][name]
+            major, minor, micro = p.version_numbers()
+            majors += major
+            minors += minor
+            micros += micro
+    return (majors, minors, micros)
+
+
 def try_post_plugin(plugincls, typeplugin, filepaths):
     """ Try running plugin.process(filename).
         Arguments:
@@ -1444,6 +1517,9 @@ class PluginBase(object):
     # Set by command-line args, or tests.
     dryrun = False
 
+    # Documented config options, used with self.help().
+    # Should be a dict of {opt_name: opt_desc, ..}.
+    config_opts = {}
     # Set by self.load_config()
     config = {}
 
@@ -1512,6 +1588,22 @@ class PluginBase(object):
                 # No JSON for you.
                 attrs[name] = repr(val)
         return attrs
+
+    def config_dump(self):
+        """ Dump plugin config to stdout. """
+        pluginname = self.get_name().title()
+        if not getattr(self, 'config', None):
+            print('\nNo config for: {}\n'.format(pluginname))
+            return False
+        try:
+            configstr = json.dumps(self.config, sort_keys=True, indent=4)
+        except TypeError as ex:
+            print_err('Config has non-str keys!\n  {}'.format(ex))
+            configstr = json.dumps(self.config, indent=4)
+
+        print('\nConfig for: {}\n'.format(pluginname))
+        print(configstr)
+        return True
 
     def debug(self, *args, **kwargs):
         """ Uses the debug() function, but includes the class name. """
@@ -1620,22 +1712,6 @@ class PluginBase(object):
         """
         return getattr(cls, 'usage', None)
 
-    def config_dump(self):
-        """ Dump plugin config to stdout. """
-        pluginname = self.get_name().title()
-        if not getattr(self, 'config', None):
-            print('\nNo config for: {}\n'.format(pluginname))
-            return False
-        try:
-            configstr = json.dumps(self.config, sort_keys=True, indent=4)
-        except TypeError as ex:
-            print_err('Config has non-str keys!\n  {}'.format(ex))
-            configstr = json.dumps(self.config, indent=4)
-
-        print('\nConfig for: {}\n'.format(pluginname))
-        print(configstr)
-        return True
-
     def get_argd(self, usage=None, argv=None, raise_err=True):
         """ Run docopt() on self.argv, with self.usage, and optionally
             self.version.
@@ -1741,23 +1817,31 @@ class PluginBase(object):
 
         usage = getattr(self, 'usage', '')
         desc = self.get_desc()
+
         if usage:
-            print('\nHelp for New plugin, {}:'.format(versionstr))
+            print(f'\nHelp for New plugin, {versionstr}:')
             if desc:
-                print('\n{}'.format(desc))
-            nameindent = '    {}'.format(name)
+                print(f'\n{desc}')
+            nameindent = f'    {name}'
             if usage.rstrip().endswith(name):
                 # No options/args for this plugin.
-                print(usage.replace(nameindent, '    new {}'.format(name)))
+                print(usage.replace(nameindent, f'    new {name}'))
             else:
                 # This plugin has options/arguments.
-                print(usage.replace(nameindent, '    new {} --'.format(name)))
-            return True
+                print(usage.replace(nameindent, f'    new {name} --'))
 
+        options = getattr(self, 'config_opts', {versionstr})
+        if options:
+            print(f'\nConfig options for New plugin, {versionstr}:')
+            for optname in sorted(options):
+                print(f'    {optname:<16}: {options[optname]}')
+
+        if usage or options:
+            return True
         # No real usage available, try getting a description instead.
-        print('\nNo help available for {}.\n'.format(versionstr))
+        print(f'\nNo help available for {versionstr}.\n')
         if desc:
-            print('Description:\n{}'.format(desc))
+            print(f'Description:\n{desc}')
         else:
             print('(no description available)')
         return False
@@ -1873,6 +1957,35 @@ class PluginBase(object):
         kwargs['file'] = kwargs.get('file', sys.stdout)
         if kwargs['file'].isatty():
             print(*args, **kwargs)
+
+    @classmethod
+    def version_numbers(cls):
+        ns = []
+        for s in cls.version_tuple():
+            try:
+                val = int(s)
+            except ValueError:
+                try:
+                    val = float(s)
+                except ValueError:
+                    name = cls.get_name()
+                    raise InvalidConfig(
+                        f'Version number for {name} is not in X.X.X[-Y] format.'
+                    )
+            ns.append(val)
+        return ns
+
+    @classmethod
+    def version_tuple(cls):
+        xs = cls.version.split('.')
+        xslen = len(xs)
+        if xslen > 3:
+            del xs[3]
+        while xslen < 3:
+            xs.append('0')
+            xslen = len(xs)
+        xs[2] = '.'.join(xs[2].split('-'))
+        return tuple(xs)
 
 
 class Plugin(PluginBase):

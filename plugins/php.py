@@ -25,8 +25,9 @@ class PhpPlugin(Plugin):
 
     name = ('php',)
     extensions = ('.php',)
-    version = '0.0.2'
+    version = '0.0.3'
     description = 'Creates an executable php script.'
+    config_opts = {'author': 'Default author name for all files.'}
 
     def __init__(self):
         self.load_config()
@@ -37,5 +38,6 @@ class PhpPlugin(Plugin):
             name=os.path.split(filename)[-1],
             author=fix_author(self.config.get('author', None)),
             date=date())
+
 
 exports = (PhpPlugin,)

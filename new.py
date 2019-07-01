@@ -34,79 +34,87 @@ debug_ex = plugins.debug_ex
 print_err = plugins.print_err
 
 NAME = 'New'
-VERSION = '0.6.1'
-VERSIONSTR = '{} v. {}'.format(NAME, VERSION)
+# Base version. Actual version is computed.
+BASEVERSION = '0.6.1'
 SCRIPT = os.path.split(os.path.abspath(sys.argv[0]))[1]
 SCRIPTDIR = os.path.abspath(sys.path[0])
+
+# Where to locate plugins.
+PLUGINDIR = os.path.join(SCRIPTDIR, 'plugins')
+sys.path.insert(1, PLUGINDIR)
+
+plugins.set_debug_mode(
+    (
+        ('-d' in sys.argv) or ('--debug' in sys.argv) or
+        ('-P' in sys.argv) or ('--debugplugin' in sys.argv)
+    ),
+    debugplugin=('-P' in sys.argv) or ('--debugplugin' in sys.argv),
+)
+
+try:
+    # Load all available plugins.
+    plugins.load_plugins(PLUGINDIR)
+except plugins.InvalidConfig as ex:
+    print_err(ex)
+    sys.exit(1)
+
+VERSION = plugins.append_plugin_versions(BASEVERSION)
+VERSIONSTR = f'{NAME} v. {VERSION} (base: {BASEVERSION})'
+
+# Passing this as a file name will write to stdout.
+STDOUT_FILENAME = '-'
 
 USAGESTR = """{versionstr}
     Usage:
         {script} --customhelp [-D]
-        {script} (-c | -h | -v | -p) [-D] [-P]
+        {script} (-c | -h | -v | -V | -p) [-D] [-P]
         {script} FILENAME... [-d | -O] [-D] [-P] [-o] [-x]
         {script} PLUGIN (-C | -H) [-D] [-P]
         {script} PLUGIN [-D] [-P]
         {script} PLUGIN FILENAME... [-d | -O] [-D] [-P] [-o] [-x]
 
     Options:
-        ARGS               : Plugin-specific args.
-                             Use -H for plugin-specific help.
-                             Simply using '--' is enough to run post-plugins
-                             as commands with no args.
-        PLUGIN             : Plugin name to use (like bash, python, etc.)
-                             Defaults to: python (unless set in config)
-        FILENAME           : File name for the new file.
-                             Multiple files can be created.
-        --customhelp       : Show help for creating a custom plugin.
-        -c,--config        : Print global config and exit.
-        -C,--pluginconfig  : Print plugin config and exit.
-                             If a file path is given, the default plugin for
-                             that file type will be used.
-        -d,--dryrun        : Don't write anything. Print to stdout instead.
-        -D,--debug         : Show more debugging info.
-        -H,--pluginhelp    : Show plugin help.
-                             If a file path is given, the default plugin for
-                             that file type will be used.
-        -h,--help          : Show this help message.
-        -o,--noopen        : Don't open the file after creating it.
-        -O,--overwrite     : Overwrite existing files.
-        -P,--debugplugin   : Show more plugin-debugging info.
-        -p,--plugins       : List all available plugins.
-        -x,--executable    : Force the chmodx plugin to run, to make the file
-                             executable. This is for plugin types that
-                             normally ignore the chmodx plugin.
-        -v,--version       : Show version.
+        ARGS                 : Plugin-specific args.
+                               Use -H for plugin-specific help.
+                               Simply using '--' is enough to run post-plugins
+                               as commands with no args.
+        PLUGIN               : Plugin name to use (like bash, python, etc.)
+                               Defaults to: python (unless set in config)
+        FILENAME             : File name for the new file.
+                               Multiple files can be created.
+        --customhelp         : Show help for creating a custom plugin.
+        -c,--config          : Print global config and exit.
+        -C,--pluginconfig    : Print plugin config and exit.
+                               If a file path is given, the default plugin for
+                               that file type will be used.
+        -d,--dryrun          : Don't write anything. Print to stdout instead.
+        -D,--debug           : Show more debugging info.
+        -H,--pluginhelp      : Show plugin help.
+                               If a file path is given, the default plugin for
+                               that file type will be used.
+        -h,--help            : Show this help message.
+        -o,--noopen          : Don't open the file after creating it.
+        -O,--overwrite       : Overwrite existing files.
+        -P,--debugplugin     : Show more plugin-debugging info.
+        -p,--plugins         : List all available plugins.
+        -x,--executable      : Force the chmodx plugin to run, to make the file
+                               executable. This is for plugin types that
+                               normally ignore the chmodx plugin.
+        -V,--pluginversions  : Show all plugin versions.
+        -v,--version         : Show version.
 
     Plugin arguments must follow a bare -- argument.
 """.format(script=SCRIPT, versionstr=VERSIONSTR)
 
-# Where to locate plugins.
-PLUGINDIR = os.path.join(SCRIPTDIR, 'plugins')
-sys.path.insert(1, PLUGINDIR)
-
-# Passing this as a file name will write to stdout.
-STDOUT_FILENAME = '-'
-
 
 def main(argd):
     """ Main entry point, expects doctopt arg dict as argd """
-    plugins.set_debug_mode(
-        argd['--debug'] or argd['--debugplugin'],
-        debugplugin=argd['--debugplugin'],
-    )
-
+    # Do any procedures that don't require a file name/type.
     if argd['--customhelp']:
         return 0 if plugins.custom_plugin_help() else 1
-
-    try:
-        # Load all available plugins.
-        plugins.load_plugins(PLUGINDIR)
-    except plugins.InvalidConfig as ex:
-        print_err(ex)
-        return 1
-
-    # Do any procedures that don't require a file name/type.
-    if argd['--plugins']:
+    elif argd['--pluginversions']:
+        return 0 if plugins.list_plugin_versions() else 1
+    elif argd['--plugins']:
         plugins.list_plugins()
         return 0
     elif argd['--config']:

@@ -85,8 +85,9 @@ class AsmPlugin(Plugin):
 
     name = ('asm', 'nasm', 'yasm')
     extensions = ('.asm', '.s', '.asmc')
-    version = '0.0.5'
+    version = '0.0.6'
     ignore_post = {'chmodx'}
+    config_opts = {'author': 'Default author name for all files.'}
     docopt = True
     usage = """
     Usage:

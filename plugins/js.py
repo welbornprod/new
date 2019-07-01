@@ -53,8 +53,8 @@ class JSPlugin(Plugin):
 
     name = ('js', 'node', 'nodejs')
     extensions = ('.js',)
-    version = '0.0.8'
-
+    version = '0.0.9'
+    config_opts = {'author': 'Default author name for all files.'}
     docopt = True
     usage = """
     Usage:
@@ -88,5 +88,6 @@ class JSPlugin(Plugin):
                 date=date(),
                 scriptname=basename,
                 version=self.config.get('default_version', default_version))
+
 
 exports = (JSPlugin,)

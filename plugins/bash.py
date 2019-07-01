@@ -4,7 +4,7 @@
 import os.path
 from plugins import Plugin, date, default_version, fix_author
 
-__version__ = '0.3.2'
+__version__ = '0.3.3'
 
 template = """#!/bin/bash
 
@@ -88,7 +88,7 @@ class BashPlugin(Plugin):
     name = ('bash', 'sh')
     extensions = ('.sh', '.bash')
     version = __version__
-
+    config_opts = {'author': 'Default author name for all files.'}
     docopt = True
     usage = """
     Usage:

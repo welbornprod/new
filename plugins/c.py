@@ -6,7 +6,7 @@ import os.path
 from plugins import Plugin, date, fix_author, SignalAction
 
 
-__version__ = '0.2.3'
+__version__ = '0.3.1'
 
 # Template for defining vars.
 template_define = """
@@ -24,6 +24,15 @@ template_include = """
 template_header = """/* {filename}
     ...
     {author}{date}
+*/
+
+"""
+
+# Template for Doxygen-style docs.
+template_header_doxygen = """/*! \\file {filename}
+    ...
+    \\author
+    \\date
 */
 
 """
@@ -51,9 +60,6 @@ template_lib_body = """
 #pragma clang diagnostic pop /* end warning -Wunused-macros */
 #endif /* {header_def} */
 """
-# Template for header files.
-template_lib = ''.join((template_header, template_lib_body))
-
 
 # Template for C/C++ source files content.
 template_body = """
@@ -68,8 +74,6 @@ int main(int argc, char *argv[]) {{
 }}
 """.strip()
 
-# Template for C/C++ source files.
-template = ''.join((template_header, template_body))
 
 c_defines = (
     '_GNU_SOURCE',
@@ -97,14 +101,18 @@ class CPlugin(Plugin):
         'If no Makefile exists, it will be created with basic targets.',
         'The Makefile is provided by the automakefile plugin.'
     ))
-
+    config_opts = {
+        'author': 'Default author name for all files.',
+        'doxygen': 'If truthy, use Doxygen-style comments, like --doxygen.',
+    }
     docopt = True
     usage = """
     Usage:
-        c [-l]
-        c [-i include...] [-d define...]
+        c [-D] [-l]
+        c [-D] [-i include...] [-d define...]
 
     Options:
+        -D,--doxygen            : Use doxygen-style comments.
         -d def,--define def     : Include a definition for the preprocessor.
                                   The format will be:
                                       #ifndef def
@@ -159,7 +167,13 @@ class CPlugin(Plugin):
                 defaults=c_headers,
             )
             namespace = ''
-
+        use_doxygen = (
+            self.argd['--doxygen'] or self.config.get('doxygen', False)
+        )
+        template = ''.join((
+            template_header_doxygen if use_doxygen else template_header,
+            template_body
+        ))
         return template.format(
             filename=basename,
             author=fix_author(self.config.get('author', None)),
@@ -201,9 +215,16 @@ class CHeaderPlugin(Plugin):
     version = __version__
     ignore_post = {'chmodx', 'automakefile'}
     description = 'Creates a basic C or C++ header file.'
+    config_opts = {
+        'author': 'Default author name for all files.',
+        'doxygen': 'If truthy, use Doxygen-style comments, like --doxygen.',
+    }
     usage = """
     Usage:
-        header
+        header [-D]
+
+    Options:
+        -D,--doxygen  : Use Doxygen-style comments.
     """
 
     def __init__(self):
@@ -213,7 +234,13 @@ class CHeaderPlugin(Plugin):
         """ Creates a basic C/C++ header file. """
         parentdir, filepath = os.path.split(filename)
         filebase = os.path.splitext(filepath)[0]
-
+        use_doxygen = (
+            self.argd['--doxygen'] or self.config.get('doxygen', False)
+        )
+        template_lib = ''.join((
+            template_header_doxygen if use_doxygen else template_header,
+            template_lib_body
+        ))
         return template_lib.format(
             filename=filepath,
             author=fix_author(self.config.get('author', None)),

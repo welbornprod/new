@@ -26,9 +26,10 @@ class RustPlugin(Plugin):
 
     name = ('rust', 'rs')
     extensions = ('.rs',)
-    version = '0.0.4'
+    version = '0.0.5'
     # Rust doesnt need to be made executable.
     ignore_post = {'chmodx'}
+    config_opts = {'author': 'Default author name for all files.'}
 
     docopt = True
     usage = """
