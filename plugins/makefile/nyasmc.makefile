@@ -21,7 +21,7 @@ objects=$(source:.asmc=.o)
 all: debug
 
 debug: tags
-debug: LDFLAGS+=-DDEBUG -g3
+debug: LDFLAGS+=-DDEBUG -gdwarf-4 -g3
 debug: YASMFLAGS+=-g dwarf2
 debug: $(binary)
 

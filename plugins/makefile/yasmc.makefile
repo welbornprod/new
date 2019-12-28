@@ -18,7 +18,7 @@ objects=$(source:.asmc=.o)
 .PHONY: all, debug, release
 all: debug
 
-debug: LDFLAGS+=-DDEBUG -g3
+debug: LDFLAGS+=-DDEBUG -gdwarf-4 -g3
 debug: CFLAGS+=-g dwarf2
 debug: $(binary)
 

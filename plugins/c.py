@@ -6,7 +6,7 @@ import os.path
 from plugins import Plugin, date, fix_author, SignalAction
 
 
-__version__ = '0.3.1'
+__version__ = '0.3.4'
 
 # Template for defining vars.
 template_define = """
@@ -40,25 +40,22 @@ template_header_doxygen = """/*! \\file {filename}
 # Template for header file content.
 template_lib_body = """
 #ifndef {header_def}
-/* Tell gcc to ignore this unused inclusion macro. */
 #pragma GCC diagnostic ignored "-Wunused-macros"
-/* Tell gcc to ignore clang pragmas, for linting. */
+// Tell gcc to ignore clang pragmas, for linting.
 #pragma GCC diagnostic ignored "-Wunknown-pragmas"
-/* Tell clang to ignore this unused inclusion macro. */
-#pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wunused-macros"
+#pragma clang diagnostic ignored "-Wempty-translation-unit"
 #define {header_def}
-#pragma clang diagnostic pop
 
-/* Warn for any other unused macros, for gcc and clang. */
+// Warn for any other unused macros, for gcc and clang.
 #pragma GCC diagnostic warning "-Wunused-macros"
 #pragma clang diagnostic push
 #pragma clang diagnostic warning "-Wunused-macros"
 
 
 
-#pragma clang diagnostic pop /* end warning -Wunused-macros */
-#endif /* {header_def} */
+#pragma clang diagnostic pop // end warning -Wunused-macros
+#endif // {header_def}
 """
 
 # Template for C/C++ source files content.
@@ -66,7 +63,7 @@ template_body = """
 {includes}
 {defines}
 {namespace}
-int main(int argc, char *argv[]) {{
+int main(int argc, char** argv) {{
     (void)argc; // <- To silence linters when not using argc.
     (void)argv; // <- To silence linters when not using argv.
 
@@ -131,7 +128,25 @@ class CPlugin(Plugin):
     def create(self, filename):
         """ Creates a basic C file.
         """
+        use_doxygen = (
+            self.argd['--doxygen'] or self.config.get('doxygen', False)
+        )
+        template_head = (
+            template_header_doxygen if use_doxygen else template_header
+        )
+        author = self.config.get('author', '')
+        if not use_doxygen:
+            author = fix_author(author)
         basename, ext = os.path.splitext(filename)
+        base = os.path.split(filename)[-1]
+        if base.startswith('test_'):
+            self.debug('Switching to test file mode: {}'.format(filename))
+            self.ignore_post.add('automakefile')
+            return template_head.format(
+                filename=base,
+                author=author,
+                date=date(),
+            )
         if self.argd['--lib'] or (ext in CHeaderPlugin.extensions):
             # Just do the CHeader thing.
             self.debug('Library file mode, no automakefile: {}'.format(
@@ -167,16 +182,11 @@ class CPlugin(Plugin):
                 defaults=c_headers,
             )
             namespace = ''
-        use_doxygen = (
-            self.argd['--doxygen'] or self.config.get('doxygen', False)
-        )
         template = ''.join((
-            template_header_doxygen if use_doxygen else template_header,
+            template_head,
             template_body
         ))
-        author = fix_author(self.config.get('author', None))
-        if use_doxygen:
-            author = author.lstrip('-')
+
         return template.format(
             filename=basename,
             author=author,
@@ -239,7 +249,8 @@ class CHeaderPlugin(Plugin):
         parentdir, filepath = os.path.split(filename)
         filebase = os.path.splitext(filepath)[0]
         use_doxygen = (
-            self.argd['--doxygen'] or self.config.get('doxygen', False)
+            self.argd.get('--doxygen', False) or
+            self.config.get('doxygen', False)
         )
         template_lib = ''.join((
             template_header_doxygen if use_doxygen else template_header,

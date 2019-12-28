@@ -25,7 +25,7 @@ objects:=$(objects_tmp:.cc=.o)
 
 all: debug
 
-debug: CXXFLAGS+=-g3 -DDEBUG
+debug: CXXFLAGS+=-g3 -gdwarf-4 -DDEBUG
 debug: tags
 debug: $(binary)
 
@@ -36,7 +36,7 @@ $(binary): $(objects)
 	$(CXX) -o $(binary) $(CXXFLAGS) $(objects) $(LIBS)
 
 %.o: %.cpp %.cc
-	$(CXX) -c $(source) $(CXXFLAGS) $(LIBS)
+	$(CXX) -c $(source) $(CXXFLAGS)
 
 tags: $(source)
 	-@printf "Building ctags...\n";

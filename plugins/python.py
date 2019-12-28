@@ -13,7 +13,7 @@ from plugins import (
     fix_author
 )
 
-__version__ = '0.3.3'
+__version__ = '0.3.7'
 
 # TODO: This plugin was basically just copied and adapted from the original
 #       'newpython' script that inspired this project.
@@ -116,17 +116,29 @@ templates = {
                     'Colr as C',
                     'auto_disable as colr_auto_disable',
                     'docopt',
-                )
+                ),
+                'printdebug': 'DebugColrPrinter',
             },
         ],
-        'afterimports': 'colr_auto_disable()',
-        'head': ('USAGESTR = """{versionstr}\n'
+        'afterimports': [
+            'debugprinter = DebugColrPrinter()',
+            'debugprinter.enable('
+            '(\'-D\' in sys.argv) or (\'--debug\' in sys.argv)'
+            ')',
+            'debug = debugprinter.debug',
+            'debug_err = debugprinter.debug_err',
+            '',
+            'colr_auto_disable()',
+        ],
+        'head': ('USAGESTR = f"""{VERSIONSTR}\n'
                  '    Usage:\n'
-                 '        {script} [-h | -v]\n\n'
+                 '        {SCRIPT} [-h | -v]\n'
+                 '        {SCRIPT} [-D]\n\n'
                  '    Options:\n'
+                 '        -D,--debug    : Show more info while running.\n'
                  '        -h,--help     : Show this help message.\n'
                  '        -v,--version  : Show version.\n'
-                 '""".format(script=SCRIPT, versionstr=VERSIONSTR)\n'
+                 '"""\n'
                  ),
         'mainsignature': 'main(argd)',
         'maindoc': 'Main entry point, expects docopt arg dict as argd.',
@@ -136,13 +148,13 @@ templates = {
     'docopt': {
         'base': 'main',
         'imports': DEFAULT_IMPORTS + ['docopt.docopt'],
-        'head': ('USAGESTR = """{versionstr}\n'
+        'head': ('USAGESTR = f"""{VERSIONSTR}\n'
                  '    Usage:\n'
-                 '        {script} [-h | -v]\n\n'
+                 '        {SCRIPT} [-h | -v]\n\n'
                  '    Options:\n'
                  '        -h,--help     : Show this help message.\n'
                  '        -v,--version  : Show version.\n'
-                 '""".format(script=SCRIPT, versionstr=VERSIONSTR)\n'
+                 '"""\n'
                  ),
         'mainsignature': 'main(argd)',
         'maindoc': 'Main entry point, expects docopt arg dict as argd.',
@@ -188,7 +200,7 @@ template_main = """#!{shebangexe}
 
 NAME = '{scriptname}'
 VERSION = '{default_version}'
-VERSIONSTR = '{{}} v. {{}}'.format(NAME, VERSION)
+VERSIONSTR = f'{{NAME}} v. {{VERSION}}'
 SCRIPT = os.path.split(os.path.abspath(sys.argv[0]))[1]
 SCRIPTDIR = os.path.abspath(sys.path[0])
 
@@ -209,7 +221,7 @@ class InvalidArg(ValueError):
 
     def __str__(self):
         if self.msg:
-            return 'Invalid argument, {{}}'.format(self.msg)
+            return f'Invalid argument, {{self.msg}}'
         return 'Invalid argument!'
 
 
@@ -506,6 +518,13 @@ class PythonPlugin(Plugin):
         if isinstance(modulename, dict):
             lines = []
             for k in sorted(modulename):
+                if isinstance(modulename[k], str):
+                    # Handle single-item imports.
+                    lines.append('from {} import {}'.format(
+                        k,
+                        modulename[k],
+                    ))
+                    continue
                 lines.append('from {} import ('.format(k))
                 for submodule in modulename[k]:
                     lines.append('    {},'.format(submodule))

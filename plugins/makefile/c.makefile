@@ -24,7 +24,7 @@ objects:=$(source:.c=.o)
 all: debug
 
 debug: tags
-debug: CFLAGS+=-g3 -DDEBUG
+debug: CFLAGS+=-gdwarf-4 -g3 -DDEBUG
 debug: $(binary)
 
 release: CFLAGS+=-O3 -DNDEBUG
@@ -34,7 +34,7 @@ $(binary): $(objects)
 	$(CC) -o $(binary) $(CFLAGS) $(objects) $(LIBS)
 
 %.o: %.c
-	$(CC) -c $< $(CFLAGS) $(LIBS)
+	$(CC) -c $< $(CFLAGS)
 
 tags: $(source)
 	-@printf "Building ctags...\n";
