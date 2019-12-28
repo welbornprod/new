@@ -1350,6 +1350,10 @@ def try_post_plugin(plugincls, typeplugin, filepaths):
             ex
         ))
         return PluginReturn.fatal
+    disabled = plugin.config.get('disabled', None)
+    if disabled:
+        debug('Skipping disabled plugin: {}'.format(plugin.get_name()))
+        return PluginReturn.success
 
     try:
         if plugin.multifile:
